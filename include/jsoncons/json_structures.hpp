@@ -21,6 +21,7 @@
 #include <initializer_list>
 #include <jsoncons/json_exception.hpp>
 #include <jsoncons/jsoncons_utilities.hpp>
+#include <jsoncons/json_type_traits.hpp>
 
 namespace jsoncons {
 
@@ -385,9 +386,18 @@ public:
     {
     }
 
-    key_value_pair(key_storage_type&& name, ValueT&& val)
+    template <class T>
+    key_value_pair(key_storage_type&& name, T&& val)
         : key_(std::forward<key_storage_type>(name)), 
-          value_(std::forward<ValueT>(val))
+          value_(std::forward<T>(val))
+    {
+    }
+
+    template <class T>
+    key_value_pair(key_storage_type&& name, 
+                   T&& val, 
+                   const allocator_type& allocator)
+        : key_(std::forward<key_storage_type>(name)), value_(std::forward<T>(val), allocator)
     {
     }
 
@@ -398,14 +408,6 @@ public:
 
     key_value_pair(key_value_pair&& member)
         : key_(std::move(member.key_)), value_(std::move(member.value_))
-    {
-    }
-
-    template <class T>
-    key_value_pair(key_storage_type&& name, 
-                   T&& val, 
-                   const allocator_type& allocator)
-        : key_(std::forward<key_storage_type>(name)), value_(std::forward<T>(val), allocator)
     {
     }
 
@@ -589,38 +591,24 @@ public:
     {
     }
 
-    json_object(std::initializer_list<typename Json::array> init)
+    json_object(std::initializer_list<std::pair<string_view_type,Json>> init)
         : Json_object_<KeyT,Json>()
     {
-        for (const auto& element : init)
+        this->members_.reserve(init.size());
+        for (auto& item : init)
         {
-            if (element.size() != 2 || !element[0].is_string())
-            {
-                JSONCONS_THROW_EXCEPTION(std::runtime_error, "Cannot create object from initializer list");
-                break;
-            }
-        }
-        for (auto& element : init)
-        {
-            insert_or_assign(element[0].as_string_view(), std::move(element[1]));
+            insert_or_assign(item.first, std::move(item.second));
         }
     }
 
-    json_object(std::initializer_list<typename Json::array> init, 
+    json_object(std::initializer_list<std::pair<string_view_type,Json>> init, 
                 const allocator_type& allocator)
         : Json_object_<KeyT,Json>(allocator)
     {
-        for (const auto& element : init)
+        this->members_.reserve(init.size());
+        for (auto& item : init)
         {
-            if (element.size() != 2 || !element[0].is_string())
-            {
-                JSONCONS_THROW_EXCEPTION(std::runtime_error, "Cannot create object from initializer list");
-                break;
-            }
-        }
-        for (auto& element : init)
-        {
-            insert_or_assign(element[0].as_string_view(), std::move(element[1]));
+            insert_or_assign(item.first, std::move(item.second), allocator);
         }
     }
 
@@ -888,7 +876,7 @@ public:
         }
         else if (it->key() == name)
         {
-            it->value(std::forward<T>(value));
+            it->value(Json(std::forward<T>(value)));
             inserted = false; // assigned
         }
         else
@@ -1072,7 +1060,7 @@ public:
         }
         else if (string_view_type(it->key().data(),it->key().length()) == s)
         {
-            it->value(std::forward<T>(value));
+            it->value(Json(std::forward<T>(value)));
         }
         else
         {
@@ -1130,7 +1118,7 @@ public:
         }
         else if (it->key() == name)
         {
-            it->value(std::forward<T>(value));
+            it->value(Json(std::forward<T>(value)));
         }
         else
         {
