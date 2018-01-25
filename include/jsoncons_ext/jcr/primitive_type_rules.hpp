@@ -8,6 +8,7 @@
 #define JSONCONS_JCR_PRIMITIVETYPERULES_HPP
 
 #include <string>
+#include <limits>
 #include <jsoncons/json_exception.hpp>
 #include <jsoncons/jsoncons_utilities.hpp>
 #include <jsoncons_ext/jcr/json_content_rule.hpp>
@@ -44,6 +45,36 @@ class integer_rule : public virtual json_content_rule
 {
 public:
     integer_rule()
+    {
+    }
+};
+
+class integer_range_rule : public virtual json_content_rule
+{
+    int64_t from_;
+    int64_t to_;
+public:
+    integer_range_rule(int64_t from)
+        : from_(from), to_((std::numeric_limits<int64_t>::max)())
+    {
+    }
+    integer_range_rule(int64_t from, int64_t to)
+        : from_(from), to_(to)
+    {
+    }
+};
+
+class uinteger_range_rule : public virtual json_content_rule
+{
+    uint64_t from_;
+    uint64_t to_;
+public:
+    uinteger_range_rule(uint64_t from)
+        : from_(from), to_((std::numeric_limits<uint64_t>::max)())
+    {
+    }
+    uinteger_range_rule(uint64_t from, uint64_t to)
+        : from_(from), to_(to)
     {
     }
 };

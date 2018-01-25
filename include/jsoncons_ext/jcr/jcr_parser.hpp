@@ -1890,6 +1890,22 @@ positive_integer:
                 state_ = parse_state::positive_integer;
                 return;
         }
+integer_range_or_fraction:
+        if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
+        {
+            state_ = integer_range_or_fraction;
+            return;
+        }
+        switch (*p_)
+        {
+        case '.':
+            {
+                ++p_;
+                break;
+            }
+        default:
+            goto fraction1;
+        }
 fraction1:
         if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
         {
