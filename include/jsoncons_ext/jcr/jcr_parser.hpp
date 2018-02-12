@@ -17,6 +17,7 @@
 #include <system_error>
 #include <unordered_map>
 #include <jsoncons/json_exception.hpp>
+#include <jsoncons/detail/number_parsers.hpp>
 #include <jsoncons_ext/jcr/jcr_input_handler.hpp>
 #include <jsoncons/parse_error_handler.hpp>
 #include <jsoncons_ext/jcr/jcr_error_category.hpp>
@@ -67,6 +68,7 @@ enum class parse_state : uint8_t
     negative_zero,  
     negative_integer,
     positive_integer,
+    integer_range_or_fraction,
     fraction1,
     fraction2,
     exp1,
@@ -119,7 +121,7 @@ class basic_jcr_parser : private parsing_context
     int initial_stack_capacity_;
 
     int max_depth_;
-    string_to_double str_to_double_;
+    jsoncons::detail::string_to_double str_to_double_;
     const CharT* begin_input_;
     const CharT* end_input_;
     const CharT* p_;
@@ -1893,7 +1895,7 @@ positive_integer:
 integer_range_or_fraction:
         if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
         {
-            state_ = integer_range_or_fraction;
+            state_ = parse_state::integer_range_or_fraction;
             return;
         }
         switch (*p_)

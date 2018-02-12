@@ -8,7 +8,7 @@
 #define JSONCONS_JCR_JCR_ERROR_CATEGORY_HPP
 
 #include <system_error>
-#include <jsoncons/detail/jsoncons_config.hpp>
+#include <jsoncons/jsoncons_config.hpp>
 
 namespace jsoncons {
 namespace jcr {
