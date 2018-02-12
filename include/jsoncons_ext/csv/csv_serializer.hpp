@@ -13,42 +13,23 @@
 #include <ostream>
 #include <cstdlib>
 #include <unordered_map>
+#include <memory>
 #include <limits> // std::numeric_limits
 #include <jsoncons/json_exception.hpp>
 #include <jsoncons/serialization_options.hpp>
 #include <jsoncons/json_output_handler.hpp>
+#include <jsoncons/detail/number_printers.hpp>
 #include <jsoncons/detail/obufferedstream.hpp>
 #include <jsoncons_ext/csv/csv_parameters.hpp>
+#include <jsoncons/detail/writers.hpp>
 
 namespace jsoncons { namespace csv {
 
-template <class CharT>
-void escape_string(const CharT* s,
-                   size_t length,
-                   CharT quote_char, CharT quote_escape_char,
-                   buffered_output<CharT>& os)
-{
-    const CharT* begin = s;
-    const CharT* end = s + length;
-    for (const CharT* it = begin; it != end; ++it)
-    {
-        CharT c = *it;
-        if (c == quote_char)
-        {
-            os.put(quote_escape_char); 
-            os.put(quote_char);
-        }
-        else
-        {
-            os.put(c);
-        }
-    }
-}
-
-template<class CharT,class Allocator=std::allocator<CharT>>
+template<class CharT,class Writer=jsoncons::detail::ostream_buffered_writer<CharT>,class Allocator=std::allocator<CharT>>
 class basic_csv_serializer : public basic_json_output_handler<CharT>
 {
 public:
+    typedef typename Writer::output_type output_type;
 
     typedef Allocator allocator_type;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<CharT> char_allocator_type;
@@ -72,11 +53,11 @@ private:
         size_t count_;
         string_type name_;
     };
-    buffered_output<CharT> os_;
+    Writer writer_;
     basic_csv_parameters<CharT,Allocator> parameters_;
     basic_serialization_options<CharT> options_;
     std::vector<stack_item> stack_;
-    print_double<CharT> fp_;
+    jsoncons::detail::print_double fp_;
     std::vector<string_type,string_allocator_type> column_names_;
 
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<std::pair<const string_type,string_type>> string_string_allocator_type;
@@ -86,9 +67,9 @@ private:
     basic_csv_serializer(const basic_csv_serializer&) = delete;
     basic_csv_serializer& operator=(const basic_csv_serializer&) = delete;
 public:
-    basic_csv_serializer(std::basic_ostream<CharT>& os)
+    basic_csv_serializer(output_type& os)
        :
-       os_(os),
+       writer_(os),
        options_(),
        stack_(),
        fp_(options_.precision()),
@@ -96,10 +77,10 @@ public:
     {
     }
 
-    basic_csv_serializer(std::basic_ostream<CharT>& os,
+    basic_csv_serializer(output_type& os,
                          const basic_csv_parameters<CharT,Allocator>& params)
        :
-       os_(os),
+       writer_(os),
        parameters_(params),
        options_(),
        stack_(),
@@ -110,13 +91,36 @@ public:
 
 private:
 
+    template<class AnyWriter>
+    void escape_string(const CharT* s,
+                       size_t length,
+                       CharT quote_char, CharT quote_escape_char,
+                       AnyWriter& writer)
+    {
+        const CharT* begin = s;
+        const CharT* end = s + length;
+        for (const CharT* it = begin; it != end; ++it)
+        {
+            CharT c = *it;
+            if (c == quote_char)
+            {
+                writer.put(quote_escape_char); 
+                writer.put(quote_char);
+            }
+            else
+            {
+                writer.put(c);
+            }
+        }
+    }
+
     void do_begin_json() override
     {
     }
 
     void do_end_json() override
     {
-        os_.flush();
+        writer_.flush();
     }
 
     void do_begin_object() override
@@ -134,26 +138,26 @@ private:
                 {
                     if (i > 0)
                     {
-                        os_.put(parameters_.field_delimiter());
+                        writer_.put(parameters_.field_delimiter());
                     }
-                    os_.write(column_names_[i]);
+                    writer_.write(column_names_[i]);
                 }
-                os_.write(parameters_.line_delimiter());
+                writer_.write(parameters_.line_delimiter());
             }
             for (size_t i = 0; i < column_names_.size(); ++i)
             {
                 if (i > 0)
                 {
-                    os_.put(parameters_.field_delimiter());
+                    writer_.put(parameters_.field_delimiter());
                 }
                 auto it = buffered_line_.find(column_names_[i]);
                 if (it != buffered_line_.end())
                 {
-                    os_.write(it->second);
+                    writer_.write(it->second);
                     it->second.clear();
                 }
             }
-            os_.write(parameters_.line_delimiter());
+            writer_.write(parameters_.line_delimiter());
         }
         stack_.pop_back();
 
@@ -171,13 +175,13 @@ private:
                 {
                     if (i > 0)
                     {
-                        os_.put(parameters_.field_delimiter());
+                        writer_.put(parameters_.field_delimiter());
                     }
-                    os_.write(column_names_[i]);
+                    writer_.write(column_names_[i]);
                 }
                 if (column_names_.size() > 0)
                 {
-                    os_.write(parameters_.line_delimiter());
+                    writer_.write(parameters_.line_delimiter());
                 }
             }
         }
@@ -187,7 +191,7 @@ private:
     {
         if (stack_.size() == 2)
         {
-            os_.write(parameters_.line_delimiter());
+            writer_.write(parameters_.line_delimiter());
         }
         stack_.pop_back();
 
@@ -207,7 +211,8 @@ private:
         }
     }
 
-    void write_string(const CharT* s, size_t length, buffered_output<CharT>& os)
+    template <class AnyWriter>
+    void write_string(const CharT* s, size_t length, AnyWriter& writer)
     {
         bool quote = false;
         if (parameters_.quote_style() == quote_style_type::all || parameters_.quote_style() == quote_style_type::nonnumeric ||
@@ -215,12 +220,12 @@ private:
             (std::char_traits<CharT>::find(s, length, parameters_.field_delimiter()) != nullptr || std::char_traits<CharT>::find(s, length, parameters_.quote_char()) != nullptr)))
         {
             quote = true;
-            os.put(parameters_.quote_char());
+            writer.put(parameters_.quote_char());
         }
-        jsoncons::csv::escape_string<CharT>(s, length, parameters_.quote_char(), parameters_.quote_escape_char(), os);
+        escape_string(s, length, parameters_.quote_char(), parameters_.quote_escape_char(), writer);
         if (quote)
         {
-            os.put(parameters_.quote_char());
+            writer.put(parameters_.quote_char());
         }
 
     }
@@ -234,16 +239,16 @@ private:
                 auto it = buffered_line_.find(stack_.back().name_);
                 if (it != buffered_line_.end())
                 {
-                    basic_obufferedstream<CharT> ss;
-                    buffered_output<CharT> bo(ss,10);
+                    std::basic_string<CharT> s;
+                    jsoncons::detail::string_writer<CharT> bo(s);
                     do_null_value(bo);
                     bo.flush();
-                    it->second = std::basic_string<CharT>(ss.data(),ss.length());
+                    it->second = s;
                 }
             }
             else
             {
-                do_null_value(os_);
+                do_null_value(writer_);
             }
         }
     }
@@ -257,16 +262,16 @@ private:
                 auto it = buffered_line_.find(stack_.back().name_);
                 if (it != buffered_line_.end())
                 {
-                    basic_obufferedstream<CharT> ss;
-                    buffered_output<CharT> bo(ss,1000);
+                    std::basic_string<CharT> s;
+                    jsoncons::detail::string_writer<CharT> bo(s);
                     value(val,bo);
                     bo.flush();
-                    it->second = std::basic_string<CharT>(ss.data(),ss.length());
+                    it->second = s;
                 }
             }
             else
             {
-                value(val,os_);
+                value(val,writer_);
             }
         }
     }
@@ -276,10 +281,8 @@ private:
 
     }
 
-    void do_double_value(double val, uint8_t precision) override
+    void do_double_value(double val, const number_format&) override
     {
-        (void)precision;
-
         if (stack_.size() == 2)
         {
             if (stack_.back().is_object())
@@ -287,16 +290,16 @@ private:
                 auto it = buffered_line_.find(stack_.back().name_);
                 if (it != buffered_line_.end())
                 {
-                    basic_obufferedstream<CharT> ss;
-                    buffered_output<CharT> bo(ss,30);
+                    std::basic_string<CharT> s;
+                    jsoncons::detail::string_writer<CharT> bo(s);
                     value(val,bo);
                     bo.flush();
-                    it->second = std::basic_string<CharT>(ss.data(),ss.length());
+                    it->second = s;
                 }
             }
             else
             {
-                value(val,os_);
+                value(val,writer_);
             }
         }
     }
@@ -310,16 +313,16 @@ private:
                 auto it = buffered_line_.find(stack_.back().name_);
                 if (it != buffered_line_.end())
                 {
-                    basic_obufferedstream<CharT> ss;
-                    buffered_output<CharT> bo(ss,30);
+                    std::basic_string<CharT> s;
+                    jsoncons::detail::string_writer<CharT> bo(s);
                     value(val,bo);
                     bo.flush();
-                    it->second = std::basic_string<CharT>(ss.data(),ss.length());
+                    it->second = s;
                 }
             }
             else
             {
-                value(val,os_);
+                value(val,writer_);
             }
         }
     }
@@ -333,16 +336,16 @@ private:
                 auto it = buffered_line_.find(stack_.back().name_);
                 if (it != buffered_line_.end())
                 {
-                    basic_obufferedstream<CharT> ss;
-                    buffered_output<CharT> bo(ss,30);
+                    std::basic_string<CharT> s;
+                    jsoncons::detail::string_writer<CharT> bo(s);
                     value(val,bo);
                     bo.flush();
-                    it->second = std::basic_string<CharT>(ss.data(),ss.length());
+                    it->second = s;
                 }
             }
             else
             {
-                value(val,os_);
+                value(val,writer_);
             }
         }
     }
@@ -356,108 +359,115 @@ private:
                 auto it = buffered_line_.find(stack_.back().name_);
                 if (it != buffered_line_.end())
                 {
-                    basic_obufferedstream<CharT> ss;
-                    buffered_output<CharT> bo(ss,30);
+                    std::basic_string<CharT> s;
+                    jsoncons::detail::string_writer<CharT> bo(s);
                     value(val,bo);
                     bo.flush();
-                    it->second = std::basic_string<CharT>(ss.data(),ss.length());
+                    it->second = s;
                 }
             }
             else
             {
-                value(val,os_);
+                value(val,writer_);
             }
         }
     }
 
-    void value(const string_view_type& value, buffered_output<CharT>& os)
+    template <class AnyWriter>
+    void value(const string_view_type& value, AnyWriter& writer)
     {
-        begin_value(os);
-        write_string(value.data(),value.length(),os);
+        begin_value(writer);
+        write_string(value.data(),value.length(),writer);
         end_value();
     }
 
-    void value(double val, buffered_output<CharT>& os)
+    template <class AnyWriter>
+    void value(double val, AnyWriter& writer)
     {
-        begin_value(os);
+        begin_value(writer);
 
         if ((std::isnan)(val))
         {
-            os.write(options_.nan_replacement());
+            writer.write(options_.nan_replacement());
         }
         else if (val == std::numeric_limits<double>::infinity())
         {
-            os.write(options_.pos_inf_replacement());
+            writer.write(options_.pos_inf_replacement());
         }
         else if (!(std::isfinite)(val))
         {
-            os.write(options_.neg_inf_replacement());
+            writer.write(options_.neg_inf_replacement());
         }
         else
         {
-            fp_(val,options_.precision(),os);
+            fp_(val,options_.precision(),writer);
         }
 
         end_value();
 
     }
 
-    void value(int64_t val, buffered_output<CharT>& os)
+    template <class AnyWriter>
+    void value(int64_t val, AnyWriter& writer)
     {
-        begin_value(os);
+        begin_value(writer);
 
         std::basic_ostringstream<CharT> ss;
         ss << val;
-        os.write(ss.str());
+        writer.write(ss.str());
 
         end_value();
     }
 
-    void value(uint64_t val, buffered_output<CharT>& os)
+    template <class AnyWriter>
+    void value(uint64_t val, AnyWriter& writer)
     {
-        begin_value(os);
+        begin_value(writer);
 
         std::basic_ostringstream<CharT> ss;
         ss << val;
-        os.write(ss.str());
+        writer.write(ss.str());
 
         end_value();
     }
 
-    void value(bool val, buffered_output<CharT>& os) 
+    template <class AnyWriter>
+    void value(bool val, AnyWriter& writer) 
     {
-        begin_value(os);
+        begin_value(writer);
 
         if (val)
         {
             auto buf = jsoncons::detail::true_literal<CharT>();
-            os.write(buf,4);
+            writer.write(buf,4);
         }
         else
         {
             auto buf = jsoncons::detail::false_literal<CharT>();
-            os.write(buf,5);
+            writer.write(buf,5);
         }
 
         end_value();
     }
 
-    void do_null_value(buffered_output<CharT>& os) 
+    template <class AnyWriter>
+    void do_null_value(AnyWriter& writer) 
     {
-        begin_value(os);
+        begin_value(writer);
         auto buf = jsoncons::detail::null_literal<CharT>();
-        os.write(buf,4);
+        writer.write(buf,4);
         end_value();
 
     }
 
-    void begin_value(buffered_output<CharT>& os)
+    template <class AnyWriter>
+    void begin_value(AnyWriter& writer)
     {
         if (!stack_.empty())
         {
             if (!stack_.back().is_object_ && stack_.back().count_ > 0)
             {
-                os.put(parameters_.field_delimiter());
+                writer.put(parameters_.field_delimiter());
             }
         }
     }
@@ -474,14 +484,16 @@ private:
 template <class Json>
 void encode_csv(const Json& j, std::basic_ostream<typename Json::char_type>& os)
 {
-    basic_csv_serializer<typename Json::char_type> serializer(os);
+    typedef typename Json::char_type char_type;
+    basic_csv_serializer<char_type> serializer(os);
     j.dump(serializer);
 }
 
 template <class Json,class Allocator>
 void encode_csv(const Json& j, std::basic_ostream<typename Json::char_type>& os, const basic_csv_parameters<typename Json::char_type,Allocator>& params)
 {
-    basic_csv_serializer<typename Json::char_type,Allocator> serializer(os,params);
+    typedef typename Json::char_type char_type;
+    basic_csv_serializer<char_type,jsoncons::detail::ostream_buffered_writer<char_type>,Allocator> serializer(os,params);
     j.dump(serializer);
 }
 

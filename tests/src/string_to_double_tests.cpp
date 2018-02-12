@@ -9,6 +9,7 @@
 #include <utility>
 #include <ctime>
 #include <cwchar>
+#include <jsoncons/detail/number_parsers.hpp>
 
 using namespace jsoncons;
 
@@ -16,6 +17,8 @@ BOOST_AUTO_TEST_SUITE(string_to_double_tests)
 
 BOOST_AUTO_TEST_CASE(test_string_to_double)
 {
+    std::cout << "sizeof(json): " << sizeof(json) << std::endl; 
+
     const char* s1 = "0.0";
     json j1 = json::parse(s1);
     double expected1 = 0.0;
@@ -35,7 +38,7 @@ BOOST_AUTO_TEST_CASE(test_string_to_double)
 
 BOOST_AUTO_TEST_CASE(test_exponent)
 {
-    string_to_double reader;
+    detail::string_to_double reader;
     const char* begin = "1.15507e-173";
     const char* endptr = begin + strlen(begin);
     const double value1 = 1.15507e-173;

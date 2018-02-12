@@ -88,19 +88,17 @@ public:
 
     void double_value(double value, const parsing_context& context)
     {
-        do_double_value(value, std::numeric_limits<double>::digits10, context);
+        do_double_value(value, number_format(), context);
     }
 
     void double_value(double value, uint8_t precision, const parsing_context& context)
     {
-        if (precision == 0)
-        {
-            do_double_value(value, std::numeric_limits<double>::digits10, context);
-        }
-        else
-        {
-            do_double_value(value, precision, context);
-        }
+        do_double_value(value, number_format(precision, 0), context);
+    }
+
+    void double_value(double value, const number_format& fmt, const parsing_context& context)
+    {
+        do_double_value(value, fmt, context);
     }
 
     void bool_value(bool value, const parsing_context& context) 
@@ -167,12 +165,12 @@ public:
 
     void value(float value, uint8_t precision, const parsing_context& context)
     {
-        do_double_value(value, precision, context);
+        do_double_value(value, number_format(precision, 0), context);
     }
 
     void value(double value, uint8_t precision, const parsing_context& context)
     {
-        do_double_value(value, precision, context);
+        do_double_value(value, number_format(precision, 0), context);
     }
 
     void value(bool value, const parsing_context& context) 
@@ -207,7 +205,7 @@ private:
 
     virtual void do_byte_string_value(const uint8_t* data, size_t length, const parsing_context& context) = 0;
 
-    virtual void do_double_value(double value, uint8_t precision, const parsing_context& context) = 0;
+    virtual void do_double_value(double value, const number_format& fmt, const parsing_context& context) = 0;
 
     virtual void do_integer_value(int64_t value, const parsing_context& context) = 0;
 
@@ -262,7 +260,7 @@ private:
     {
     }
 
-    void do_double_value(double, uint8_t, const parsing_context&) override
+    void do_double_value(double, const number_format& fmt, const parsing_context&) override
     {
     }
 
