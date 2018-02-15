@@ -1098,14 +1098,7 @@ public:
                 break;
             case parse_state::minus:
             case parse_state::positive_zero:  
-            case parse_state::negative_zero:  
             case parse_state::positive_integer: 
-            case parse_state::negative_integer: 
-            case parse_state::fraction1: 
-            case parse_state::fraction2: 
-            case parse_state::exp1: 
-            case parse_state::exp2:  
-            case parse_state::exp3: 
                 parse_number(ec);  
                 if (ec) return;
                 break;
@@ -1510,22 +1503,8 @@ public:
                 goto minus_sign;
             case parse_state::positive_zero:
                 goto positive_zero;
-            case parse_state::negative_zero:
-                goto negative_zero;
             case parse_state::positive_integer:
                 goto positive_integer;
-            case parse_state::negative_integer:
-                goto negative_integer;
-            case parse_state::fraction1:
-                goto fraction1;
-            case parse_state::fraction2:
-                goto fraction2;
-            case parse_state::exp1:
-                goto exp1;
-            case parse_state::exp2:
-                goto exp2;
-            case parse_state::exp3:
-                goto exp3;
             default:
                 JSONCONS_UNREACHABLE();               
         }
@@ -1612,7 +1591,7 @@ negative_zero:
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
-                goto fraction1;
+                goto integer_range_or_fraction;
             case 'e':case 'E':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
@@ -1710,7 +1689,7 @@ negative_integer:
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
-                goto fraction1;
+                goto integer_range_or_fraction;
             case 'e':case 'E':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
@@ -1781,7 +1760,7 @@ positive_zero:
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
-                goto fraction1;
+                goto integer_range_or_fraction;
             case 'e':case 'E':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
@@ -1871,7 +1850,7 @@ positive_integer:
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
-                goto fraction1;
+                goto integer_range_or_fraction;
             case 'e':case 'E':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
