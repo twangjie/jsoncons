@@ -20,6 +20,26 @@
 
 namespace jsoncons { namespace msgpack {
   
+class msgpack_decode_error : public std::invalid_argument, public virtual json_exception
+{
+public:
+    explicit msgpack_decode_error(size_t pos) JSONCONS_NOEXCEPT
+        : std::invalid_argument("")
+    {
+        buffer_.append("Error decoding a message pack at position ");
+        buffer_.append(std::to_string(pos));
+    }
+    ~msgpack_decode_error() JSONCONS_NOEXCEPT
+    {
+    }
+    const char* what() const JSONCONS_NOEXCEPT override
+    {
+        return buffer_.c_str();
+    }
+private:
+    std::string buffer_;
+};
+
 namespace msgpack_format
 {
     const uint8_t nil_cd = 0xc0;
@@ -289,7 +309,7 @@ public:
             unicons::conv_flags::strict);
         if (result.ec != unicons::conv_errc())
         {
-            JSONCONS_THROW_EXCEPTION(std::runtime_error,"Illegal unicode");
+            JSONCONS_THROW(json_exception_impl<std::runtime_error>("Illegal unicode"));
         }
 
         const size_t length = target.length();
@@ -390,7 +410,7 @@ public:
                     first, last,std::back_inserter(target),unicons::conv_flags::strict);
                 if (result.ec != unicons::conv_errc())
                 {
-                    JSONCONS_THROW_EXCEPTION(std::runtime_error,"Illegal unicode");
+                    JSONCONS_THROW(json_exception_impl<std::runtime_error>("Illegal unicode"));
                 }
                 return Json(target);
             }
@@ -498,7 +518,7 @@ public:
                         first, last,std::back_inserter(target),unicons::conv_flags::strict);
                     if (result.ec != unicons::conv_errc())
                     {
-                        JSONCONS_THROW_EXCEPTION(std::runtime_error,"Illegal unicode");
+                        JSONCONS_THROW(json_exception_impl<std::runtime_error>("Illegal unicode"));
                     }
                     return target;
                 }
@@ -515,7 +535,7 @@ public:
                         first, last,std::back_inserter(target),unicons::conv_flags::strict);
                     if (result.ec != unicons::conv_errc())
                     {
-                        JSONCONS_THROW_EXCEPTION(std::runtime_error,"Illegal unicode");
+                        JSONCONS_THROW(json_exception_impl<std::runtime_error>("Illegal unicode"));
                     }
                     return target;
                 }
@@ -532,7 +552,7 @@ public:
                         first, last,std::back_inserter(target),unicons::conv_flags::strict);
                     if (result.ec != unicons::conv_errc())
                     {
-                        JSONCONS_THROW_EXCEPTION(std::runtime_error,"Illegal unicode");
+                        JSONCONS_THROW(json_exception_impl<std::runtime_error>("Illegal unicode"));
                     }
                     return target;
                 }
@@ -593,7 +613,7 @@ public:
 
                 default:
                 {
-                    JSONCONS_THROW_EXCEPTION_1(std::invalid_argument,"Error decoding a message pack at position %s", std::to_string(end_-pos));
+                    JSONCONS_THROW(msgpack_decode_error(end_-pos));
                 }
             }
         }

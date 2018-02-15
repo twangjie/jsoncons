@@ -43,6 +43,26 @@
         0xa0:case 0xa1:case 0xa2:case 0xa3:case 0xa4:case 0xa5:case 0xa6:case 0xa7:case 0xa8:case 0xa9:case 0xaa:case 0xab:case 0xac:case 0xad:case 0xae:case 0xaf:case 0xb0:case 0xb1:case 0xb2:case 0xb3:case 0xb4:case 0xb5:case 0xb6:case 0xb7
 
 namespace jsoncons { namespace cbor {
+  
+class cbor_decode_error : public std::invalid_argument, public virtual json_exception
+{
+public:
+    explicit cbor_decode_error(size_t pos) JSONCONS_NOEXCEPT
+        : std::invalid_argument("")
+    {
+        buffer_.append("Error decoding a cbor at position ");
+        buffer_.append(std::to_string(pos));
+    }
+    ~cbor_decode_error() JSONCONS_NOEXCEPT
+    {
+    }
+    const char* what() const JSONCONS_NOEXCEPT override
+    {
+        return buffer_.c_str();
+    }
+private:
+    std::string buffer_;
+};
 
 namespace detail {
     const uint8_t* walk(const uint8_t* it, const uint8_t* end);
@@ -94,7 +114,7 @@ namespace detail {
             }
         default: 
             {
-                JSONCONS_THROW_EXCEPTION_1(std::invalid_argument,"Error decoding a cbor at position %s", std::to_string(end-pos));
+                JSONCONS_THROW(cbor_decode_error(end-pos));
             }
         }
     }
@@ -113,7 +133,7 @@ namespace detail {
                 {
                     if (it == end)
                     {
-                        JSONCONS_THROW_EXCEPTION(std::invalid_argument,"eof");
+                        JSONCONS_THROW(json_exception_impl<std::invalid_argument>("eof"));
                     }
                     std::string ss;
                     std::tie(ss,it) = detail::get_fixed_length_text_string(it,end);
@@ -174,7 +194,7 @@ namespace detail {
             }
         default: 
             {
-                JSONCONS_THROW_EXCEPTION_1(std::invalid_argument,"Error decoding a cbor at position %s", std::to_string(end-pos));
+                JSONCONS_THROW(cbor_decode_error(end-pos));
             }
         }
     }
@@ -193,7 +213,7 @@ namespace detail {
                 {
                     if (it == end)
                     {
-                        JSONCONS_THROW_EXCEPTION(std::invalid_argument,"eof");
+                        JSONCONS_THROW(json_exception_impl<std::invalid_argument>("eof"));
                     }
                     std::vector<uint8_t> ss;
                     std::tie(ss,it) = detail::get_fixed_length_byte_string(it,end);
@@ -245,7 +265,7 @@ namespace detail {
                     return x;
                 }
             default:
-                JSONCONS_THROW_EXCEPTION(std::runtime_error,"Not an unsigned integer");
+                JSONCONS_THROW(json_exception_impl<std::runtime_error>("Not an unsigned integer"));
         }
     }
 
@@ -407,7 +427,7 @@ namespace detail {
                 {
                     if (it == end)
                     {
-                        JSONCONS_THROW_EXCEPTION(std::invalid_argument,"eof");
+                        JSONCONS_THROW(json_exception_impl<std::invalid_argument>("eof"));
                     }
                     it = walk(it, end);
                 }
@@ -455,7 +475,7 @@ namespace detail {
                 {
                     if (it == end)
                     {
-                        JSONCONS_THROW_EXCEPTION(std::invalid_argument,"eof");
+                        JSONCONS_THROW(json_exception_impl<std::invalid_argument>("eof"));
                     }
                     it = walk(it, end);
                 }
@@ -600,7 +620,7 @@ namespace detail {
 
         default:
             {
-                JSONCONS_THROW_EXCEPTION_1(std::invalid_argument,"Error decoding a cbor at position %s", std::to_string(end-pos));
+                JSONCONS_THROW(cbor_decode_error(end-pos));
             }
         }
     }
@@ -753,27 +773,9 @@ public:
     cbor_view(const cbor_view& other)
         : buffer_(other.buffer_), buflen_(other.buflen_)
     {
-
-    }
-
-    cbor_view(cbor_view&& other)
-        : buffer_(nullptr), buflen_(0)
-    {
-        std::swap(buffer_,other.buffer_);
-        std::swap(buflen_,other.buflen_);
     }
 
     cbor_view& operator=(const cbor_view&) = default;
-
-    cbor_view& operator=(cbor_view&& other)
-    {
-        if (this != &other)
-        {
-            std::swap(buffer_,other.buffer_);
-            std::swap(buflen_,other.buflen_);
-        }
-        return *this;
-    }
 
     const uint8_t* buffer() const
     {
@@ -846,7 +848,7 @@ public:
             const uint8_t* last = detail::walk(it, end);
             it = last;
         }
-        JSONCONS_THROW_EXCEPTION(std::runtime_error,"Key not found");
+        JSONCONS_THROW(json_exception_impl<std::runtime_error>("Key not found"));
     }
 
     bool has_key(const string_view_type& key) const
@@ -1101,7 +1103,7 @@ struct cbor_Encoder_
             unicons::conv_flags::strict);
         if (result.ec != unicons::conv_errc())
         {
-            JSONCONS_THROW_EXCEPTION(std::runtime_error,"Illegal unicode");
+            JSONCONS_THROW(json_exception_impl<std::runtime_error>("Illegal unicode"));
         }
 
         const size_t length = target.length();
@@ -1294,7 +1296,7 @@ public:
                 auto result = unicons::convert(s.begin(),s.end(),std::back_inserter(target),unicons::conv_flags::strict);
                 if (result.ec != unicons::conv_errc())
                 {
-                    JSONCONS_THROW_EXCEPTION(std::runtime_error,"Illegal unicode");
+                    JSONCONS_THROW(json_exception_impl<std::runtime_error>("Illegal unicode"));
                 }
                 return Json(target);
             }
@@ -1447,7 +1449,7 @@ public:
 
         default:
             {
-                JSONCONS_THROW_EXCEPTION_1(std::invalid_argument,"Error decoding a cbor at position %s", std::to_string(end_-pos));
+                JSONCONS_THROW(cbor_decode_error(end_-pos));
             }
         }
     }

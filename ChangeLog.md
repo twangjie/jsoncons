@@ -1,3 +1,19 @@
+v0.103.0
+--------
+
+Changes
+
+- Default `string_view_type` `operator std::basic_string<CharT,Traits,Allocator>() const` made explicit
+  to be consistent with `std::string_view`
+
+Performance improvements
+
+- Faster json dump to string (avoids streams)
+- Faster floating point conversions for linux and MacOSX
+- Memory allocation decoding larger string values reduced by half 
+- Optimization to json_parser parse_string 
+- Improvements to json_decoder
+
 v0.102.1
 --------
 

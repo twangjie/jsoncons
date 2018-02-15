@@ -19,7 +19,7 @@
 
 namespace jsoncons { namespace jsonpatch {
 
-class jsonpatch_error : public std::exception
+class jsonpatch_error : public std::exception, public virtual json_exception
 {
 public:
     jsonpatch_error(const std::error_code& ec)
@@ -339,7 +339,7 @@ void apply_patch(Json& target, const Json& patch, std::error_code& patch_ec)
                     }
                     else
                     {
-                        unwinder.stack.push_back({detail::op_type::add,path,val});
+                        unwinder.stack.push_back({detail::op_type::add,string_type(path),val});
                     }
                 }
             }
@@ -367,7 +367,7 @@ void apply_patch(Json& target, const Json& patch, std::error_code& patch_ec)
                     }
                     else
                     {
-                        unwinder.stack.push_back({detail::op_type::replace,path,val});
+                        unwinder.stack.push_back({detail::op_type::replace,string_type(path),val});
                     }
                 }
             }
@@ -398,7 +398,7 @@ void apply_patch(Json& target, const Json& patch, std::error_code& patch_ec)
                         }
                         else
                         {
-                            unwinder.stack.push_back({detail::op_type::add,from,val});
+                            unwinder.stack.push_back({detail::op_type::add,string_type(from),val});
                             // add
                             std::error_code insert_ec;
                             auto npath = jsonpointer::normalized_path(target,path);
@@ -493,7 +493,7 @@ void apply_patch(Json& target, const Json& patch, std::error_code& patch_ec)
             }
             if (unwinder.state != detail::state_type::begin)
             {
-                bad_path = path;
+                bad_path = string_type(path);
             }
         }
         if (unwinder.state != detail::state_type::begin)
@@ -521,7 +521,7 @@ void apply_patch(Json& target, const Json& patch)
     apply_patch(target, patch, ec);
     if (ec)
     {
-        throw jsonpatch_error(ec);
+        JSONCONS_THROW(jsonpatch_error(ec));
     }
 }
 
