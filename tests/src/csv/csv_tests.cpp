@@ -6,7 +6,7 @@
 #endif
 
 #include <boost/test/unit_test.hpp>
-//#include <jsoncons_ext/csv/csv_parameters.hpp>
+//#include <jsoncons_ext/csv/csv_serializing_options.hpp>
 #include <jsoncons_ext/csv/csv_reader.hpp>
 #include <jsoncons_ext/csv/csv_serializer.hpp>
 #include <jsoncons/json_reader.hpp>
@@ -21,7 +21,7 @@ using namespace jsoncons::csv;
 
 BOOST_AUTO_TEST_SUITE(csv_tests)
 
-BOOST_AUTO_TEST_CASE(n_columns_test)
+BOOST_AUTO_TEST_CASE(n_objects_test)
 {
     const std::string bond_yields = R"(Date,1Y,2Y,3Y,5Y
 2017-01-09,0.0062,0.0075,0.0083,0.011
@@ -30,39 +30,54 @@ BOOST_AUTO_TEST_CASE(n_columns_test)
 )";
 
     json_decoder<ojson> decoder;
-    csv_parameters params;
-    params.assume_header(true)
-          .column_types("string,float,float,float,float");
+    csv_serializing_options options;
+    options.assume_header(true)
+          .subfield_delimiter(0);
+          //.column_types("string,float,float,float,float");
 
-    params.mapping(mapping_type::n_rows);
+    options.mapping(mapping_type::n_rows);
     std::istringstream is1(bond_yields);
-    csv_reader reader1(is1,decoder,params);
+    csv_reader reader1(is1,decoder,options);
     reader1.read();
     ojson val1 = decoder.get_result();
     //std::cout << "\n(1)\n"<< pretty_print(val1) << "\n";
     BOOST_CHECK(val1.size() == 4);
 
-    params.mapping(mapping_type::n_objects);
+    options.mapping(mapping_type::n_objects);
     std::istringstream is2(bond_yields);
-    csv_reader reader2(is2,decoder,params);
+    csv_reader reader2(is2,decoder,options);
     reader2.read();
     ojson val2 = decoder.get_result();
     //std::cout << "\n(2)\n"<< pretty_print(val2) << "\n";
     BOOST_REQUIRE(val2.size() == 3);
     BOOST_CHECK("2017-01-09" == val2[0]["Date"].as<std::string>());
+}
 
-    params.mapping(mapping_type::m_columns);
-    std::istringstream is3(bond_yields);
-    csv_reader reader3(is3, decoder, params);
-    reader3.read();
-    ojson val3 = decoder.get_result();
-    //std::cout << "\n(3)\n"<< pretty_print(val3) << "\n";
-    BOOST_CHECK(5 == val3.size());
-    BOOST_CHECK(3 == val3["Date"].size());
-    BOOST_CHECK(3 == val3["1Y"].size());
-    BOOST_CHECK(3 == val3["2Y"].size());
-    BOOST_CHECK(3 == val3["3Y"].size());
-    BOOST_CHECK(3 == val3["5Y"].size());
+BOOST_AUTO_TEST_CASE(m_columns_test)
+{
+    const std::string bond_yields = R"(Date,ProductType,1Y,2Y,3Y,5Y
+2017-01-09,"Bond",0.0062,0.0075,0.0083,0.011
+2017-01-08,"Bond",0.0063,0.0076,0.0084,0.0112
+2017-01-08,"Bond",0.0063,0.0076,0.0084,0.0112
+)";
+    std::cout << bond_yields << std::endl <<std::endl;
+
+    json_decoder<ojson> decoder;
+    csv_serializing_options options;
+    options.assume_header(true)
+          .mapping(mapping_type::m_columns);
+
+    std::istringstream is(bond_yields);
+    csv_reader reader(is, decoder, options);
+    reader.read();
+    ojson j = decoder.get_result();
+    std::cout << "\n(1)\n"<< pretty_print(j) << "\n";
+    BOOST_CHECK(6 == j.size());
+    BOOST_CHECK(3 == j["Date"].size());
+    BOOST_CHECK(3 == j["1Y"].size());
+    BOOST_CHECK(3 == j["2Y"].size());
+    BOOST_CHECK(3 == j["3Y"].size());
+    BOOST_CHECK(3 == j["5Y"].size());
 }
 
 BOOST_AUTO_TEST_CASE(csv_test_empty_values)
@@ -76,11 +91,11 @@ BOOST_AUTO_TEST_CASE(csv_test_empty_values)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true)
+    csv_serializing_options options;
+    options.assume_header(true)
           .column_types("boolean,integer,float,string");
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -123,14 +138,16 @@ BOOST_AUTO_TEST_CASE(csv_test_empty_values_with_defaults)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true) 
+    csv_serializing_options options;
+    options.assume_header(true) 
           .column_types("boolean,integer,float,string")
           .column_defaults("false,0,0.0,\"\"");
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
+
+    std::cout << pretty_print(val) << std::endl;
 
     BOOST_CHECK(val[0]["bool-f"].as<bool>() == false);
     BOOST_CHECK(val[0]["bool-f"].is<bool>());
@@ -171,12 +188,12 @@ BOOST_AUTO_TEST_CASE(csv_test_empty_values_with_empty_defaults)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true)
+    csv_serializing_options options;
+    options.assume_header(true)
           .column_types("boolean,integer,float,string")
           .column_defaults(",,,");
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -208,17 +225,39 @@ BOOST_AUTO_TEST_CASE(csv_test_empty_values_with_empty_defaults)
     BOOST_CHECK(val[0]["string-f"].is<std::string>());
 }
 
-BOOST_AUTO_TEST_CASE(csv_test1_array_1col_skip1)
+BOOST_AUTO_TEST_CASE(csv_test1_array_1col_skip1_a)
 {
     std::string text = "a\n1\n4";
     std::istringstream is(text);
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.header_lines(1);
+    csv_serializing_options options;
+    options.header_lines(1);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
+    reader.read();
+    json val = decoder.get_result();
+
+    BOOST_CHECK(val.size()==2);
+    BOOST_CHECK(val[0].size()==1);
+    BOOST_CHECK(val[1].size()==1);
+    BOOST_CHECK(val[0][0]==json(1));
+    BOOST_CHECK(val[1][0]==json(4));
+}
+
+BOOST_AUTO_TEST_CASE(csv_test1_array_1col_skip1_b)
+{
+    std::string text = "a\n1\n4";
+    std::istringstream is(text);
+
+    json_decoder<json> decoder;
+
+    csv_serializing_options options;
+    options.header_lines(1);
+    options.infer_types(false);
+
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -229,18 +268,39 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_1col_skip1)
     BOOST_CHECK(val[1][0]==json("4"));
 }
 
-
-BOOST_AUTO_TEST_CASE(csv_test1_array_1col)
+BOOST_AUTO_TEST_CASE(csv_test1_array_1col_a)
 {
     std::string text = "1\n4";
     std::istringstream is(text);
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false);
+    csv_serializing_options options;
+    options.assume_header(false);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
+    reader.read();
+    json val = decoder.get_result();
+
+    BOOST_CHECK(val.size()==2);
+    BOOST_CHECK(val[0].size()==1);
+    BOOST_CHECK(val[1].size()==1);
+    BOOST_CHECK(val[0][0]==json(1));
+    BOOST_CHECK(val[1][0]==json(4));
+}
+
+BOOST_AUTO_TEST_CASE(csv_test1_array_1col_b)
+{
+    std::string text = "1\n4";
+    std::istringstream is(text);
+
+    json_decoder<json> decoder;
+
+    csv_serializing_options options;
+    options.assume_header(false);
+    options.infer_types(false);
+
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -258,10 +318,10 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false);
+    csv_serializing_options options;
+    options.assume_header(false);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -272,12 +332,12 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols)
     BOOST_CHECK(val[0][0]==json("a"));
     BOOST_CHECK(val[0][1]==json("b"));
     BOOST_CHECK(val[0][2]==json("c"));
-    BOOST_CHECK(val[1][0]==json("1"));
-    BOOST_CHECK(val[1][1]==json("2"));
-    BOOST_CHECK(val[1][2]==json("3"));
-    BOOST_CHECK(val[2][0]==json("4"));
-    BOOST_CHECK(val[2][1]==json("5"));
-    BOOST_CHECK(val[2][2]==json("6"));
+    BOOST_CHECK(val[1][0]==json(1));
+    BOOST_CHECK(val[1][1]==json(2));
+    BOOST_CHECK(val[1][2]==json(3));
+    BOOST_CHECK(val[2][0]==json(4));
+    BOOST_CHECK(val[2][1]==json(5));
+    BOOST_CHECK(val[2][2]==json(6));
 }
 BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_trim_leading)
 {
@@ -286,11 +346,11 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_trim_leading)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false)
+    csv_serializing_options options;
+    options.assume_header(false)
           .trim_leading(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -301,9 +361,9 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_trim_leading)
     BOOST_CHECK(val[0][0]==json("a "));
     BOOST_CHECK(val[0][1]==json("b "));
     BOOST_CHECK(val[0][2]==json("c "));
-    BOOST_CHECK(val[1][0]==json("1"));
-    BOOST_CHECK(val[1][1]==json("2"));
-    BOOST_CHECK(val[1][2]==json("3"));
+    BOOST_CHECK(val[1][0]==json(1));
+    BOOST_CHECK(val[1][1]==json(2));
+    BOOST_CHECK(val[1][2]==json(3));
     BOOST_CHECK(val[2][0]==json("4 "));
     BOOST_CHECK(val[2][1]==json("5 "));
     BOOST_CHECK(val[2][2]==json("6 "));
@@ -316,11 +376,11 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_trim_trailing)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false)
+    csv_serializing_options options;
+    options.assume_header(false)
           .trim_trailing(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -346,12 +406,12 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_trim)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false)
+    csv_serializing_options options;
+    options.assume_header(false)
           .trim(true)
           .unquoted_empty_value_is_null(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -362,12 +422,12 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_trim)
     BOOST_CHECK(val[0][0]==json("a"));
     BOOST_CHECK(val[0][1]==json::null());
     BOOST_CHECK(val[0][2]==json::null());
-    BOOST_CHECK(val[1][0]==json("1"));
-    BOOST_CHECK(val[1][1]==json("2"));
-    BOOST_CHECK(val[1][2]==json("3"));
-    BOOST_CHECK(val[2][0]==json("4"));
-    BOOST_CHECK(val[2][1]==json("5"));
-    BOOST_CHECK(val[2][2]==json("6"));
+    BOOST_CHECK(val[1][0]==json(1));
+    BOOST_CHECK(val[1][1]==json(2));
+    BOOST_CHECK(val[1][2]==json(3));
+    BOOST_CHECK(val[2][0]==json(4));
+    BOOST_CHECK(val[2][1]==json(5));
+    BOOST_CHECK(val[2][2]==json(6));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_comment)
@@ -377,10 +437,10 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_comment)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.comment_starter('#');
+    csv_serializing_options options;
+    options.comment_starter('#');
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -390,9 +450,9 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_comment)
     BOOST_CHECK(val[0][0]==json("a"));
     BOOST_CHECK(val[0][1]==json("b"));
     BOOST_CHECK(val[0][2]==json("c"));
-    BOOST_CHECK(val[1][0]==json("4"));
-    BOOST_CHECK(val[1][1]==json("5"));
-    BOOST_CHECK(val[1][2]==json("6"));
+    BOOST_CHECK(val[1][0]==json(4));
+    BOOST_CHECK(val[1][1]==json(5));
+    BOOST_CHECK(val[1][2]==json(6));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_object_1col)
@@ -402,18 +462,18 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_1col)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
     BOOST_CHECK(val.size()==2);
     BOOST_CHECK(val[0].size()==1);
     BOOST_CHECK(val[1].size()==1);
-    BOOST_CHECK(val[0]["a"]==json("1"));
-    BOOST_CHECK(val[1]["a"]==json("4"));
+    BOOST_CHECK(val[0]["a"]==json(1));
+    BOOST_CHECK(val[1]["a"]==json(4));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_object_3cols)
@@ -423,22 +483,22 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_3cols)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
     BOOST_CHECK(val.size()==2);
     BOOST_CHECK(val[0].size()==3);
     BOOST_CHECK(val[1].size()==3);
-    BOOST_CHECK(val[0]["a"]==json("1"));
-    BOOST_CHECK(val[0]["b"]==json("2"));
-    BOOST_CHECK(val[0]["c"]==json("3"));
-    BOOST_CHECK(val[1]["a"]==json("4"));
-    BOOST_CHECK(val[1]["b"]==json("5"));
-    BOOST_CHECK(val[1]["c"]==json("6"));
+    BOOST_CHECK(val[0]["a"]==json(1));
+    BOOST_CHECK(val[0]["b"]==json(2));
+    BOOST_CHECK(val[0]["c"]==json(3));
+    BOOST_CHECK(val[1]["a"]==json(4));
+    BOOST_CHECK(val[1]["b"]==json(5));
+    BOOST_CHECK(val[1]["c"]==json(6));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_header)
@@ -448,23 +508,23 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_header)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.column_names("x,y,z")
+    csv_serializing_options options;
+    options.column_names("x,y,z")
           .header_lines(1);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
     BOOST_CHECK(val.size()==2);
     BOOST_CHECK(val[0].size()==3);
     BOOST_CHECK(val[1].size()==3);
-    BOOST_CHECK(val[0]["x"]==json("1"));
-    BOOST_CHECK(val[0]["y"]==json("2"));
-    BOOST_CHECK(val[0]["z"]==json("3"));
-    BOOST_CHECK(val[1]["x"]==json("4"));
-    BOOST_CHECK(val[1]["y"]==json("5"));
-    BOOST_CHECK(val[1]["z"]==json("6"));
+    BOOST_CHECK(val[0]["x"]==json(1));
+    BOOST_CHECK(val[0]["y"]==json(2));
+    BOOST_CHECK(val[0]["z"]==json(3));
+    BOOST_CHECK(val[1]["x"]==json(4));
+    BOOST_CHECK(val[1]["y"]==json(5));
+    BOOST_CHECK(val[1]["z"]==json(6));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_bool)
@@ -474,12 +534,12 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_bool)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.column_names("x,y,z")
+    csv_serializing_options options;
+    options.column_names("x,y,z")
           .column_types("boolean,boolean,boolean")
           .header_lines(1);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -501,10 +561,10 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_1col_quoted)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -522,10 +582,10 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_quoted)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -535,8 +595,8 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_quoted)
     BOOST_CHECK(val[0]["a"]==json("1"));
     BOOST_CHECK(val[0]["b"]==json("2"));
     BOOST_CHECK(val[0]["c"]==json("3"));
-    BOOST_CHECK(val[1]["a"]==json("4"));
-    BOOST_CHECK(val[1]["b"]==json("5"));
+    BOOST_CHECK(val[1]["a"]==json(4));
+    BOOST_CHECK(val[1]["b"]==json(5));
     BOOST_CHECK(val[1]["c"]==json("6"));
 }
 
@@ -547,18 +607,18 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_1col_crlf)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false);
+    csv_serializing_options options;
+    options.assume_header(false);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
     BOOST_CHECK(val.size()==2);
     BOOST_CHECK(val[0].size()==1);
     BOOST_CHECK(val[1].size()==1);
-    BOOST_CHECK(val[0][0]==json("1"));
-    BOOST_CHECK(val[1][0]==json("4"));
+    BOOST_CHECK(val[0][0]==json(1));
+    BOOST_CHECK(val[1][0]==json(4));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_crlf)
@@ -568,10 +628,10 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_crlf)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false);
+    csv_serializing_options options;
+    options.assume_header(false);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -582,12 +642,12 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_crlf)
     BOOST_CHECK(val[0][0]==json("a"));
     BOOST_CHECK(val[0][1]==json("b"));
     BOOST_CHECK(val[0][2]==json("c"));
-    BOOST_CHECK(val[1][0]==json("1"));
-    BOOST_CHECK(val[1][1]==json("2"));
-    BOOST_CHECK(val[1][2]==json("3"));
-    BOOST_CHECK(val[2][0]==json("4"));
-    BOOST_CHECK(val[2][1]==json("5"));
-    BOOST_CHECK(val[2][2]==json("6"));
+    BOOST_CHECK(val[1][0]==json(1));
+    BOOST_CHECK(val[1][1]==json(2));
+    BOOST_CHECK(val[1][2]==json(3));
+    BOOST_CHECK(val[2][0]==json(4));
+    BOOST_CHECK(val[2][1]==json(5));
+    BOOST_CHECK(val[2][2]==json(6));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_object_1col_crlf)
@@ -597,18 +657,18 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_1col_crlf)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
     BOOST_CHECK(val.size()==2);
     BOOST_CHECK(val[0].size()==1);
     BOOST_CHECK(val[1].size()==1);
-    BOOST_CHECK(val[0]["a"]==json("1"));
-    BOOST_CHECK(val[1]["a"]==json("4"));
+    BOOST_CHECK(val[0]["a"]==json(1));
+    BOOST_CHECK(val[1]["a"]==json(4));
 }
 
 BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_crlf)
@@ -618,22 +678,22 @@ BOOST_AUTO_TEST_CASE(csv_test1_object_3cols_crlf)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
     BOOST_CHECK(val.size()==2);
     BOOST_CHECK(val[0].size()==3);
     BOOST_CHECK(val[1].size()==3);
-    BOOST_CHECK(val[0]["a"]==json("1"));
-    BOOST_CHECK(val[0]["b"]==json("2"));
-    BOOST_CHECK(val[0]["c"]==json("3"));
-    BOOST_CHECK(val[1]["a"]==json("4"));
-    BOOST_CHECK(val[1]["b"]==json("5"));
-    BOOST_CHECK(val[1]["c"]==json("6"));
+    BOOST_CHECK(val[0]["a"]==json(1));
+    BOOST_CHECK(val[0]["b"]==json(2));
+    BOOST_CHECK(val[0]["c"]==json(3));
+    BOOST_CHECK(val[1]["a"]==json(4));
+    BOOST_CHECK(val[1]["b"]==json(5));
+    BOOST_CHECK(val[1]["c"]==json(6));
 }
 
 BOOST_AUTO_TEST_CASE(read_comma_delimited_file)
@@ -643,10 +703,10 @@ BOOST_AUTO_TEST_CASE(read_comma_delimited_file)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json countries = decoder.get_result();
 
@@ -668,11 +728,11 @@ BOOST_AUTO_TEST_CASE(read_comma_delimited_file_header)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.column_names("Country Code,Name")
+    csv_serializing_options options;
+    options.column_names("Country Code,Name")
           .header_lines(1);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json countries = decoder.get_result();
     BOOST_CHECK_EQUAL(4,countries.size());
@@ -691,8 +751,8 @@ BOOST_AUTO_TEST_CASE(serialize_comma_delimited_file)
     std::string in_file = "./input/countries.json";
     std::ifstream is(in_file);
 
-    csv_parameters params;
-    params.assume_header(false);
+    csv_serializing_options options;
+    options.assume_header(false);
 
     json_decoder<ojson> encoder1;
     json_reader reader1(is,encoder1);
@@ -700,11 +760,11 @@ BOOST_AUTO_TEST_CASE(serialize_comma_delimited_file)
     ojson countries1 = encoder1.get_result();
 
     std::stringstream ss;
-    csv_serializer serializer(ss,params);
+    csv_serializer serializer(ss,options);
     countries1.dump(serializer);
 
     json_decoder<ojson> encoder2;
-    csv_reader reader2(ss,encoder2,params);
+    csv_reader reader2(ss,encoder2,options);
     reader2.read();
     ojson countries2 = encoder2.get_result();
 
@@ -717,11 +777,11 @@ BOOST_AUTO_TEST_CASE(test_tab_delimited_file)
     std::ifstream is(in_file);
 
     json_decoder<json> decoder;
-    csv_parameters params;
-    params.field_delimiter('\t')
+    csv_serializing_options options;
+    options.field_delimiter('\t')
           .assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json employees = decoder.get_result();
     BOOST_CHECK_EQUAL(4,employees.size());
@@ -737,8 +797,8 @@ BOOST_AUTO_TEST_CASE(serialize_tab_delimited_file)
     std::ifstream is(in_file);
 
     json_decoder<ojson> decoder;
-    csv_parameters params;
-    params.assume_header(false)
+    csv_serializing_options options;
+    options.assume_header(false)
           .header_lines(1)
           .column_names("dept,employee-name,employee-no,note,comment,salary")
           .field_delimiter('\t');
@@ -748,13 +808,13 @@ BOOST_AUTO_TEST_CASE(serialize_tab_delimited_file)
     ojson employees1 = decoder.get_result();
 
     std::stringstream ss;
-    csv_serializer serializer(ss,params);
+    csv_serializer serializer(ss,options);
     //std::cout << pretty_print(employees1) << std::endl;
     employees1.dump(serializer);
     //std::cout << ss.str() << std::endl;
 
     json_decoder<ojson> encoder2;
-    csv_reader reader2(ss,encoder2,params);
+    csv_reader reader2(ss,encoder2,options);
     reader2.read();
     ojson employees2 = encoder2.get_result();
     //std::cout << pretty_print(employees2) << std::endl;
@@ -778,11 +838,11 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_grouped1)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false)
+    csv_serializing_options options;
+    options.assume_header(false)
           .column_types("integer,[integer]*");
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
@@ -810,25 +870,25 @@ BOOST_AUTO_TEST_CASE(csv_test1_array_3cols_grouped2)
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(false)
+    csv_serializing_options options;
+    options.assume_header(false)
           .column_types("integer,[integer,integer]*");
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json val = decoder.get_result();
 
     //std::cout << val << std::endl;
 /*
-    BOOST_REQUIRE(params.column_types().size() == 4);
-    BOOST_CHECK(params.column_types()[0].first == csv_column_type::integer_t);
-    BOOST_CHECK(params.column_types()[0].second == 0);
-    BOOST_CHECK(params.column_types()[1].first == csv_column_type::integer_t);
-    BOOST_CHECK(params.column_types()[1].second == 1);
-    BOOST_CHECK(params.column_types()[2].first == csv_column_type::integer_t);
-    BOOST_CHECK(params.column_types()[2].second == 1);
-    BOOST_CHECK(params.column_types()[3].first == csv_column_type::repeat_t);
-    BOOST_CHECK(params.column_types()[3].second == 2);
+    BOOST_REQUIRE(options.column_types().size() == 4);
+    BOOST_CHECK(options.column_types()[0].first == csv_column_type::integer_t);
+    BOOST_CHECK(options.column_types()[0].second == 0);
+    BOOST_CHECK(options.column_types()[1].first == csv_column_type::integer_t);
+    BOOST_CHECK(options.column_types()[1].second == 1);
+    BOOST_CHECK(options.column_types()[2].first == csv_column_type::integer_t);
+    BOOST_CHECK(options.column_types()[2].second == 1);
+    BOOST_CHECK(options.column_types()[3].first == csv_column_type::repeat_t);
+    BOOST_CHECK(options.column_types()[3].second == 2);
 */
 }
 
@@ -840,7 +900,7 @@ BOOST_AUTO_TEST_CASE(csv_test1_repeat)
     2017-01-08,0.0063,0.0076,0.0084,0.0112,0.014
     )";    
 
-    auto result = csv_parameters::parse_column_types("string,float*");
+    auto result = csv_serializing_options::parse_column_types("string,float*");
     BOOST_REQUIRE(result.size() == 3);
     BOOST_CHECK(result[0].col_type == csv_column_type::string_t);
     BOOST_CHECK(result[0].level == 0);
@@ -852,7 +912,7 @@ BOOST_AUTO_TEST_CASE(csv_test1_repeat)
     BOOST_CHECK(result[2].level == 0);
     BOOST_CHECK_EQUAL(1, result[2].rep_count);
 
-    auto result2 = csv_parameters::parse_column_types("string,[float*]");
+    auto result2 = csv_serializing_options::parse_column_types("string,[float*]");
     BOOST_REQUIRE(result2.size() == 3);
     BOOST_CHECK(result2[0].col_type == csv_column_type::string_t);
     BOOST_CHECK(result2[0].level == 0);
@@ -864,7 +924,7 @@ BOOST_AUTO_TEST_CASE(csv_test1_repeat)
     BOOST_CHECK(result2[2].level == 1);
     BOOST_CHECK_EQUAL(1, result2[2].rep_count);
 
-    auto result3 = csv_parameters::parse_column_types("string,[float]*");
+    auto result3 = csv_serializing_options::parse_column_types("string,[float]*");
     BOOST_REQUIRE(result3.size() == 3);
     BOOST_CHECK(result3[0].col_type == csv_column_type::string_t);
     BOOST_CHECK(result3[0].level == 0);
@@ -879,9 +939,9 @@ BOOST_AUTO_TEST_CASE(csv_test1_repeat)
 
 BOOST_AUTO_TEST_CASE(csv_test1_repeat2)
 {
-    csv_parameters params1;
-    params1.column_types("[integer,string]*");
-    for (auto x : params1.column_types())
+    csv_serializing_options options1;
+    options1.column_types("[integer,string]*");
+    for (auto x : options1.column_types())
     {
         std::cout << (int)x.col_type << " " << x.level << " " << x.rep_count << std::endl;
     }
@@ -901,10 +961,10 @@ WLF,WALLIS & FUTUNA ISLANDS
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json j = decoder.get_result();
     BOOST_CHECK(j.size() == 4);
@@ -926,11 +986,11 @@ WLF,WALLIS & FUTUNA ISLANDS
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true)
+    csv_serializing_options options;
+    options.assume_header(true)
           .ignore_empty_lines(false);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json j = decoder.get_result();
     BOOST_CHECK(j.size() == 5);
@@ -952,10 +1012,10 @@ WLF,WALLIS & FUTUNA ISLANDS
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json j = decoder.get_result();
     BOOST_CHECK(j.size() == 5);
@@ -977,11 +1037,11 @@ WLF,WALLIS & FUTUNA ISLANDS
 
     json_decoder<json> decoder;
 
-    csv_parameters params;
-    params.assume_header(true)
+    csv_serializing_options options;
+    options.assume_header(true)
           .trim(true);
 
-    csv_reader reader(is,decoder,params);
+    csv_reader reader(is,decoder,options);
     reader.read();
     json j = decoder.get_result();
     BOOST_CHECK(j.size() == 4);
@@ -992,18 +1052,18 @@ WLF,WALLIS & FUTUNA ISLANDS
 BOOST_AUTO_TEST_CASE(test_decode_csv_from_string)
 {
     std::string s = "some label\nsome value";
-    csv_parameters params;
-    params.assume_header(true);
-    std::cout << decode_csv<json>(s,params) << std::endl;
+    csv_serializing_options options;
+    options.assume_header(true);
+    std::cout << decode_csv<json>(s,options) << std::endl;
 }
 
 BOOST_AUTO_TEST_CASE(test_decode_csv_from_stream)
 {
     std::string s = "some label\nsome value";
     std::stringstream is(s);
-    csv_parameters params;
-    params.assume_header(true);
-    std::cout << decode_csv<json>(is,params) << std::endl;
+    csv_serializing_options options;
+    options.assume_header(true);
+    std::cout << decode_csv<json>(is,options) << std::endl;
 }
 
 BOOST_AUTO_TEST_CASE(test_encode_csv_to_stream)
@@ -1011,11 +1071,43 @@ BOOST_AUTO_TEST_CASE(test_encode_csv_to_stream)
     json j = json::array();
     j.push_back(json::object({ {"a",1},{"b",2} }));
     std::cout << j << std::endl;
-    csv_parameters params;
-    params.assume_header(true);
+    csv_serializing_options options;
+    options.assume_header(true);
     std::ostringstream os;
-    encode_csv(j, os, params);
+    encode_csv(j, os, options);
     std::cout << os.str() << std::endl;
+}
+
+BOOST_AUTO_TEST_CASE(test_type_inference)
+{
+    const std::string input = R"(customer_name,has_coupon,phone_number,zip_code,sales_tax_rate,total_amount
+"John Roe",true,0272561313,01001,0.05,431.65
+"Jane Doe",false,416-272-2561,55416,0.15,480.70
+"Joe Bloggs",false,"4162722561","55416",0.15,300.70
+"John Smith",FALSE,NULL,22313-1450,0.15,300.70
+)";
+
+    std::cout << input << std::endl;
+
+    json_decoder<ojson> decoder;
+
+    csv_serializing_options options;
+    options.assume_header(true);
+
+    options.mapping(mapping_type::n_rows);
+    ojson j1 = decode_csv<ojson>(input,options);
+    std::cout << "\n(1)\n"<< pretty_print(j1) << "\n";
+    //BOOST_CHECK(j1.size() == 4);
+
+    options.mapping(mapping_type::n_objects);
+    ojson j2 = decode_csv<ojson>(input,options);
+    std::cout << "\n(2)\n"<< pretty_print(j2) << "\n";
+
+    options.mapping(mapping_type::m_columns);
+    ojson j3 = decode_csv<ojson>(input,options);
+    std::cout << "\n(3)\n"<< pretty_print(j3) << "\n";
+    //BOOST_REQUIRE(j2.size() == 3);
+    //BOOST_CHECK("2017-01-09" == j2[0]["Date"].as<std::string>());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

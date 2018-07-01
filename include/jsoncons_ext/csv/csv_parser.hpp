@@ -17,12 +17,14 @@
 #include <system_error>
 #include <cctype>
 #include <jsoncons/json_exception.hpp>
-#include <jsoncons/json_input_handler.hpp>
+#include <jsoncons/json_content_handler.hpp>
 #include <jsoncons/parse_error_handler.hpp>
 #include <jsoncons/json_reader.hpp>
 #include <jsoncons/json_filter.hpp>
+#include <jsoncons/json.hpp>
+#include <jsoncons/detail/parse_number.hpp>
 #include <jsoncons_ext/csv/csv_error_category.hpp>
-#include <jsoncons_ext/csv/csv_parameters.hpp>
+#include <jsoncons_ext/csv/csv_serializing_options.hpp>
 
 namespace jsoncons { namespace csv {
 
@@ -30,7 +32,8 @@ enum class csv_mode_type
 {
     initial,
     header,
-    data
+    data,
+    subfields
 };
 
 enum class csv_state_type 
@@ -53,9 +56,9 @@ enum class csv_state_type
 };
 
 template<class CharT,class Allocator=std::allocator<CharT>>
-class basic_csv_parser : private parsing_context
+class basic_csv_parser : private serializing_context
 {
-    typedef basic_string_view_ext<CharT> string_view_type;
+    typedef basic_string_view<CharT> string_view_type;
     typedef CharT char_type;
     typedef Allocator allocator_type;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<CharT> char_allocator_type;
@@ -64,6 +67,7 @@ class basic_csv_parser : private parsing_context
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<csv_mode_type> csv_mode_allocator_type;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<csv_type_info> csv_type_info_allocator_type;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<std::vector<string_type,string_allocator_type>> string_vector_allocator_type;
+    typedef basic_json<CharT,preserve_order_policy,Allocator> json_type;
 
     static const int default_depth = 3;
 
@@ -71,7 +75,7 @@ class basic_csv_parser : private parsing_context
     csv_state_type state_;
     int top_;
     std::vector<csv_mode_type,csv_mode_allocator_type> stack_;
-    basic_json_input_handler<CharT>& handler_;
+    basic_json_content_handler<CharT>& handler_;
     parse_error_handler& err_handler_;
     size_t index_;
     unsigned long column_;
@@ -80,7 +84,7 @@ class basic_csv_parser : private parsing_context
     CharT prev_char_;
     string_type value_buffer_;
     int depth_;
-    basic_csv_parameters<CharT,Allocator> parameters_;
+    basic_csv_serializing_options<CharT,Allocator> parameters_;
     std::vector<string_type,string_allocator_type> column_names_;
     std::vector<std::vector<string_type,string_allocator_type>,string_vector_allocator_type> column_values_;
     std::vector<csv_type_info,csv_type_info_allocator_type> column_types_;
@@ -89,9 +93,11 @@ class basic_csv_parser : private parsing_context
     basic_json_fragment_filter<CharT> filter_;
     size_t level_;
     size_t offset_;
+    jsoncons::detail::string_to_double to_double_; 
+    std::vector<json_decoder<json_type>> decoders_;
 
 public:
-    basic_csv_parser(basic_json_input_handler<CharT>& handler)
+    basic_csv_parser(basic_json_content_handler<CharT>& handler)
        : top_(-1),
          stack_(default_depth),
          handler_(handler),
@@ -109,14 +115,14 @@ public:
         column_index_ = 0;
     }
 
-    basic_csv_parser(basic_json_input_handler<CharT>& handler,
-                     basic_csv_parameters<CharT,Allocator> params)
+    basic_csv_parser(basic_json_content_handler<CharT>& handler,
+                     basic_csv_serializing_options<CharT,Allocator> options)
        : top_(-1),
          stack_(default_depth),
          handler_(handler),
          err_handler_(default_err_handler_),
          index_(0),
-         parameters_(params),
+         parameters_(options),
          filter_(handler),
          level_(0),
          offset_(0)
@@ -129,7 +135,7 @@ public:
         column_index_ = 0;
     }
 
-    basic_csv_parser(basic_json_input_handler<CharT>& handler,
+    basic_csv_parser(basic_json_content_handler<CharT>& handler,
                      parse_error_handler& err_handler)
        : top_(-1),
          stack_(default_depth),
@@ -148,15 +154,15 @@ public:
         column_index_ = 0;
     }
 
-    basic_csv_parser(basic_json_input_handler<CharT>& handler,
+    basic_csv_parser(basic_json_content_handler<CharT>& handler,
                      parse_error_handler& err_handler,
-                     basic_csv_parameters<CharT,Allocator> params)
+                     basic_csv_serializing_options<CharT,Allocator> options)
        : top_(-1),
          stack_(default_depth),
          handler_(handler),
          err_handler_(err_handler),
          index_(0),
-         parameters_(params),
+         parameters_(options),
          filter_(handler),
          level_(0),
          offset_(0)
@@ -173,11 +179,6 @@ public:
     {
     }
 
-    const parsing_context& parsing_context() const
-    {
-        return *this;
-    }
-
     bool done() const
     {
         return state_ == csv_state_type::done;
@@ -188,8 +189,73 @@ public:
         return column_names_;
     }
 
+    void before_field()
+    {
+        switch (stack_[top_])
+        {
+        case csv_mode_type::header:
+            if (parameters_.assume_header() && line_ == 1)
+            {
+                column_names_.push_back(value_buffer_);
+            }
+            break;
+        case csv_mode_type::data:
+        case csv_mode_type::subfields:
+            switch (parameters_.mapping())
+            {
+            case mapping_type::n_objects:
+                if (!(parameters_.ignore_empty_values() && value_buffer_.size() == 0))
+                {
+                    if (column_index_ < column_names_.size() + offset_)
+                    {
+                        handler_.name(column_names_[column_index_ - offset_], *this);
+                    }
+                }
+                break;
+            default:
+                break;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    void before_multi_valued_field()
+    {
+        push_mode(csv_mode_type::subfields);
+        switch (parameters_.mapping())
+        {
+        case mapping_type::n_rows:
+        case mapping_type::n_objects:
+            handler_.begin_array(*this);
+            break;
+        case mapping_type::m_columns:
+            decoders_[column_index_].begin_array(*this);
+            break;
+        default:
+            break;
+        }
+    }
+
     void after_field()
     {
+        if (stack_[top_] == csv_mode_type::subfields)
+        {
+            pop_mode(csv_mode_type::subfields);
+            switch (parameters_.mapping())
+            {
+            case mapping_type::n_rows:
+            case mapping_type::n_objects:
+                handler_.end_array(*this);
+                break;
+            case mapping_type::m_columns:
+                decoders_[column_index_].end_array(*this);
+                break;
+            default:
+                break;
+            }
+        }
         ++column_index_;
     }
 
@@ -239,16 +305,24 @@ public:
                     handler_.begin_array(*this);
                     for (const auto& name : column_names_)
                     {
-                        end_value(name,column_index_);
+                        handler_.string_value(name, *this);
                     }
                     handler_.end_array(*this);
+                }
+                break;
+            case mapping_type::m_columns:
+                for (const auto& name : column_names_)
+                {
+                    decoders_.push_back(json_decoder<json_type>());
+                    decoders_.back().begin_json();
+                    decoders_.back().begin_array(*this);
                 }
                 break;
             default:
                 break;
             }
         }
-        else if (stack_[top_] == csv_mode_type::data)
+        else if (stack_[top_] == csv_mode_type::data || stack_[top_] == csv_mode_type::subfields)
         {
             switch (parameters_.mapping())
             {
@@ -343,17 +417,6 @@ all_csv_states:
                     goto all_csv_states;
                 }
                 break;
-            case csv_state_type::between_fields:
-                if (curr_char_ == '\r' || (prev_char_ != '\r' && curr_char_ == '\n'))
-                {
-                    after_record();
-                    state_ = csv_state_type::expect_value;
-                }
-                else if (curr_char_ == parameters_.field_delimiter())
-                {
-                    state_ = csv_state_type::expect_value;
-                }
-                break;
             case csv_state_type::escaped_value: 
                 {
                     if (curr_char_ == parameters_.quote_char())
@@ -363,13 +426,6 @@ all_csv_states:
                     }
                     else if (parameters_.quote_escape_char() == parameters_.quote_char())
                     {
-                        if (column_index_ == 0)
-                        {
-                            before_record();
-                        }
-                        end_quoted_string_value(ec);
-                        if (ec) return;
-                        after_field();
                         state_ = csv_state_type::between_fields;
                         goto all_csv_states;
                     }
@@ -383,13 +439,6 @@ all_csv_states:
                     }
                     else if (curr_char_ == parameters_.quote_char())
                     {
-                        if (column_index_ == 0)
-                        {
-                            before_record();
-                        }
-                        end_quoted_string_value(ec);
-                        if (ec) return;
-                        after_field();
                         state_ = csv_state_type::between_fields;
                     }
                     else
@@ -398,9 +447,66 @@ all_csv_states:
                     }
                 }
                 break;
+            case csv_state_type::between_fields:
+                if (prev_char_ == '\r' && curr_char_ == '\n')
+                {
+                }
+                else if (curr_char_ == '\r' || curr_char_ == '\n')
+                {
+                    if (parameters_.trim_leading() || parameters_.trim_trailing())
+                    {
+                        trim_string_buffer(parameters_.trim_leading(),parameters_.trim_trailing());
+                    }
+                    if (!parameters_.ignore_empty_lines() || (column_index_ > 0 || value_buffer_.length() > 0))
+                    {
+                        if (column_index_ == 0)
+                        {
+                            before_record();
+                        }
+                        if (stack_[top_] != csv_mode_type::subfields)
+                        {
+                            before_field();
+                        }
+                        end_quoted_string_value(ec);
+                        if (ec) return;
+                        after_field();
+                        after_record();
+                    }
+                    state_ = csv_state_type::expect_value;
+                }
+                else if (curr_char_ == parameters_.field_delimiter() || (parameters_.subfield_delimiter().second && curr_char_ == parameters_.subfield_delimiter().first))
+                {
+                    if (column_index_ == 0 && stack_[top_] != csv_mode_type::subfields)
+                    {
+                        before_record();
+                    }
+                    if (parameters_.trim_leading() || parameters_.trim_trailing())
+                    {
+                        trim_string_buffer(parameters_.trim_leading(),parameters_.trim_trailing());
+                    }
+                    if (stack_[top_] != csv_mode_type::subfields)
+                    {
+                        before_field();
+                        if (parameters_.subfield_delimiter().second && curr_char_ == parameters_.subfield_delimiter().first)
+                        {
+                            before_multi_valued_field();
+                        }
+                    }
+                    end_quoted_string_value(ec);
+                    if (ec) return;
+                    if (curr_char_ == parameters_.field_delimiter())
+                    {
+                        after_field();
+                    }
+                    state_ = csv_state_type::unquoted_string;
+                }
+                break;
             case csv_state_type::unquoted_string: 
                 {
-                    if (curr_char_ == '\r' || (prev_char_ != '\r' && curr_char_ == '\n'))
+                    if (prev_char_ == '\r' && curr_char_ == '\n')
+                    {
+                    }
+                    else if (curr_char_ == '\r' || curr_char_ == '\n')
                     {
                         if (parameters_.trim_leading() || parameters_.trim_trailing())
                         {
@@ -412,46 +518,40 @@ all_csv_states:
                             {
                                 before_record();
                             }
+                            if (stack_[top_] != csv_mode_type::subfields)
+                            {
+                                before_field();
+                            }
                             end_unquoted_string_value();
                             after_field();
                             after_record();
                         }
                         state_ = csv_state_type::expect_value;
                     }
-                    else if (curr_char_ == '\n')
+                    else if (curr_char_ == parameters_.field_delimiter() || (parameters_.subfield_delimiter().second && curr_char_ == parameters_.subfield_delimiter().first))
                     {
-                        if (prev_char_ != '\r')
+                        if (column_index_ == 0 && stack_[top_] != csv_mode_type::subfields)
                         {
-                            if (parameters_.trim_leading() || parameters_.trim_trailing())
-                            {
-                                trim_string_buffer(parameters_.trim_leading(),parameters_.trim_trailing());
-                            }
-                            if (!parameters_.ignore_empty_lines() || (column_index_ > 0 || value_buffer_.length() > 0))
-                            {
-                                if (column_index_ == 0)
-                                {
-                                    before_record();
-                                }
-                                end_unquoted_string_value();
-                                after_field();
-                                after_record();
-                            }
-                            state_ = csv_state_type::expect_value;
+                            before_record();
                         }
-                    }
-                    else if (curr_char_ == parameters_.field_delimiter())
-                    {
                         if (parameters_.trim_leading() || parameters_.trim_trailing())
                         {
                             trim_string_buffer(parameters_.trim_leading(),parameters_.trim_trailing());
                         }
-                        if (column_index_ == 0)
+                        if (stack_[top_] != csv_mode_type::subfields)
                         {
-                            before_record();
+                            before_field();
+                            if (parameters_.subfield_delimiter().second && curr_char_ == parameters_.subfield_delimiter().first)
+                            {
+                                before_multi_valued_field();
+                            }
                         }
                         end_unquoted_string_value();
-                        after_field();
-                        state_ = csv_state_type::expect_value;
+                        if (curr_char_ == parameters_.field_delimiter())
+                        {
+                            after_field();
+                        }
+                        state_ = csv_state_type::unquoted_string;
                     }
                     else if (curr_char_ == parameters_.quote_char())
                     {
@@ -519,6 +619,10 @@ all_csv_states:
                 {
                     before_record();
                 }
+                if (stack_[top_] != csv_mode_type::subfields)
+                {
+                    before_field();
+                }
                 end_unquoted_string_value();
                 after_field();
             }
@@ -529,6 +633,10 @@ all_csv_states:
                 if (column_index_ == 0)
                 {
                     before_record();
+                }
+                if (stack_[top_] != csv_mode_type::subfields)
+                {
+                    before_field();
                 }
                 end_quoted_string_value(ec);
                 if (ec) return;
@@ -555,16 +663,14 @@ all_csv_states:
         }
         if (parameters_.mapping() == mapping_type::m_columns)
         {
+            basic_json_fragment_filter<CharT> fragment_filter(handler_);
             handler_.begin_object(*this);
-            for (size_t i = 0; i < column_values_.size(); ++i)
+            for (size_t i = 0; i < column_names_.size(); ++i)
             {
-                handler_.name(string_view_type(column_names_[i].data(),column_names_[i].size()),*this);
-                handler_.begin_array(*this);
-                for (const auto& val : column_values_[i])
-                {
-                    end_value(val,i);
-                }
-                handler_.end_array(*this);
+                handler_.name(column_names_[i],*this);
+                decoders_[i].end_array(*this);
+                decoders_[i].end_json();
+                decoders_[i].get_result().dump_fragment(fragment_filter);
             }
             handler_.end_object(*this);
         }
@@ -636,13 +742,8 @@ private:
     {
         switch (stack_[top_])
         {
-        case csv_mode_type::header:
-            if (parameters_.assume_header() && line_ == 1)
-            {
-                column_names_.push_back(value_buffer_);
-            }
-            break;
         case csv_mode_type::data:
+        case csv_mode_type::subfields:
             switch (parameters_.mapping())
             {
             case mapping_type::n_rows:
@@ -652,7 +753,7 @@ private:
                 }
                 else
                 {
-                    end_value(value_buffer_,column_index_);
+                    end_value(value_buffer_,column_index_,parameters_.infer_types(),handler_);
                 }
                 break;
             case mapping_type::n_objects:
@@ -660,14 +761,13 @@ private:
                 {
                     if (column_index_ < column_names_.size() + offset_)
                     {
-                        handler_.name(column_names_[column_index_ - offset_], *this);
                         if (parameters_.unquoted_empty_value_is_null() && value_buffer_.length() == 0)
                         {
                             handler_.null_value(*this);
                         }
                         else
                         {
-                            end_value(value_buffer_,column_index_);
+                            end_value(value_buffer_,column_index_,parameters_.infer_types(),handler_);
                         }
                     }
                     else if (level_ > 0)
@@ -678,15 +778,15 @@ private:
                         }
                         else
                         {
-                            end_value(value_buffer_,column_index_);
+                            end_value(value_buffer_,column_index_,parameters_.infer_types(),handler_);
                         }
                     }
                 }
                 break;
             case mapping_type::m_columns:
-                if (column_index_ < column_values_.size())
+                if (column_index_ < decoders_.size())
                 {
-                    column_values_[column_index_].push_back(value_buffer_);
+                    end_value(value_buffer_,column_index_,parameters_.infer_types(),decoders_[column_index_]);
                 }
                 break;
             }
@@ -707,30 +807,26 @@ private:
         switch (stack_[top_])
         {
         case csv_mode_type::header:
-            if (parameters_.assume_header() && line_ == 1)
-            {
-                column_names_.push_back(value_buffer_);
-            }
             break;
         case csv_mode_type::data:
+        case csv_mode_type::subfields:
             switch (parameters_.mapping())
             {
             case mapping_type::n_rows:
-                end_value(value_buffer_,column_index_);
+                end_value(value_buffer_,column_index_,false,handler_);
                 break;
             case mapping_type::n_objects:
                 if (!(parameters_.ignore_empty_values() && value_buffer_.size() == 0))
                 {
                     if (column_index_ < column_names_.size() + offset_)
                     {
-                        handler_.name(column_names_[column_index_ - offset_], *this);
                         if (parameters_.unquoted_empty_value_is_null() && value_buffer_.length() == 0)
                         {
                             handler_.null_value(*this);
                         }
                         else
                         {
-                            end_value(value_buffer_,column_index_);
+                            end_value(value_buffer_,column_index_,false,handler_);
                         }
                     }
                     else if (level_ > 0)
@@ -741,12 +837,16 @@ private:
                         }
                         else
                         {
-                            end_value(value_buffer_,column_index_);
+                            end_value(value_buffer_,column_index_,false,handler_);
                         }
                     }
                 }
                 break;
             case mapping_type::m_columns:
+                if (column_index_ < decoders_.size())
+                {
+                    end_value(value_buffer_,column_index_,parameters_.infer_types(),decoders_[column_index_]);
+                }
                 break;
             }
             break;
@@ -759,7 +859,7 @@ private:
         value_buffer_.clear();
     }
 
-    void end_value(const string_view_type& value, size_t column_index)
+    void end_value(const string_view_type& value, size_t column_index, bool infer_types, basic_json_content_handler<CharT>& handler)
     {
         if (column_index < column_types_.size() + offset_)
         {
@@ -770,43 +870,44 @@ private:
                 {
                     if (column_index == offset_ || level_ > column_types_[column_index-offset_].level)
                     {
-                        handler_.end_array(*this);
+                        handler.end_array(*this);
                     }
                     level_ = column_index == offset_ ? 0 : column_types_[column_index - offset_].level;
                 }
             }
             if (level_ < column_types_[column_index - offset_].level)
             {
-                handler_.begin_array(*this);
+                handler.begin_array(*this);
                 level_ = column_types_[column_index - offset_].level;
             }
             else if (level_ > column_types_[column_index - offset_].level)
             {
-                handler_.end_array(*this);
+                handler.end_array(*this);
                 level_ = column_types_[column_index - offset_].level;
             }
             switch (column_types_[column_index - offset_].col_type)
             {
             case csv_column_type::integer_t:
                 {
-                std::istringstream iss{ std::string(value) };
+                    std::istringstream iss{ std::string(value) };
                     int64_t val;
                     iss >> val;
                     if (!iss.fail())
                     {
-                        handler_.integer_value(val, *this);
+                        handler.integer_value(val, *this);
                     }
                     else
                     {
                         if (column_index - offset_ < column_defaults_.size() && column_defaults_[column_index - offset_].length() > 0)
                         {
-                            std::basic_stringstream<CharT> ss(column_defaults_[column_index - offset_]);
-                            basic_json_reader<CharT> reader(ss,filter_);
-                            reader.read();
+                            basic_json_parser<CharT> parser(filter_,err_handler_);
+                            parser.set_source(column_defaults_[column_index - offset_].data(),column_defaults_[column_index - offset_].length());
+                            parser.parse_some();
+                            parser.end_parse();
                         }
                         else
                         {
-                            handler_.null_value(*this);
+                            handler.null_value(*this);
                         }
                     }
                 }
@@ -818,19 +919,20 @@ private:
                     iss >> val;
                     if (!iss.fail())
                     {
-                        handler_.double_value(val, *this);
+                        handler.double_value(val, *this);
                     }
                     else
                     {
                         if (column_index - offset_ < column_defaults_.size() && column_defaults_[column_index - offset_].length() > 0)
                         {
-                            std::basic_stringstream<CharT> ss(column_defaults_[column_index - offset_]);
-                            basic_json_reader<CharT> reader(ss,filter_);
-                            reader.read();
+                            basic_json_parser<CharT> parser(filter_,err_handler_);
+                            parser.set_source(column_defaults_[column_index - offset_].data(),column_defaults_[column_index - offset_].length());
+                            parser.parse_some();
+                            parser.end_parse();
                         }
                         else
                         {
-                            handler_.null_value(*this);
+                            handler.null_value(*this);
                         }
                     }
                 }
@@ -839,31 +941,32 @@ private:
                 {
                     if (value.length() == 1 && value[0] == '0')
                     {
-                        handler_.bool_value(false, *this);
+                        handler.bool_value(false, *this);
                     }
                     else if (value.length() == 1 && value[0] == '1')
                     {
-                        handler_.bool_value(true, *this);
+                        handler.bool_value(true, *this);
                     }
                     else if (value.length() == 5 && ((value[0] == 'f' || value[0] == 'F') && (value[1] == 'a' || value[1] == 'A') && (value[2] == 'l' || value[2] == 'L') && (value[3] == 's' || value[3] == 'S') && (value[4] == 'e' || value[4] == 'E')))
                     {
-                        handler_.bool_value(false, *this);
+                        handler.bool_value(false, *this);
                     }
                     else if (value.length() == 4 && ((value[0] == 't' || value[0] == 'T') && (value[1] == 'r' || value[1] == 'R') && (value[2] == 'u' || value[2] == 'U') && (value[3] == 'e' || value[3] == 'E')))
                     {
-                        handler_.bool_value(true, *this);
+                        handler.bool_value(true, *this);
                     }
                     else
                     {
                         if (column_index - offset_ < column_defaults_.size() && column_defaults_[column_index - offset_].length() > 0)
                         {
-                            std::basic_stringstream<CharT> ss(column_defaults_[column_index - offset_]);
-                            basic_json_reader<CharT> reader(ss,filter_);
-                            reader.read();
+                            basic_json_parser<CharT> parser(filter_,err_handler_);
+                            parser.set_source(column_defaults_[column_index - offset_].data(),column_defaults_[column_index - offset_].length());
+                            parser.parse_some();
+                            parser.end_parse();
                         }
                         else
                         {
-                            handler_.null_value(*this);
+                            handler.null_value(*this);
                         }
                     }
                 }
@@ -871,19 +974,20 @@ private:
             default:
                 if (value.length() > 0)
                 {
-                    handler_.string_value(value, *this);
+                    handler.string_value(value, *this);
                 }
                 else
                 {
                     if (column_index < column_defaults_.size() + offset_ && column_defaults_[column_index - offset_].length() > 0)
                     {
-                        std::basic_stringstream<CharT> ss(column_defaults_[column_index - offset_]);
-                        basic_json_reader<CharT> reader(ss,filter_);
-                        reader.read();
+                        basic_json_parser<CharT> parser(filter_,err_handler_);
+                        parser.set_source(column_defaults_[column_index - offset_].data(),column_defaults_[column_index - offset_].length());
+                        parser.parse_some();
+                        parser.end_parse();
                     }
                     else
                     {
-                        handler_.string_value(string_view_type(), *this);
+                        handler.string_value(string_view_type(), *this);
                     }
                 }
                 break;  
@@ -891,7 +995,292 @@ private:
         }
         else
         {
-            handler_.string_value(value, *this);
+            if (infer_types)
+            {
+                end_value_with_numeric_check(value, handler);
+            }
+            else
+            {
+                handler.string_value(value, *this);
+            }
+        }
+    }
+
+    enum class numeric_check_state 
+    {
+        initial,
+        null,
+        boolean_true,
+        boolean_false,
+        minus,
+        zero,
+        integer,
+        fraction1,
+        fraction,
+        exp1,
+        exp,
+        done
+    };
+
+    void end_value_with_numeric_check(const string_view_type& value, basic_json_content_handler<CharT>& handler)
+    {
+        numeric_check_state state = numeric_check_state::initial;
+        bool is_negative = false;
+        uint8_t precision = 0;
+        uint8_t decimal_places = 0;
+        chars_format format = chars_format::general;
+
+        auto last = value.end();
+
+        std::string buffer;
+        for (auto p = value.begin(); state != numeric_check_state::done && p != last; ++p)
+        {
+            switch (state)
+            {
+            case numeric_check_state::initial:
+                {
+                    switch (*p)
+                    {
+                    case 'n':case 'N':
+                        if ((last-p) == 4 && (p[1] == 'u' || p[1] == 'U') && (p[2] == 'l' || p[2] == 'L') && (p[3] == 'l' || p[3] == 'L'))
+                        {
+                            state = numeric_check_state::null;
+                        }
+                        else
+                        {
+                            state = numeric_check_state::done;
+                        }
+                        break;
+                    case 't':case 'T':
+                        if ((last-p) == 4 && (p[1] == 'r' || p[1] == 'R') && (p[2] == 'u' || p[2] == 'U') && (p[3] == 'e' || p[3] == 'U'))
+                        {
+                            state = numeric_check_state::boolean_true;
+                        }
+                        else
+                        {
+                            state = numeric_check_state::done;
+                        }
+                        break;
+                    case 'f':case 'F':
+                        if ((last-p) == 5 && (p[1] == 'a' || p[1] == 'A') && (p[2] == 'l' || p[2] == 'L') && (p[3] == 's' || p[3] == 'S') && (p[4] == 'e' || p[4] == 'E'))
+                        {
+                            state = numeric_check_state::boolean_false;
+                        }
+                        else
+                        {
+                            state = numeric_check_state::done;
+                        }
+                        break;
+                    case '-':
+                        is_negative = true;
+                        buffer.push_back(*p);
+                        state = numeric_check_state::minus;
+                        break;
+                    case '0':
+                        ++precision;
+                        buffer.push_back(*p);
+                        state = numeric_check_state::zero;
+                        break;
+                    case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':
+                        ++precision;
+                        buffer.push_back(*p);
+                        state = numeric_check_state::integer;
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            case numeric_check_state::zero:
+                {
+                    switch (*p)
+                    {
+                    case '.':
+                        buffer.push_back(to_double_.get_decimal_point());
+                        state = numeric_check_state::fraction1;
+                        break;
+                    case 'e':case 'E':
+                        buffer.push_back(*p);
+                        state = numeric_check_state::exp1;
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            case numeric_check_state::integer:
+                {
+                    switch (*p)
+                    {
+                    case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':
+                        ++precision;
+                        buffer.push_back(*p);
+                        break;
+                    case '.':
+                        buffer.push_back(to_double_.get_decimal_point());
+                        state = numeric_check_state::fraction1;
+                        break;
+                    case 'e':case 'E':
+                        buffer.push_back(*p);
+                        state = numeric_check_state::exp1;
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            case numeric_check_state::minus:
+                {
+                    switch (*p)
+                    {
+                    case '0':
+                        ++precision;
+                        buffer.push_back(*p);
+                        state = numeric_check_state::zero;
+                        break;
+                    case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':
+                        ++precision;
+                        buffer.push_back(*p);
+                        state = numeric_check_state::integer;
+                        break;
+                    case 'e':case 'E':
+                        buffer.push_back(*p);
+                        state = numeric_check_state::exp1;
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            case numeric_check_state::fraction1:
+                {
+                    format = chars_format::fixed;
+                    switch (*p)
+                    {
+                    case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':
+                        ++precision;
+                        ++decimal_places;
+                        buffer.push_back(*p);
+                        state = numeric_check_state::fraction;
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            case numeric_check_state::fraction:
+                {
+                    switch (*p)
+                    {
+                    case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':
+                        ++precision;
+                        ++decimal_places;
+                        buffer.push_back(*p);
+                        break;
+                    case 'e':case 'E':
+                        buffer.push_back(*p);
+                        state = numeric_check_state::exp1;
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            case numeric_check_state::exp1:
+                {
+                    format = chars_format::scientific;
+                    switch (*p)
+                    {
+                    case '-':
+                        buffer.push_back(*p);
+                        state = numeric_check_state::exp;
+                        break;
+                    case '+':
+                        state = numeric_check_state::exp;
+                        break;
+                    case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':
+                        buffer.push_back(*p);
+                        state = numeric_check_state::integer;
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            case numeric_check_state::exp:
+                {
+                    switch (*p)
+                    {
+                    case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':
+                        buffer.push_back(*p);
+                        break;
+                    default:
+                        state = numeric_check_state::done;
+                        break;
+                    }
+                    break;
+                }
+            default:
+                break;
+            }
+        }
+
+        switch (state)
+        {
+        case numeric_check_state::null:
+            handler.null_value(*this);
+            break;
+        case numeric_check_state::boolean_true:
+            handler.bool_value(true,*this);
+            break;
+        case numeric_check_state::boolean_false:
+            handler.bool_value(false,*this);
+            break;
+        case numeric_check_state::zero:
+        case numeric_check_state::integer:
+            {
+                if (is_negative)
+                {
+                    jsoncons::detail::to_integer_result result = jsoncons::detail::to_integer(value.data(), value.length());
+                    if (!result.overflow)
+                    {
+                        handler.integer_value(result.value,*this);
+                    }
+                    else
+                    {
+                        handler.string_value(value, *this);
+                    }
+                }
+                else
+                {
+                    jsoncons::detail::to_uinteger_result result = jsoncons::detail::to_uinteger(value.data(), value.length());
+                    if (!result.overflow)
+                    {
+                        handler.uinteger_value(result.value,*this);
+                    }
+                    else
+                    {
+                        handler.string_value(value, *this);
+                    }
+                }
+                break;
+            }
+        case numeric_check_state::fraction:
+        case numeric_check_state::exp:
+            {
+                double d = to_double_(buffer.data(), buffer.length());
+                handler.double_value(d, floating_point_options(format, precision, decimal_places), *this);
+                break;
+            }
+        default:
+            handler.string_value(value, *this);
         }
     }
 

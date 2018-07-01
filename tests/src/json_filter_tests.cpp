@@ -32,14 +32,14 @@ class name_fix_up_filter : public json_filter
 public:
     std::vector<warning> warnings;
 
-    name_fix_up_filter(json_output_handler& handler)
+    name_fix_up_filter(json_content_handler& handler)
         : json_filter(handler)
     {
     }
 
 private:
     void do_name(const string_view_type& name,
-                 const parsing_context& context) override
+                 const serializing_context& context) override
     {
         member_name_ = std::string(name);
         if (member_name_ != "name")
@@ -49,7 +49,7 @@ private:
     }
 
     void do_string_value(const string_view_type& s,
-                         const parsing_context& context) override
+                         const serializing_context& context) override
     {
         if (member_name_ == "name")
         {
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(test_filter)
     std::ifstream is(in_file, std::ofstream::binary);
     std::ofstream os(out_file);
 
-    json_serializer serializer(os, true);
+    json_serializer serializer(os, jsoncons::indenting::indent);
     name_fix_up_filter filter(serializer);
     json_reader reader(is, filter);
     reader.read_next();
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(test_filter2)
     std::ifstream is(in_file, std::ofstream::binary);
     std::ofstream os(out_file);
 
-    json_serializer serializer(os, true);
+    json_serializer serializer(os, jsoncons::indenting::indent);
 
     name_fix_up_filter filter2(serializer);
 
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(test_rename_name)
     BOOST_CHECK_CLOSE(31.96,j["store"]["book"][0]["price"].as<double>(),0.001);
 
     std::stringstream ss;
-    json_serializer serializer(ss, false);
+    json_serializer serializer(ss);
     rename_object_member_filter filter("price","price2",serializer);
     j.dump(filter);
 

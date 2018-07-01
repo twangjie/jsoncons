@@ -14,7 +14,7 @@ The `json_filter` class is an instantiation of the `basic_json_filter` class tem
 
 #### Base classes
 
-[json_input_handler](json_input_handler.md)
+[json_content_handler](json_content_handler.md)
 
 #### Member types
 
@@ -24,20 +24,13 @@ Member type                         |Definition
 
 #### Constructors
 
-    json_filter(json_input_handler& handler)
-All JSON events that pass through the `json_filter` go to the specified `json_input_handler` (i.e. another filter.)
-You must ensure that the `handler` exists as long as does `json_filter`, as `json_filter` holds a pointer to but does not own this object.
-
-    json_filter(json_output_handler& handler)
-All JSON events that pass through the `json_filter` go to the specified `json_output_handler`.
+    json_filter(json_content_handler& handler)
+All JSON events that pass through the `json_filter` go to the specified `json_content_handler` (e.g. another filter.)
 You must ensure that the `handler` exists as long as does `json_filter`, as `json_filter` holds a pointer to but does not own this object.
 
 #### Accessors
 
-    operator json_output_handler&() 
-Adapts a `json_filter` to a `json_output_handler`
-
-    json_input_handler& downstream_handler()
+    json_content_handler& downstream_handler()
 Returns a reference to the JSON handler that sends json events to downstream handlers. 
 
 ### Examples
@@ -62,14 +55,14 @@ int main()
     rename_object_member_filter filter1("fourth", "third", filter2);
 
     // A filter can be passed to any function that takes
-    // a json_input_handler ...
+    // a json_content_handler ...
     std::cout << "(1) ";
     std::istringstream is(s);
     json_reader reader(is, filter1);
     reader.read();
     std::cout << std::endl;
 
-    // or a json_output_handler    
+    // or a json_content_handler    
     std::cout << "(2) ";
     ojson j = ojson::parse(s);
     j.dump(filter1);
@@ -103,7 +96,7 @@ Example address book file (`address-book.json`):
 
 Suppose you want to break the name into a first name and last name, and report a warning when `name` does not contain a space or tab separated part. 
 
-You can achieve the desired result by subclassing the [json_filter](json_filter.md) class, overriding the default methods for receiving name and string value events, and passing modified events on to the parent [json_input_handler](json_input_handler.md) (which in this example will forward them to a [json_serializer](json_serializer.md).) 
+You can achieve the desired result by subclassing the [json_filter](json_filter.md) class, overriding the default methods for receiving name and string value events, and passing modified events on to the parent [json_content_handler](json_content_handler.md) (which in this example will forward them to a [json_serializer](json_serializer.md).) 
 ```c++
 #include <jsoncons/json_serializer.hpp>
 #include <jsoncons/json_filter.hpp>
@@ -115,14 +108,14 @@ using namespace jsoncons;
 class name_fix_up_filter : public json_filter
 {
 public:
-    name_fix_up_filter(json_output_handler& handler)
+    name_fix_up_filter(json_content_handler& handler)
         : json_filter(handler)
     {
     }
 
 private:
     void do_name(const string_view_type& name, 
-                 const parsing_context& context) override
+                 const serializing_context& context) override
     {
         member_name_ = name;
         if (member_name_ != "name")
@@ -132,7 +125,7 @@ private:
     }
 
     void do_string_value(const string_view_type& s, 
-                         const parsing_context& context) override
+                         const serializing_context& context) override
     {
         if (member_name_ == "name")
         {
@@ -166,7 +159,7 @@ private:
 Configure a [rename_object_member_filter](rename_object_member_filter.md) to emit json events to a [json_serializer](json_serializer.md). 
 ```c++
 std::ofstream os("output/new-address-book.json");
-json_serializer serializer(os, true);
+json_serializer serializer(os, jsoncons::indenting::indent);
 name_fix_up_filter filter(serializer);
 ```
 Parse the input and send the json events into the filter ...

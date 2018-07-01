@@ -43,11 +43,35 @@ BOOST_AUTO_TEST_CASE(cbor_view_test)
     BOOST_CHECK(v.is_object());
     BOOST_CHECK(!v.is_array());
 
+    json jv = decode_cbor<json>(v);
+    std::cout << pretty_print(jv) << std::endl;
+
     cbor_view reputons = v.at("reputons");
+    BOOST_CHECK(reputons.is_array());
 
     cbor_view reputons_0 = reputons.at(0);
 
     cbor_view reputons_0_rated = reputons_0.at("rated");
+
+    cbor_view rating = reputons_0.at("rating");
+    BOOST_CHECK(rating.as_double() == 0.90);
+
+    for (const auto& member : v.object_range())
+    {
+        const auto& key = member.key();
+        const auto& val = member.value();
+        json jval = decode_cbor<json>(val);
+
+        std::cout << key << ": " << jval << std::endl;
+    }
+    std::cout << std::endl;
+
+    for (auto element : reputons.array_range())
+    {
+        json j = decode_cbor<json>(element);
+        std::cout << j << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 BOOST_AUTO_TEST_CASE(jsonpointer_test)
@@ -83,6 +107,45 @@ BOOST_AUTO_TEST_CASE(jsonpointer_test)
     std::cout << pretty_print(j3) << std::endl;
 
 }
+
+const json store = json::parse(R"(
+{
+    "store": {
+        "book": [
+            {
+                "category": "reference",
+                "author": "Nigel Rees",
+                "title": "Sayings of the Century",
+                "price": 8.95
+            },
+            {
+                "category": "fiction",
+                "author": "Evelyn Waugh",
+                "title": "Sword of Honour",
+                "price": 12.99
+            },
+            {
+                "category": "fiction",
+                "author": "Herman Melville",
+                "title": "Moby Dick",
+                "isbn": "0-553-21311-3",
+                "price": 8.99
+            },
+            {
+                "category": "fiction",
+                "author": "J. R. R. Tolkien",
+                "title": "The Lord of the Rings",
+                "isbn": "0-395-19395-8",
+                "price": 22.99
+            }
+        ],
+        "bicycle": {
+            "color": "red",
+            "price": 19.95
+        }
+    }
+}
+)");
 
 BOOST_AUTO_TEST_SUITE_END()
 

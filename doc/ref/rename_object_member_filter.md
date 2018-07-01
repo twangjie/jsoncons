@@ -20,11 +20,11 @@ Renames object member names.
 
     rename_object_member_filter(const std::string& name,
                                 const std::string& new_name,
-                                json_output_handler& handler)
+                                json_content_handler& handler)
 
     rename_object_member_filter(const std::string& name,
                                 const std::string& new_name,
-                                json_input_handler& handler)
+                                json_content_handler& handler)
 
 ### Examples
 

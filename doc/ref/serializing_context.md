@@ -1,10 +1,10 @@
-### jsoncons::parsing_context
+### jsoncons::serializing_context
 
 ```c++
-class parsing_context;
+class serializing_context;
 ```
 
-Provides contextual information for the element being parsed. This information may be used for error reporting.
+Provides contextual information for serializing and deserializing JSON and JSON-like data formats. This information may be used for error reporting.
 
 #### Header
 

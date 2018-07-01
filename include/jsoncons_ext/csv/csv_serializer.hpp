@@ -16,17 +16,17 @@
 #include <memory>
 #include <limits> // std::numeric_limits
 #include <jsoncons/json_exception.hpp>
-#include <jsoncons/serialization_options.hpp>
-#include <jsoncons/json_output_handler.hpp>
-#include <jsoncons/detail/number_printers.hpp>
+#include <jsoncons/json_serializing_options.hpp>
+#include <jsoncons/json_content_handler.hpp>
+#include <jsoncons/detail/print_number.hpp>
 #include <jsoncons/detail/obufferedstream.hpp>
-#include <jsoncons_ext/csv/csv_parameters.hpp>
+#include <jsoncons_ext/csv/csv_serializing_options.hpp>
 #include <jsoncons/detail/writer.hpp>
 
 namespace jsoncons { namespace csv {
 
 template<class CharT,class Writer=jsoncons::detail::ostream_buffered_writer<CharT>,class Allocator=std::allocator<CharT>>
-class basic_csv_serializer final : public basic_json_output_handler<CharT>
+class basic_csv_serializer final : public basic_json_content_handler<CharT>
 {
 public:
     typedef typename Writer::output_type output_type;
@@ -36,7 +36,7 @@ public:
     typedef std::basic_string<CharT, std::char_traits<CharT>, char_allocator_type> string_type;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<string_type> string_allocator_type;
 
-    using typename basic_json_output_handler<CharT>::string_view_type                                 ;
+    using typename basic_json_content_handler<CharT>::string_view_type                                 ;
 private:
     struct stack_item
     {
@@ -54,8 +54,8 @@ private:
         string_type name_;
     };
     Writer writer_;
-    basic_csv_parameters<CharT,Allocator> parameters_;
-    basic_serialization_options<CharT> options_;
+    basic_csv_serializing_options<CharT,Allocator> parameters_;
+    basic_json_serializing_options<CharT> options_;
     std::vector<stack_item> stack_;
     jsoncons::detail::print_double fp_;
     std::vector<string_type,string_allocator_type> column_names_;
@@ -72,19 +72,23 @@ public:
        writer_(os),
        options_(),
        stack_(),
-       fp_(options_.precision()),
+       fp_(floating_point_options(options_.floating_point_format(), 
+                                  options_.precision(),
+                                  0)),
        column_names_(parameters_.column_names())
     {
     }
 
     basic_csv_serializer(output_type& os,
-                         const basic_csv_parameters<CharT,Allocator>& params)
+                         const basic_csv_serializing_options<CharT,Allocator>& options)
        :
        writer_(os),
-       parameters_(params),
+       parameters_(options),
        options_(),
        stack_(),
-       fp_(options_.precision()),
+       fp_(floating_point_options(options.floating_point_format(), 
+                                  options.precision(),
+                                  0)),
        column_names_(parameters_.column_names())
     {
     }
@@ -123,12 +127,12 @@ private:
         writer_.flush();
     }
 
-    void do_begin_object() override
+    void do_begin_object(const serializing_context&) override
     {
         stack_.push_back(stack_item(true));
     }
 
-    void do_end_object() override
+    void do_end_object(const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
@@ -140,9 +144,11 @@ private:
                     {
                         writer_.put(parameters_.field_delimiter());
                     }
-                    writer_.write(column_names_[i]);
+                    writer_.write(column_names_[i].data(),
+                                  column_names_[i].length());
                 }
-                writer_.write(parameters_.line_delimiter());
+                writer_.write(parameters_.line_delimiter().data(),
+                              parameters_.line_delimiter().length());
             }
             for (size_t i = 0; i < column_names_.size(); ++i)
             {
@@ -153,18 +159,18 @@ private:
                 auto it = buffered_line_.find(column_names_[i]);
                 if (it != buffered_line_.end())
                 {
-                    writer_.write(it->second);
+                    writer_.write(it->second.data(),it->second.length());
                     it->second.clear();
                 }
             }
-            writer_.write(parameters_.line_delimiter());
+            writer_.write(parameters_.line_delimiter().data(), parameters_.line_delimiter().length());
         }
         stack_.pop_back();
 
         end_value();
     }
 
-    void do_begin_array() override
+    void do_begin_array(const serializing_context&) override
     {
         stack_.push_back(stack_item(false));
         if (stack_.size() == 2)
@@ -177,28 +183,30 @@ private:
                     {
                         writer_.put(parameters_.field_delimiter());
                     }
-                    writer_.write(column_names_[i]);
+                    writer_.write(column_names_[i].data(),column_names_[i].length());
                 }
                 if (column_names_.size() > 0)
                 {
-                    writer_.write(parameters_.line_delimiter());
+                    writer_.write(parameters_.line_delimiter().data(),
+                                  parameters_.line_delimiter().length());
                 }
             }
         }
     }
 
-    void do_end_array() override
+    void do_end_array(const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
-            writer_.write(parameters_.line_delimiter());
+            writer_.write(parameters_.line_delimiter().data(),
+                          parameters_.line_delimiter().length());
         }
         stack_.pop_back();
 
         end_value();
     }
 
-    void do_name(const string_view_type& name) override
+    void do_name(const string_view_type& name, const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
@@ -230,7 +238,7 @@ private:
 
     }
 
-    void do_null_value() override
+    void do_null_value(const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
@@ -253,7 +261,7 @@ private:
         }
     }
 
-    void do_string_value(const string_view_type& val) override
+    void do_string_value(const string_view_type& val, const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
@@ -276,12 +284,35 @@ private:
         }
     }
 
-    void do_byte_string_value(const uint8_t*, size_t) override
+    void do_byte_string_value(const uint8_t*, size_t, const serializing_context&) override
     {
 
     }
 
-    void do_double_value(double val, const number_format&) override
+    void do_double_value(double val, const floating_point_options& fmt, const serializing_context&) override
+    {
+        if (stack_.size() == 2)
+        {
+            if (stack_.back().is_object())
+            {
+                auto it = buffered_line_.find(stack_.back().name_);
+                if (it != buffered_line_.end())
+                {
+                    std::basic_string<CharT> s;
+                    jsoncons::detail::string_writer<CharT> bo(s);
+                    value(val, fmt, bo);
+                    bo.flush();
+                    it->second = s;
+                }
+            }
+            else
+            {
+                value(val, fmt, writer_);
+            }
+        }
+    }
+
+    void do_integer_value(int64_t val, const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
@@ -304,7 +335,7 @@ private:
         }
     }
 
-    void do_integer_value(int64_t val) override
+    void do_uinteger_value(uint64_t val, const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
@@ -327,30 +358,7 @@ private:
         }
     }
 
-    void do_uinteger_value(uint64_t val) override
-    {
-        if (stack_.size() == 2)
-        {
-            if (stack_.back().is_object())
-            {
-                auto it = buffered_line_.find(stack_.back().name_);
-                if (it != buffered_line_.end())
-                {
-                    std::basic_string<CharT> s;
-                    jsoncons::detail::string_writer<CharT> bo(s);
-                    value(val,bo);
-                    bo.flush();
-                    it->second = s;
-                }
-            }
-            else
-            {
-                value(val,writer_);
-            }
-        }
-    }
-
-    void do_bool_value(bool val) override
+    void do_bool_value(bool val, const serializing_context&) override
     {
         if (stack_.size() == 2)
         {
@@ -382,25 +390,28 @@ private:
     }
 
     template <class AnyWriter>
-    void value(double val, AnyWriter& writer)
+    void value(double val, const floating_point_options& fmt, AnyWriter& writer)
     {
         begin_value(writer);
 
         if ((std::isnan)(val))
         {
-            writer.write(options_.nan_replacement());
+            writer.write(options_.nan_replacement().data(),
+                         options_.nan_replacement().length());
         }
         else if (val == std::numeric_limits<double>::infinity())
         {
-            writer.write(options_.pos_inf_replacement());
+            writer.write(options_.pos_inf_replacement().data(),
+                         options_.pos_inf_replacement().length());
         }
         else if (!(std::isfinite)(val))
         {
-            writer.write(options_.neg_inf_replacement());
+            writer.write(options_.neg_inf_replacement().data(),
+                         options_.neg_inf_replacement().length());
         }
         else
         {
-            fp_(val,options_.precision(),writer);
+            fp_(val, fmt ,writer);
         }
 
         end_value();
@@ -414,7 +425,7 @@ private:
 
         std::basic_ostringstream<CharT> ss;
         ss << val;
-        writer.write(ss.str());
+        writer.write(ss.str().data(),ss.str().length());
 
         end_value();
     }
@@ -426,7 +437,7 @@ private:
 
         std::basic_ostringstream<CharT> ss;
         ss << val;
-        writer.write(ss.str());
+        writer.write(ss.str().data(),ss.str().length());
 
         end_value();
     }
@@ -438,13 +449,13 @@ private:
 
         if (val)
         {
-            auto buf = jsoncons::detail::true_literal<CharT>();
-            writer.write(buf,4);
+            writer.write(jsoncons::detail::true_literal<CharT>().data(),
+                         jsoncons::detail::true_literal<CharT>().length());
         }
         else
         {
-            auto buf = jsoncons::detail::false_literal<CharT>();
-            writer.write(buf,5);
+            writer.write(jsoncons::detail::false_literal<CharT>().data(),
+                         jsoncons::detail::false_literal<CharT>().length());
         }
 
         end_value();
@@ -454,8 +465,8 @@ private:
     void do_null_value(AnyWriter& writer) 
     {
         begin_value(writer);
-        auto buf = jsoncons::detail::null_literal<CharT>();
-        writer.write(buf,4);
+        writer.write(jsoncons::detail::null_literal<CharT>().data(), 
+                     jsoncons::detail::null_literal<CharT>().length());
         end_value();
 
     }
@@ -490,10 +501,10 @@ void encode_csv(const Json& j, std::basic_ostream<typename Json::char_type>& os)
 }
 
 template <class Json,class Allocator>
-void encode_csv(const Json& j, std::basic_ostream<typename Json::char_type>& os, const basic_csv_parameters<typename Json::char_type,Allocator>& params)
+void encode_csv(const Json& j, std::basic_ostream<typename Json::char_type>& os, const basic_csv_serializing_options<typename Json::char_type,Allocator>& options)
 {
     typedef typename Json::char_type char_type;
-    basic_csv_serializer<char_type,jsoncons::detail::ostream_buffered_writer<char_type>,Allocator> serializer(os,params);
+    basic_csv_serializer<char_type,jsoncons::detail::ostream_buffered_writer<char_type>,Allocator> serializer(os,options);
     j.dump(serializer);
 }
 

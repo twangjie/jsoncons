@@ -1,17 +1,17 @@
-### jsoncons::serialization_options
+### jsoncons::json_serializing_options
 
 ```c++
-typedef basic_serialization_options<char> serialization_options
+typedef basic_json_serializing_options<char> json_serializing_options
 ```
-The `serialization_options` class is an instantiation of the `basic_serialization_options` class template that uses `char` as the character type.
+Specifies options for serializing and deserializing JSON text. The `json_serializing_options` class is an instantiation of the `basic_json_serializing_options` class template that uses `char` as the character type.
 
-The default floating point formatting produces digits in decimal format if possible, if not, it produces digits in exponential format. Trailing zeros are removed, except the one immediately following the decimal point. The period character (‘.’) is always used as the decimal point, non English locales are ignored.  A `precision` gives the maximum number of significant digits, the default precision is `15`. On most modern machines, 17 digits is usually enough to capture a floating-point number's value exactly, however, if you change precision to 17, conversion to text becomes an issue for floating point numbers that do not have an exact representation, e.g. 1.1 read may become 1.1000000000000001 when written. 
+The default floating point formatting for a floating point value that was previously decoded from json text is to preserve the original format and precision. This ensures round-trip for both format and precision, e.g. 1.1 read will remain `1.1` when written, and not become `1.1000000000000001` (an equivalent but longer representation.)
 
-When parsing text, the precision of the fractional number is retained, and used for subsequent serialization, to allow round-trip.
+The default floating point formatting for a floating point value that was directly inserted into a json value is [chars_format::general](chars_format.md) with shortest representation. Trailing zeros are removed, except one immediately following the decimal point. The period character (‘.’) is always used as the decimal point, non English locales are ignored.
 
 #### Header
 ```c++
-#include <jsoncons/serialization_options.hpp>
+#include <jsoncons/json_serializing_options.hpp>
 ```
 #### Member constants
 
@@ -20,61 +20,63 @@ The default indent is 4
 
 #### Constructors
 
-    serialization_options()
-Constructs an `serialization_options` with default values. 
+    json_serializing_options()
+Constructs an `json_serializing_options` with default values. 
 
-#### Accessors
+#### Properties
 
     int indent() const
-Returns the level of indentation, the default is 4
+    json_serializing_options& indent(int value)
+The level of indenting, the default is 4.
+
+    chars_format floating_point_format() const 
+    json_serializing_options& floating_point_format(chars_format value)
+Overrides [floating point format](chars_format.md) when serializing json.
+The default, for a floating point value that was previously decoded from json text, is to preserve the original format when serializing.
+The default, for a floating point value that was directly inserted into a json value, to serialize with [chars_format::general](chars_format.md). 
 
     uint8_t precision() const 
-If set, returns an override for the number of significant digits, otherwise zero.
+    json_serializing_options& precision(uint8_t value)
+Overrides floating point precision when serializing json. 
+The default, for a floating point value that was previously decoded from json text, is to preserve the original precision. 
+The fefault, for a floating point value that was directly inserted into a json value, to serialize with shortest representation. 
 
     bool escape_all_non_ascii() const
-The default is false
+    json_serializing_options& escape_all_non_ascii(bool value)
+Escape all non-ascii characters. The default is `false`.
 
     bool escape_solidus() const
-The default is false
+    json_serializing_options& escape_solidus(bool value)
+Escape the solidus ('/') character. The default is `false`.
 
     std::string nan_replacement() const 
-The default is "null"
+    json_serializing_options& nan_replacement(const std::string& replacement)
+NaN replacement. The default is `"null"`. 
 
     std::string pos_inf_replacement() const 
-The default is "null"
+    json_serializing_options& pos_inf_replacement(const std::string& replacement)
+Positive infinity replacement. The default is `"null"`
 
     std::string neg_inf_replacement() const 
-The default is "null"
+    json_serializing_options& neg_inf_replacement(const std::string& replacement)
+Negative infinity replacement. The default is `"null"`
 
-#### Modifiers
+    size_t max_nesting_depth() const
+    void max_nesting_depth(size_t depth)
+The maximum nesting depth allowed when deserializing. By default `jsoncons` can read a `JSON` text of arbitrarily large depth.
 
-    serialization_options& indent(int value)
-
-    serialization_options& escape_all_non_ascii(bool value)
-
-    serialization_options& escape_solidus(bool value)
-
-    serialization_options& nan_replacement(const std::string& replacement)
-
-    serialization_options& pos_inf_replacement(const std::string& replacement)
-
-    serialization_options& neg_inf_replacement(const std::string& replacement)
-Sets replacement text for negative infinity.
-
-    serialization_options& precision(uint8_t prec)
-Overrides floating point precision
-
-    serialization_options& object_object_split_lines(line_split_kind value)
+    json_serializing_options& object_object_split_lines(line_split_kind value)
 For an object whose parent is an object, set whether that object is split on a new line, or if its members are split on multiple lines. The default is [line_split_kind::multi_line](line_split_kind.md).
 
-    serialization_options& array_object_split_lines(line_split_kind value)
+    json_serializing_options& array_object_split_lines(line_split_kind value)
 For an object whose parent is an array, set whether that object is split on a new line, or if its members are split on multiple lines. The default is [line_split_kind::multi_line](line_split_kind.md).
 
-    serialization_options& object_array_split_lines(line_split_kind value)
+    json_serializing_options& object_array_split_lines(line_split_kind value)
 For an array whose parent is an object, set whether that array is split on a new line, or if its elements are split on multiple lines. The default is [line_split_kind::same_line](line_split_kind).
 
-    serialization_options& array_array_split_lines(line_split_kind value)
+    json_serializing_options& array_array_split_lines(line_split_kind value)
 For an array whose parent is an array, set whether that array is split on a new line, or if its elements are split on multiple lines. The default is [line_split_kind::new_line](line_split_kind).
+
 
 ### Examples
 
@@ -98,7 +100,7 @@ obj["field1"] = std::sqrt(-1.0);
 obj["field2"] = 1.79e308*1000;
 obj["field3"] = -1.79e308*1000;
 
-serialization_options options;
+json_serializing_options options;
 format.nan_replacement("null");        // default is "null"
 format.pos_inf_replacement("1e9999");  // default is "null"
 format.neg_inf_replacement("-1e9999"); // default is "null"
@@ -128,12 +130,12 @@ Output:
     std::cout << pretty_print(val) << std::endl;
 
     std::cout << "New line" << std::endl;
-    serialization_options options1;
+    json_serializing_options options1;
     format1.object_array_split_lines(line_split_kind::new_line);
     std::cout << pretty_print(val,options1) << std::endl;
 
     std::cout << "Multi line" << std::endl;
-    serialization_options options2;
+    json_serializing_options options2;
     format2.object_array_split_lines(line_split_kind::multi_line);
     std::cout << pretty_print(val,options2) << std::endl;
 ```
@@ -205,12 +207,12 @@ Multi line
     std::cout << pretty_print(val) << std::endl;
 
     std::cout << "Same line" << std::endl;
-    serialization_options options1;
+    json_serializing_options options1;
     format1.array_array_split_lines(line_split_kind::same_line);
     std::cout << pretty_print(val, options1) << std::endl;
 
     std::cout << "Multi line" << std::endl;
-    serialization_options options2;
+    json_serializing_options options2;
     format2.array_array_split_lines(line_split_kind::multi_line);
     std::cout << pretty_print(val, options2) << std::endl;
 ```

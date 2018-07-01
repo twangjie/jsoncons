@@ -128,13 +128,12 @@ enum class path_state
 template<class Json,
          class JsonReference=const Json&,
          class PathCons=PathConstructor<Json>>
-class jsonpath_evaluator : private parsing_context
+class jsonpath_evaluator : private serializing_context
 {
 private:
     typedef typename Json::char_type char_type;
     typedef typename Json::char_traits_type char_traits_type;
     typedef std::basic_string<char_type,char_traits_type> string_type;
-    typedef typename Json::key_storage_type key_storage_type;
     typedef typename Json::string_view_type string_view_type;
     typedef JsonReference reference;
     using pointer = typename std::conditional<std::is_const<typename std::remove_reference<JsonReference>::type>::value,typename Json::const_pointer,typename Json::pointer>::type;

@@ -1,3 +1,84 @@
+master
+--------
+
+Changes
+
+- If a fractional number is read in in fixed format, serialization now preserves
+  that fixed format, e.g. if 0.000071 is read in, serialization gives 0.000071
+  and not 7.1e-05. In previous versions, the floating point format, whether
+  fixed or scientific, was determined by the behavior of snprintf using the g
+  conversion specifier.
+
+Bug fix:
+
+- Fixed issue with parsing cbor indefinite length arrays and maps
+
+Warning fix:
+
+- Use memcpy in place of reinterpret_cast in binary data format utility 
+  `from_big_endian`
+
+v0.105.0
+--------
+
+Enhancements
+
+- The CSV extension now supports multi-valued fields separated by subfield delimiters
+
+- New functions `decode_json` and `encode_json` convert JSON 
+  formatted strings to C++ objects and back. These functions attempt to 
+  perform the conversion by streaming using `json_convert_traits`, and if
+  streaming is not supported, fall back to using `json_type_traits`. `decode_json` 
+  and `encode_json` will work for all types that have `json_type_traits` defined.
+
+- The json::parse functions and the json_parser and json_reader constructors 
+  optionally take a json_serializing_options parameter, which allows replacing
+  a string that matches nan_replacement(), pos_inf_replacement(), and neg_inf_replacement(). 
+
+Changes to Streaming
+
+- The `basic_json_input_handler` and `basic_json_output_handler` interfaces have been 
+  combined into one class `basic_json_content_handler`. This greatly simplifies the
+  implementation of `basic_json_filter`. Also, the name `parsing_context` has been 
+  deprecated and renamed to `serializing_context`, as it now applies to both 
+  serializing and deserializing.
+
+  If you have subclassed `json_filter` or have fed JSON events directlty to a 
+  `json_serializer`, you shouldn't have to make any changes. In the less likely
+  case that you've implemented the `basic_json_input_handler` or 
+  `basic_json_output_handler` interfaces, you'll need to change that to
+  `json_content_handler`.
+
+Other Changes
+
+- `serialization_traits` and the related `dump` free functions have been deprecated,
+  as their functionality has been subsumed by `json_convert_traits` and the
+  `encode_json` functions. 
+
+- The option bool argument to indicate pretty printing in the `json` `dump` functions 
+  and the `json_serializer` class has been deprecated. It is replaced by the enum class 
+  `indenting` with enumerators `indenting::no_indent` and `indenting::indent`.
+
+- The name `serialization_options` has been deprecated (still works) and renamed to 
+  `json_serializing_options`. Rationale: naming consistency.
+
+- The `json_reader` `max_nesting_depth` getter and setter functions have been deprecated.
+  Use the `json_serializing_options` `max_nesting_depth` getter and setter functions instead.
+
+- The name `csv_parameters` has been deprecated (still works) and renamed to 
+  `csv_serializing_options`. Rationale: naming consistency.
+
+v0.104.0
+--------
+
+Changes
+
+- `decode_csv` by default now attempts to infer null, true, false, integer and floating point values
+  in the CSV source. In previous versions the default was to read everything as strings,
+  and other types had to be specified explicitly. If the new default behavior is not desired, the
+  `csv_parameters` option `infer_types` can be set to `false`. Column types can still be set explicitly
+  if desired.
+
 v0.103.0
 --------
 
@@ -5,6 +86,8 @@ Changes
 
 - Default `string_view_type` `operator std::basic_string<CharT,Traits,Allocator>() const` made explicit
   to be consistent with `std::string_view`
+
+- The virtual method `do_double_value` of `json_input_handler` and `json_output_handler` takes a `number_format` parameter
 
 Performance improvements
 
@@ -600,7 +683,7 @@ v0.97 Release
 
 - Reversion of v0.96 change:
 
-The virtual methods `do_float_value`, `do_integer_value`, and `do_unsigned_value` of `json_input_handler` and `json_outputhandler` have been restored to `do_double_value`, `do_longlong_value` and `do_ulonglong_value`, and their typedefed parameter types `float_type`, `integer_type`, and `unsigned_type` have been restored to `double`, `long long`, and `unsigned long long`.
+The virtual methods `do_float_value`, `do_integer_value`, and `do_unsigned_value` of `json_input_handler` and `json_output_handler` have been restored to `do_double_value`, `do_longlong_value` and `do_ulonglong_value`, and their typedefed parameter types `float_type`, `integer_type`, and `unsigned_type` have been restored to `double`, `long long`, and `unsigned long long`.
 
 The rationale for this reversion is that the change doesn't really help to make the software more flexible, and that it's better to leave out the typedefs. There will be future enhancements to support greater numeric precision, but these will not affect the current method signatures.
 
@@ -622,7 +705,7 @@ Breaking changes:
 
 - Only json arrays now support `operator[](size_t)` to loop over values, this is no longer supported for `json` objects. Use a json object iterator instead.
 
-- The virtual methods `do_double_value`, `do_integer_value` and `do_uinteger_value` of `json_input_handler` and `json_outputhandler` have been renamed to `do_float_value`, `do_integer_value`, and `do_unsigned_value`, 
+- The virtual methods `do_double_value`, `do_integer_value` and `do_uinteger_value` of `json_input_handler` and `json_output_handler` have been renamed to `do_float_value`, `do_integer_value`, and `do_unsigned_value`, 
   and their parameters have been changed from `double`, `long long`, and `unsigned long long` to typedefs `float_type`, `integer_type`, and `unsigned_type`.
   The rationale for this change is to allow different configurations for internal number types (reversed in v0.97.)
 

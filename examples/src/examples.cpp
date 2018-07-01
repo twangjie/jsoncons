@@ -6,6 +6,8 @@
 #include <vector>
 #include <map>
 #include <jsoncons/json.hpp>
+#include <jsoncons_ext/jsonpointer/jsonpointer.hpp>
+#include <jsoncons_ext/jsonpath/json_query.hpp>
 
 using namespace jsoncons;
 
@@ -23,10 +25,10 @@ void csv_examples();
 void jsonpath_examples();
 void json_is_as_examples();
 void msgpack_examples();
-void streaming_examples();
 void jsonpointer_examples();
 void jsonpatch_examples();
 void cbor_examples();
+void json_convert_examples();
 
 void comment_example()
 {
@@ -132,7 +134,7 @@ void first_example_c()
     ]
     )");
 
-    serialization_options options;
+    json_serializing_options options;
 
     for (const auto& book : books.array_range())
     {
@@ -162,7 +164,7 @@ void first_example_d()
     }
     json books = json::parse(is);
 
-    serialization_options options;
+    json_serializing_options options;
     //options.floatfield(std::ios::fixed);
     options.precision(2);
 
@@ -287,7 +289,7 @@ void json_constructor_examples()
     arr.push_back(j3);
     arr.push_back(j4);
 
-    serialization_options options;
+    json_serializing_options options;
     std::cout << pretty_print(arr) << std::endl;
 }
 
@@ -326,9 +328,9 @@ void object_range_based_for_loop()
 }
 )");
 
-    for (const auto& kv : j.object_range())
+    for (const auto& member : j.object_range())
     {
-        std::cout << kv.key() << " => " << kv.value().as<std::string>() << std::endl;
+        std::cout << member.key() << " => " << member.value().as<std::string>() << std::endl;
     }
 }
 
@@ -421,6 +423,60 @@ void validation_example()
     }
 }
 
+void max_nesting_path_example()
+{
+    std::string s = "[[[[[[[[[[[[[[[[[[[[[\"Too deep\"]]]]]]]]]]]]]]]]]]]]]";
+    try
+    {
+        json_serializing_options options;
+        options.max_nesting_depth(20);
+        json::parse(s, options);
+    }
+    catch (const parse_error& e)
+    {
+         std::cout << e.what() << std::endl;
+    }
+}
+
+void get_example()
+{
+    json j = json::parse(R"(
+    {
+       "application": "hiking",
+       "reputons": [
+       {
+           "rater": "HikingAsylum.example.com",
+           "assertion": "is-good",
+           "rated": "sk",
+           "rating": 0.90
+         }
+       ]
+    }
+    )");
+
+    // Using index or `at` accessors
+    std::string result1 = j["reputons"][0]["rated"].as<std::string>();
+    std::cout << "(1) " << result1 << std::endl;
+    std::string result2 = j.at("reputons").at(0).at("rated").as<std::string>();
+    std::cout << "(2) " << result2 << std::endl;
+
+    // Using JSON Pointer
+    std::string result3 = jsonpointer::get(j, "/reputons/0/rated").as<std::string>();
+    std::cout << "(3) " << result3 << std::endl;
+
+    // Using JsonPath
+    json result4 = jsonpath::json_query(j, "$.reputons.0.rated");
+    if (result4.size() > 0)
+    {
+        std::cout << "(4) " << result4[0].as<std::string>() << std::endl;
+    }
+    json result5 = jsonpath::json_query(j, "$..0.rated");
+    if (result5.size() > 0)
+    {
+        std::cout << "(5) " << result5[0].as<std::string>() << std::endl;
+    }
+}
+
 int main()
 {
     try
@@ -461,8 +517,6 @@ int main()
 
         msgpack_examples();
 
-        streaming_examples();
-
         validation_example();
 
         serialization_examples();
@@ -475,15 +529,21 @@ int main()
 
         json_is_as_examples();
 
-        cbor_examples();
-
-        csv_examples();
-
-        jsonpointer_examples();
-
         jsonpath_examples();
 
         jsonpatch_examples();
+
+        cbor_examples();
+
+        jsonpointer_examples();
+
+        csv_examples();
+
+        json_convert_examples();
+
+        max_nesting_path_example();
+
+        get_example();
     }
     catch (const std::exception& e)
     {

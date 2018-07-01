@@ -3,7 +3,7 @@
 ```c++
 typedef basic_json_serializer<char> json_serializer
 ```
-The `json_serializer` class is an instantiation of the `basic_json_serializer` class template that uses `char` as the character type. It implements [json_output_handler](json_output_handler.md) and supports pretty print serialization.
+Implements [json_content_handler](json_content_handler.md) and supports compressed or pretty serialization. The `json_serializer` class is an instantiation of the `basic_json_serializer` class template that uses `char` as the character type. 
 
 `json_serializer` is noncopyable and nonmoveable.
 
@@ -13,7 +13,7 @@ The `json_serializer` class is an instantiation of the `basic_json_serializer` c
 
 ### Implemented interfaces
 
-[json_output_handler](json_output_handler.md)
+[json_content_handler](json_content_handler.md)
 
 #### Constructors
 
@@ -21,16 +21,17 @@ The `json_serializer` class is an instantiation of the `basic_json_serializer` c
 Constructs a new serializer that writes to the specified output stream.
 You must ensure that the output stream exists as long as does `json_serializer`, as `json_serializer` holds a pointer to but does not own this object.
 
-    json_serializer(std::ostream& os, bool pprint)
-Constructs a new serializer that writes to the specified output stream.
+    json_serializer(std::ostream& os, indenting line_indent)
+Constructs a new serializer that writes to the output stream `os` with the specified [indenting](indenting.md).
 You must ensure that the output stream exists as long as does `json_serializer`, as `json_serializer` holds a pointer to but does not own this object.
 
-    json_serializer(std::ostream& os, const serialization_options& options)
-Constructs a new serializer that writes to the specified output stream using the specified [serialization_options](serialization_options.md).
+    json_serializer(std::ostream& os, const json_serializing_options& options)
+Constructs a new serializer that writes to the specified output stream using the specified [json_serializing_options](json_serializing_options.md).
 You must ensure that the output stream exists as long as does `json_serializer`, as `json_serializer` holds a pointer to but does not own this object.
 
-    json_serializer(std::ostream& os, const serialization_options& options, bool pprint)
-Constructs a new serializer that writes to the specified output stream using the specified [serialization_options](serialization_options.md).
+    json_serializer(std::ostream& os, const json_serializing_options& options, indenting line_indent)
+Constructs a new serializer that writes to output stream `os` using the specified [json_serializing_options](json_serializing_options.md)
+and [indenting](indenting.md).
 You must ensure that the output stream exists as long as does `json_serializer`, as `json_serializer` holds a pointer to but does not own this object.
 
 #### Destructor
@@ -56,8 +57,8 @@ int main()
     A(1, 0) = 3;
     A(1, 1) = 4;
 
-    serialization_options options;
-    json_serializer os(std::cout, options, true); // pretty printing
+    json_serializing_options options;
+    json_serializer os(std::cout, options, jsoncons::indenting::indent); 
     os.begin_array();
     for (size_t i = 0; i < A.size1(); ++i)
     {

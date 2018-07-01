@@ -11,14 +11,14 @@ using namespace jsoncons;
 class name_fix_up_filter : public json_filter
 {
 public:
-    name_fix_up_filter(json_output_handler& handler)
+    name_fix_up_filter(json_content_handler& handler)
         : json_filter(handler)
     {
     }
 
 private:
     void do_name(const string_view_type& name, 
-                 const parsing_context& context) override
+                 const serializing_context& context) override
     {
         member_name_ = std::string(name);
         if (member_name_ != "name")
@@ -28,7 +28,7 @@ private:
     }
 
     void do_string_value(const string_view_type& s, 
-                         const parsing_context& context) override
+                         const serializing_context& context) override
     {
         if (member_name_ == "name")
         {
@@ -66,7 +66,7 @@ void name_fix_up_example1()
     std::ifstream is(in_file);
     std::ofstream os(out_file);
 
-    json_serializer serializer(os, true);
+    json_serializer serializer(os, jsoncons::indenting::indent);
     name_fix_up_filter filter(serializer);
     json_reader reader(is, filter);
     reader.read_next();
@@ -82,7 +82,7 @@ void name_fix_up_example2()
     json j;
     is >> j;
 
-    json_serializer serializer(os, true);
+    json_serializer serializer(os, jsoncons::indenting::indent);
     name_fix_up_filter filter(serializer);
     j.dump(filter);
 }
@@ -98,14 +98,14 @@ void change_member_name_example()
     rename_object_member_filter filter1("fourth", "third", filter2);
 
     // A filter can be passed to any function that takes
-    // a json_input_handler ...
+    // a json_content_handler ...
     std::cout << "(1) ";
     std::istringstream is(s);
     json_reader reader(is, filter1);
     reader.read();
     std::cout << std::endl;
 
-    // or a json_output_handler    
+    // or a json_content_handler    
     std::cout << "(2) ";
     ojson j = ojson::parse(s);
     j.dump(filter1);

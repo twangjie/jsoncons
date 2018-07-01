@@ -2,10 +2,10 @@
 
 ```c++
 range<object_iterator> object_range();
-```
 range<const_object_iterator> object_range() const;
+```
 Returns a "range" that supports a range-based for loop over the key-value pairs of a `json` object      
-Throws `std::runtime_error` if not an array.
+Throws `std::runtime_error` if not an object.
 
 ### Examples
 
@@ -27,9 +27,9 @@ int main()
 }
 )");
 
-    for (const auto& kv : j.object_range())
+    for (const auto& member : j.object_range())
     {
-        std::cout << kv.key() << " => " << kv.value().as<std::string>() << std::endl;
+        std::cout << member.key() << " => " << member.value().as<std::string>() << std::endl;
     }
 }
 ```

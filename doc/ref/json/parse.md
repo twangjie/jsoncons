@@ -1,19 +1,35 @@
 ### jsoncons::json::parse
 
 ```c++
-static json parse(const string_view_type& s)
+static json parse(const string_view_type& s); // (1)
+
 static json parse(const string_view_type& s, 
-                  parse_error_handler& err_handler)
+                  const json_serializing_options& options); // (2)
+
+static json parse(const string_view_type& s, 
+                  parse_error_handler& err_handler); // (3)
+
+static json parse(const string_view_type& s, 
+                  const json_serializing_options& options,
+                  parse_error_handler& err_handler); // (4)
+
+static json parse(std::istream& is); // (5)
+
+static json parse(std::istream& is,
+                  const json_serializing_options& options); // (6)
+              
+static json parse(std::istream& is, 
+                  const json_serializing_options& options,
+                  parse_error_handler& err_handler); // (7)
+
+static json parse(std::istream& is, 
+                  const json_serializing_options& options,
+                  parse_error_handler& err_handler); // (8)
 ```
-Parses a string of JSON text and returns a json object or array value. 
+(1) - (4) Parses a string of JSON text and returns a json object or array value. 
 Throws [parse_error](parse_error.md) if parsing fails.
 
-```c++
-static json parse(std::istream& is)
-static json parse(std::istream& is, 
-                  parse_error_handler& err_handler)
-```
-Parses an input stream of JSON text and returns a json object or array value. 
+(5) - (8) Parses an input stream of JSON text and returns a json object or array value. 
 Throws [parse_error](parse_error.md) if parsing fails.
 
 ### Examples
@@ -58,6 +74,39 @@ catch(const jsoncons::parse_error& e)
 Output:
 ```
 Extra comma at line 1 and column 10
+```
+
+#### Parse from string with serializing options
+
+```c++
+std::string s = R"({"field1":"NaN","field2":"PositiveInfinity","field3":"NegativeInfinity"})";
+
+json_serializing_options options;
+options.nan_replacement("\"NaN\"");
+options.pos_inf_replacement("\"PositiveInfinity\"");
+options.neg_inf_replacement("\"NegativeInfinity\"");
+
+json j = json::parse(s,options);
+
+std::cout << "\n(1)\n" << pretty_print(j) << std::endl;
+
+std::cout << "\n(2)\n" << pretty_print(j,options) << std::endl;
+```
+Output:
+```
+(1)
+{
+    "field1": null,
+    "field2": null,
+    "field3": null
+}
+
+(2)
+{
+    "field1": "NaN",
+    "field2": "PositiveInfinity",
+    "field3": "NegativeInfinity"
+}
 ```
 
 

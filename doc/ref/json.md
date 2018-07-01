@@ -28,11 +28,11 @@ Member type                         |Definition
 `array_allocator`|Array allocator type
 `object_allocator`|Object allocator 
 `string_view_type`|A non-owning view of a string, holds a pointer to character data and length. Supports conversion to and from strings. Will be typedefed to the C++ 17 [string view](http://en.cppreference.com/w/cpp/string/basic_string_view) if `JSONCONS_HAS_STRING_VIEW` is defined in `jsoncons_config.hpp`, otherwise proxied.  
-`key_value_pair_type`|[key_value_pair_type](key_value_pair_type) is a class that stores a name and a json value
+`key_value_pair_type`|[key_value_pair_type](json/key_value_pair_type.md) is a class that stores a name and a json value
 `object`|json object type
 `array`|json array type
-`object_iterator`|A [RandomAccessIterator](http://en.cppreference.com/w/cpp/concept/RandomAccessIterator) to [key_value_pair_type](key_value_pair_type)
-`const_object_iterator`|A const [RandomAccessIterator](http://en.cppreference.com/w/cpp/concept/RandomAccessIterator) to const [key_value_pair_type](key_value_pair_type)
+`object_iterator`|A [RandomAccessIterator](http://en.cppreference.com/w/cpp/concept/RandomAccessIterator) to [key_value_pair_type](json/key_value_pair_type.md)
+`const_object_iterator`|A const [RandomAccessIterator](http://en.cppreference.com/w/cpp/concept/RandomAccessIterator) to const [key_value_pair_type](json/key_value_pair_type.md)
 `array_iterator`|A [RandomAccessIterator](http://en.cppreference.com/w/cpp/concept/RandomAccessIterator) to `json`
 `const_array_iterator`|A const [RandomAccessIterator](http://en.cppreference.com/w/cpp/concept/RandomAccessIterator) to `const json`
 
@@ -91,7 +91,7 @@ Member type                         |Definition
   </tr>
   <tr>
     <td><a>bool empty() const noexcept</a></td>
-    <td>Returns `true` if a json string, object or array has no elements, otherwise `false`</td> 
+    <td>Returns <code>true</code> if a json string, object or array has no elements, otherwise <code>false</code></td> 
   </tr>
   <tr>
     <td><a>size_t capacity() const</a></td>
@@ -120,7 +120,7 @@ Member type                         |Definition
 <table border="0">
   <tr>
     <td><code>bool has_key(const string_view_type& key) const</code></td>
-    <td>Returns `true` if an object has a member with the given `key`, otherwise `false`</td> 
+    <td>Returns <code>true</code> if an object has a member with the given `key`, otherwise <code>false</code></td> 
   </tr>
   <tr>
     <td><code>bool count(const string_view_type& key) const</code></td>
@@ -174,10 +174,11 @@ Throws `std::out_of_range` if the index is outside the bounds of the array.
 If `name` matches the name of a member in the json object, returns the member value converted to the default's data type, otherwise returns `default_val`.
 Throws `std::runtime_error` if not an object.
 
-    string_view_type get_with_default(const string_view_type& name, 
-                                      const char_type* default_val) const
-Make `get_with_default` do the right thing for string literals. Returns a `string_view_type`, which is assignable to type `std::string`.
-Throws `std::runtime_error` if not an object, or if member is found but is not a `string`. 
+    template <class T = std::string>
+    T get_with_default(const string_view_type& name, 
+                       const char_type* default_val) const
+Make `get_with_default` do the right thing for string literals. 
+Throws `std::runtime_error` if not an object. 
 
 #### Modifiers
 
@@ -267,12 +268,12 @@ Reads a `json` value from a stream.
 Inserts json value into stream.
 
     std::ostream& print(const json& val)  
-    std::ostream& print(const json& val, const serialization_options<CharT>& options)  
-Inserts json value into stream using the specified [serialization_options](serialization_options.md) if supplied.
+    std::ostream& print(const json& val, const json_serializing_options<CharT>& options)  
+Inserts json value into stream using the specified [json_serializing_options](json_serializing_options.md) if supplied.
 
     std::ostream& pretty_print(const json& val)  
-    std::ostream& pretty_print(const json& val, const serialization_options<CharT>& options)  
-Inserts json value into stream using the specified [serialization_options](serialization_options.md) if supplied.
+    std::ostream& pretty_print(const json& val, const json_serializing_options<CharT>& options)  
+Inserts json value into stream using the specified [json_serializing_options](json_serializing_options.md) if supplied.
 
     void swap(json& a, json& b)
 Exchanges the values of `a` and `b`
