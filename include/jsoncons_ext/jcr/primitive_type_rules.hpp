@@ -14,7 +14,7 @@
 #include <jsoncons_ext/jcr/json_content_rule.hpp>
 
 namespace jsoncons {
-    class parsing_context;
+    class serializing_context;
 }
 
 namespace jsoncons { namespace jcr {

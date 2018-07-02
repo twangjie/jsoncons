@@ -13,7 +13,7 @@
 #include <jsoncons_ext/jcr/json_content_rule.hpp>
 
 namespace jsoncons {
-    class parsing_context;
+    class serializing_context;
 }
 
 namespace jsoncons { namespace jcr {
@@ -25,7 +25,7 @@ public:
     typedef CharT char_type;
     typedef std::char_traits<char_type> char_traits_type;
 
-    typedef basic_string_view_ext<char_type,char_traits_type> string_view_type;
+    typedef basic_string_view<char_type,char_traits_type> string_view_type;
 
     virtual ~basic_jcr_input_handler() {}
 
@@ -39,47 +39,47 @@ public:
         do_end_json();
     }
 
-    void begin_object(const parsing_context& context)
+    void begin_object(const serializing_context& context)
     {
         do_begin_object(context);
     }
 
-    void end_object(const parsing_context& context)
+    void end_object(const serializing_context& context)
     {
         do_end_object(context);
     }
 
-    void begin_array(const parsing_context& context)
+    void begin_array(const serializing_context& context)
     {
         do_begin_array(context);
     }
 
-    void end_array(const parsing_context& context)
+    void end_array(const serializing_context& context)
     {
         do_end_array(context);
     }
 
-    void name(const string_view_type& name, const parsing_context& context)
+    void name(const string_view_type& name, const serializing_context& context)
     {
         do_name(name, context);
     }
 
-    void rule(json_content_rule::shared_ptr rule, const parsing_context& context) 
+    void rule(json_content_rule::shared_ptr rule, const serializing_context& context) 
     {
         do_rule(rule, context);
     }
 
-    void string_value(const string_view_type& value, const parsing_context& context) 
+    void string_value(const string_view_type& value, const serializing_context& context) 
     {
         do_string_value(value, context);
     }
 
-    void bool_value(bool value, const parsing_context& context) 
+    void bool_value(bool value, const serializing_context& context) 
     {
         do_bool_value(value,context);
     }
 
-    void null_value(const parsing_context& context) 
+    void null_value(const serializing_context& context) 
     {
         do_null_value(context);
     }
@@ -89,23 +89,23 @@ private:
 
     virtual void do_end_json() = 0;
 
-    virtual void do_begin_object(const parsing_context& context) = 0;
+    virtual void do_begin_object(const serializing_context& context) = 0;
 
-    virtual void do_end_object(const parsing_context& context) = 0;
+    virtual void do_end_object(const serializing_context& context) = 0;
 
-    virtual void do_begin_array(const parsing_context& context) = 0;
+    virtual void do_begin_array(const serializing_context& context) = 0;
 
-    virtual void do_end_array(const parsing_context& context) = 0;
+    virtual void do_end_array(const serializing_context& context) = 0;
 
-    virtual void do_name(const string_view_type& name, const parsing_context& context) = 0;
+    virtual void do_name(const string_view_type& name, const serializing_context& context) = 0;
 
-    virtual void do_null_value(const parsing_context& context) = 0;
+    virtual void do_null_value(const serializing_context& context) = 0;
 
-    virtual void do_string_value(const string_view_type& value, const parsing_context& context) = 0;
+    virtual void do_string_value(const string_view_type& value, const serializing_context& context) = 0;
 
-    virtual void do_rule(json_content_rule::shared_ptr rule, const parsing_context& context) = 0;
+    virtual void do_rule(json_content_rule::shared_ptr rule, const serializing_context& context) = 0;
 
-    virtual void do_bool_value(bool value, const parsing_context& context) = 0;
+    virtual void do_bool_value(bool value, const serializing_context& context) = 0;
 };
 
 template <class CharT>
@@ -122,39 +122,39 @@ private:
     {
     }
 
-    void do_begin_object(const parsing_context&) override
+    void do_begin_object(const serializing_context&) override
     {
     }
 
-    void do_end_object(const parsing_context&) override
+    void do_end_object(const serializing_context&) override
     {
     }
 
-    void do_begin_array(const parsing_context&) override
+    void do_begin_array(const serializing_context&) override
     {
     }
 
-    void do_end_array(const parsing_context&) override
+    void do_end_array(const serializing_context&) override
     {
     }
 
-    void do_name(const string_view_type&, const parsing_context&) override
+    void do_name(const string_view_type&, const serializing_context&) override
     {
     }
 
-    void do_null_value(const parsing_context&) override
+    void do_null_value(const serializing_context&) override
     {
     }
 
-    void do_string_value(const string_view_type&, const parsing_context&) override
+    void do_string_value(const string_view_type&, const serializing_context&) override
     {
     }
 
-    void do_rule(json_content_rule::shared_ptr rule, const parsing_context&) override
+    void do_rule(json_content_rule::shared_ptr rule, const serializing_context&) override
     {
     }
 
-    void do_bool_value(bool, const parsing_context&) override
+    void do_bool_value(bool, const serializing_context&) override
     {
     }
 };

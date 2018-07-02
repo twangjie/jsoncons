@@ -12,7 +12,7 @@
 #include <jsoncons/jsoncons_utilities.hpp>
 
 namespace jsoncons {
-    class parsing_context;
+    class serializing_context;
 }
 
 namespace jsoncons { namespace jcr {

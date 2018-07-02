@@ -17,7 +17,7 @@
 #include <system_error>
 #include <unordered_map>
 #include <jsoncons/json_exception.hpp>
-#include <jsoncons/detail/number_parsers.hpp>
+#include <jsoncons/detail/parse_number.hpp>
 #include <jsoncons_ext/jcr/jcr_input_handler.hpp>
 #include <jsoncons/parse_error_handler.hpp>
 #include <jsoncons_ext/jcr/jcr_error_category.hpp>
@@ -69,6 +69,9 @@ enum class parse_state : uint8_t
     negative_integer,
     positive_integer,
     integer_range_or_fraction,
+    uinteger_range_or_fraction,
+    integer_range,
+    uinteger_range,
     fraction1,
     fraction2,
     exp1,
@@ -90,7 +93,7 @@ enum class parse_state : uint8_t
 };
 
 template <class CharT, class Allocator = std::allocator<char>>
-class basic_jcr_parser : private parsing_context
+class basic_jcr_parser : private serializing_context
 {
     static const int default_initial_stack_capacity_ = 100;
     typedef typename basic_jcr_input_handler<CharT>::string_view_type string_view_type;
@@ -125,6 +128,9 @@ class basic_jcr_parser : private parsing_context
     const CharT* begin_input_;
     const CharT* end_input_;
     const CharT* p_;
+
+    int64_t from_integer_ = 0;
+    uint64_t from_uinteger_ = 0;
 
     parse_state state_;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<parse_state> parse_state_allocator_type;
@@ -240,7 +246,7 @@ public:
         return column_;
     }
 
-    const parsing_context& parsing_context() const
+    const serializing_context& serializing_context() const
     {
         return *this;
     }
@@ -1533,10 +1539,72 @@ minus_sign:
                 ec = jcr_parser_errc::expected_value;
                 return;
         }
+integer_range:
+        if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
+        {
+            ec = jcr_parser_errc::unexpected_eof;
+            return;
+        }
+        switch (*p_)
+        {
+        default:
+            handler_.rule(std::make_shared<integer_range_rule>(from_integer_), *this);
+            state_stack_.pop_back();
+            ++p_;
+            switch (parent())
+            {
+            case parse_state::array:
+            case parse_state::object:
+                state_ = parse_state::expect_comma_or_end;
+                break;
+            case parse_state::root:
+                state_ = parse_state::done;
+                handler_.end_json();
+                break;
+            default:
+                if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
+                {
+                    ec = jcr_parser_errc::invalid_json_text;
+                    return;
+                }
+                break;
+            }
+        }
+uinteger_range:
+        if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
+        {
+            ec = jcr_parser_errc::unexpected_eof;
+            return;
+        }
+        switch (*p_)
+        {
+        default:
+            handler_.rule(std::make_shared<uinteger_range_rule>(from_uinteger_), *this);
+            state_stack_.pop_back();
+            ++p_;
+            switch (parent())
+            {
+            case parse_state::array:
+            case parse_state::object:
+                state_ = parse_state::expect_comma_or_end;
+                break;
+            case parse_state::root:
+                state_ = parse_state::done;
+                handler_.end_json();
+                break;
+            default:
+                if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
+                {
+                    ec = jcr_parser_errc::invalid_json_text;
+                    return;
+                }
+                break;
+            }
+        }
 negative_zero:
         if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
         {
-            state_ = parse_state::negative_zero;
+            ec = jcr_parser_errc::unexpected_eof;
             return;
         }
         switch (*p_)
@@ -1588,7 +1656,6 @@ negative_zero:
                 return;
             case '.':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
-                number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
                 goto integer_range_or_fraction;
@@ -1686,7 +1753,6 @@ negative_integer:
                 return;
             case '.':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
-                number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
                 goto integer_range_or_fraction;
@@ -1757,10 +1823,9 @@ positive_zero:
                 return;
             case '.':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
-                number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
-                goto integer_range_or_fraction;
+                goto uinteger_range_or_fraction;
             case 'e':case 'E':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
@@ -1847,10 +1912,9 @@ positive_integer:
                 goto positive_integer;
             case '.':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
-                number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
-                goto integer_range_or_fraction;
+                goto uinteger_range_or_fraction;
             case 'e':case 'E':
                 JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
@@ -1881,10 +1945,38 @@ integer_range_or_fraction:
         {
         case '.':
             {
+                state_ = parse_state::integer_range;
+                state_stack_.push_back(state_);
+                jsoncons::detail::to_integer_result result = jsoncons::detail::to_integer(number_buffer_.data(), number_buffer_.length());
+                number_buffer_.clear();
+                from_integer_ = result.value;
                 ++p_;
-                break;
+                goto integer_range;
             }
         default:
+            number_buffer_.push_back('.');
+            goto fraction1;
+        }
+uinteger_range_or_fraction:
+        if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
+        {
+            state_ = parse_state::uinteger_range_or_fraction;
+            return;
+        }
+        switch (*p_)
+        {
+        case '.':
+            {
+                state_ = parse_state::integer_range;
+                state_stack_.push_back(state_);
+                jsoncons::detail::to_uinteger_result result = jsoncons::detail::to_uinteger(number_buffer_.data(), number_buffer_.length());
+                from_uinteger_ = result.value;
+                number_buffer_.clear();
+                ++p_;
+                goto uinteger_range;
+            }
+        default:
+            number_buffer_.push_back('.');
             goto fraction1;
         }
 fraction1:
