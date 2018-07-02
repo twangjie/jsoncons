@@ -1,20 +1,48 @@
 ## FAQ
 
-[Deserializing](#A1)
+### Deserializing
 
-[Serializing](#A2)
+[How can I parse JSON from a string?](#A1)  
+[How can I parse JSON from a file?](#A2)  
+[How can I validate JSON without incurring parse exceptions?](#A3)  
+[What if I want to allow comments? What if I don't?](#A4)  
+[Can I set a maximum nesting depth?](#A5)  
+[Is there any way to prevent the alphabetic sort of the outputted JSON? Is there a way of retaining the original insertion order?](#A6)  
 
-[Constructing](#A3)
+### Serializing
 
-[Iterating](#A4)
+[How can I serialize a json value to a string?](#B1)  
+[How can I serialize a json value to a stream?](#B2)  
+[How can I escape all non-ascii characters?](#B3)  
 
-[Getters](#A5)
+### Constructing
 
-[Search and Replace](#A6)
+[How do I construct a json object?](#C1)  
+[How do I construct a json array?](#C2)  
+[How do I insert a new value in an array at a specific position?](#C3)  
+[How do I create arrays of arrays of arrays of ...](#C4)  
+[Is it possible to merge two json objects?](#C5)  
 
-<div id="A1"/> 
+### Iterating
+
+[How can I iterate over a json array?](#D1)  
+[How can I iterate over a json object?](#D2)  
+
+### Getters
+
+[Is there a way to use `string_view` to access the actual memory that's being used to hold a string?](#E1)  
+[I have a string in a JSON object that I know represents a decimal number, and I want to assign it to a C++ double.](#E2)  
+[I want to look up a key, if found, return the value converted to type T, otherwise, return a default value of type T.](#E3)  
+[How do I retrieve a value in a hierarchy of JSON objects?](#E4)  
+
+### Search and Replace
+
+[Is there a way to search for and repace an object member key?](#F1)  
+[Is there a way to search for and replace a value?](#F2)  
 
 ### Deserializing
+
+<div id="A1"/> 
 
 #### How can I parse JSON from a string?
 
@@ -37,6 +65,8 @@ json j = R"(
 )"_json;
 ```
 
+<div id="A2"/> 
+
 #### How can I parse JSON from a file?
 
 ```
@@ -44,6 +74,8 @@ std::ifstream is("myfile.json");
 
 json j = json::parse(is);
 ```
+
+<div id="A3"/> 
 
 #### How can I validate JSON without incurring parse exceptions?
 ```c++
@@ -71,6 +103,8 @@ Output:
 ```
 Expected name separator ':' on line 4 and column 20
 ```
+
+<div id="A4"/> 
 
 #### What if I want to allow comments? What if I don't?
 
@@ -107,6 +141,8 @@ Output:
 (2) Illegal comment at line 3 and column 10
 ```
 
+<div id="A5"/> 
+
 #### Can I set a maximum nesting depth?
 
 Yes, like this,
@@ -127,6 +163,8 @@ Output:
 ```
 Maximum JSON depth exceeded at line 1 and column 21
 ```
+
+<div id="A6"/> 
 
 #### Is there any way to prevent the alphabetic sort of the outputted JSON? Is there a way of retaining the original insertion order?
 
@@ -180,9 +218,9 @@ Output:
 }
 ```
 
-<div id="A2"/>
-
 ### Serializing
+
+<div id="B1"/>
 
 #### How can I serialize a json value to a string?
 
@@ -193,6 +231,8 @@ j.dump(s); // compressed
 
 j.dump(s, indenting::indent); // pretty print
 ```
+
+<div id="B2"/>
 
 #### How can I serialize a json value to a stream?
 
@@ -207,6 +247,8 @@ std::cout << j << std::endl; // compressed
 
 std::cout << pretty_print(j) << std::endl; // pretty print
 ```
+
+<div id="B3"/>
 
 #### How can I escape all non-ascii characters?
 
@@ -225,9 +267,9 @@ std::cout << print(j, options) << std::endl; // compressed
 std::cout << pretty_print(j, options) << std::endl; // pretty print
 ```
 
-<div id="A3"/>
-
 ### Constructing
+
+<div id="C1"/>
 
 #### How do I construct a json object?
 
@@ -253,6 +295,8 @@ json file_settings = json::object{
 };
 ```
 
+<div id="C2"/>
+
 #### How do I construct a json array?
 
 Insert values into a json array,
@@ -269,6 +313,8 @@ or use an array initializer-list,
 json image_formats = json::array{"JPEG","PSD","TIFF","DNG"};
 ```
 
+<div id="C3"/>
+
 #### How do I insert a new value in an array at a specific position?
 
 ```c++
@@ -284,6 +330,8 @@ Output:
 ```
 ["Montreal","Toronto","Vancouver"]
 ```
+
+<div id="C4"/>
 
 #### How do I create arrays of arrays of arrays of ...
 
@@ -331,6 +379,8 @@ Output:
 ]
 ```
 
+<div id="C5"/>
+
 #### Is it possible to merge two json objects?
 
 [json::merge](ref/json/merge.md) inserts another json object's key-value pairs into a json object,
@@ -369,9 +419,9 @@ Output:
 }
 ```
 
-<div id="A4"/>
-
 ### Iterating
+
+<div id="D1"/>
 
 #### How can I iterate over a json array?
 
@@ -383,6 +433,8 @@ for (auto val : j.array_range())
     std::cout << val << std::endl;
 }
 ```
+
+<div id="D2"/>
 
 #### How can I iterate over a json object?
 
@@ -400,9 +452,9 @@ for (const auto& member : j.object_range())
 }
 ```
 
-<div id="A5"/>
-
 ### Getters
+
+<div id="E1"/>
 
 #### Is there a way to use `string_view` to access the actual memory that's being used to hold a string?
 
@@ -415,6 +467,8 @@ auto sv = j.as_string_view();
 If your compiler supports `std::string_view` and `JSONCONS_HAS_STRING_VIEW` is defined, 
 `sv` is a `std::string_view`.
 
+<div id="E2"/>
+
 #### I have a string in a JSON object that I know represents a decimal number, and I want to assign it to a C++ double. 
 
 ```c++
@@ -424,6 +478,8 @@ json j = json::object{
 
 double price = j["price"].as<double>();
 ```
+
+<div id="E3"/>
 
 #### I want to look up a key, if found, return the value converted to type T, otherwise, return a default value of type T.
  
@@ -436,8 +492,10 @@ double price = j.get_with_default("price", 25.00); // returns 25.17
 
 double sale_price = j.get_with_default("sale_price", 22.0); // returns 22.0
 ```
+
+<div id="E4"/>
  
-#### How do I query a value in a hierarchy of JSON objects?
+#### How do I retrieve a value in a hierarchy of JSON objects?
 
 ```c++
 #include <jsoncons/json.hpp>
@@ -483,10 +541,10 @@ int main()
     }
 }
 ```
- 
-<div id="A6"/>
 
 ### Search and Replace
+ 
+<div id="F1"/>
 
 #### Is there a way to search for and repace an object member key?
 
@@ -528,6 +586,8 @@ Output:
 (1) {"first":1,"second":2,"third":3,"fourth":4}
 (2) {"first":1,"second":2,"third":3,"fourth":4}
 ```
+ 
+<div id="F2"/>
 
 #### Is there a way to search for and replace a value?
 
