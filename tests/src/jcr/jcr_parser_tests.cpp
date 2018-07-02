@@ -97,6 +97,32 @@ BOOST_AUTO_TEST_CASE(jcr_test4)
     BOOST_CHECK(!ec);
 }
 
+BOOST_AUTO_TEST_CASE(jcr_test5)
+{
+    std::string s = R"(
+{
+  $fn,
+  $lc,
+  $wc
+}
+
+$fn = "file-name"  : string
+$lc = "line-count" : 0..
+$wc = "word-count" : 0..
+)";
+
+    null_jcr_input_handler handler;
+    jcr_parser parser(s.data(),s.length(),handler);
+
+    std::error_code ec;
+    parser.parse(ec);
+    if (ec)
+    {
+        std::cerr << ec.message() << std::endl;
+    }
+    BOOST_CHECK(!ec);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 
