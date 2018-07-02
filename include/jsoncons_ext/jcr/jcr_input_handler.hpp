@@ -64,6 +64,11 @@ public:
         do_name(name, context);
     }
 
+    void named_rule(const string_view_type& name, const serializing_context& context)
+    {
+        do_named_rule(name, context);
+    }
+
     void rule(json_content_rule::shared_ptr rule, const serializing_context& context) 
     {
         do_rule(rule, context);
@@ -98,6 +103,8 @@ private:
     virtual void do_end_array(const serializing_context& context) = 0;
 
     virtual void do_name(const string_view_type& name, const serializing_context& context) = 0;
+
+    virtual void do_named_rule(const string_view_type& name, const serializing_context& context) = 0;
 
     virtual void do_null_value(const serializing_context& context) = 0;
 
@@ -139,6 +146,10 @@ private:
     }
 
     void do_name(const string_view_type&, const serializing_context&) override
+    {
+    }
+
+    void do_named_rule(const string_view_type&, const serializing_context&) override
     {
     }
 

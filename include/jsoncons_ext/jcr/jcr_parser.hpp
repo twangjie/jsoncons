@@ -51,6 +51,7 @@ enum class parse_state : uint8_t
     expect_value_or_end,
     expect_value,
     array, 
+    named_rule,
     string_u1,
     member_name,
     escape, 
@@ -651,66 +652,72 @@ public:
                 {
                     switch (*p_)
                     {
-                        JSONCONS_ILLEGAL_CONTROL_CHARACTER:
-                            if (err_handler_.error(jcr_parser_errc::illegal_control_character, *this))
-                            {
-                                ec = jcr_parser_errc::illegal_control_character;
-                                return;
-                            }
-                            ++p_;
-                            ++column_;
-                            break;
-                        case '\r': 
-                            ++p_;
-                            ++column_;
-                            push_state(state_);
-                            state_ = parse_state::cr;
-                            break; 
-                        case '\n': 
-                            ++p_;
-                            ++column_;
-                            push_state(state_);
-                            state_ = parse_state::lf;
-                            break;   
-                        case ' ':case '\t':
-                            skip_whitespace();
-                            break;
-                        case '/':
-                            ++p_;
-                            ++column_;
-                            push_state(state_); 
-                            state_ = parse_state::slash;
-                            break;
-                        case '}':
-                            do_end_object(ec);
-                            if (ec) return;
-                            ++p_;
-                            ++column_;
-                            break;
-                        case '\"':
-                            ++p_;
-                            ++column_;
-                            push_state(parse_state::member_name);
-                            state_ = parse_state::string_u1;
-                            break;
-                        case '\'':
-                            if (err_handler_.error(jcr_parser_errc::single_quote, *this))
-                            {
-                                ec = jcr_parser_errc::single_quote;
-                                return;
-                            }
-                            ++p_;
-                            ++column_;
-                            break;
-                        default:
-                            if (err_handler_.error(jcr_parser_errc::expected_name, *this))
-                            {
-                                ec = jcr_parser_errc::expected_name;
-                                return;
-                            }
-                            ++p_;
-                            ++column_;
-                            break;
+                    JSONCONS_ILLEGAL_CONTROL_CHARACTER:
+                        if (err_handler_.error(jcr_parser_errc::illegal_control_character, *this))
+                        {
+                            ec = jcr_parser_errc::illegal_control_character;
+                            return;
+                        }
+                        ++p_;
+                        ++column_;
+                        break;
+                    case '\r': 
+                        ++p_;
+                        ++column_;
+                        push_state(state_);
+                        state_ = parse_state::cr;
+                        break; 
+                    case '\n': 
+                        ++p_;
+                        ++column_;
+                        push_state(state_);
+                        state_ = parse_state::lf;
+                        break;   
+                    case ' ':case '\t':
+                        skip_whitespace();
+                        break;
+                    case '/':
+                        ++p_;
+                        ++column_;
+                        push_state(state_); 
+                        state_ = parse_state::slash;
+                        break;
+                    case '$':
+                        push_state(parse_state::named_rule); 
+                        state_ = parse_state::string_u1;
+                        ++p_;
+                        ++column_;
+                        break;
+                    case '}':
+                        do_end_object(ec);
+                        if (ec) return;
+                        ++p_;
+                        ++column_;
+                        break;
+                    case '\"':
+                        ++p_;
+                        ++column_;
+                        push_state(parse_state::member_name);
+                        state_ = parse_state::string_u1;
+                        break;
+                    case '\'':
+                        if (err_handler_.error(jcr_parser_errc::single_quote, *this))
+                        {
+                            ec = jcr_parser_errc::single_quote;
+                            return;
+                        }
+                        ++p_;
+                        ++column_;
+                        break;
+                    default:
+                        if (err_handler_.error(jcr_parser_errc::expected_name, *this))
+                        {
+                            ec = jcr_parser_errc::expected_name;
+                            return;
+                        }
+                        ++p_;
+                        ++column_;
+                        break;
                     }
                 }
                 break;
@@ -2815,6 +2822,11 @@ private:
     {
         switch (parent())
         {
+        case parse_state::named_rule:
+            handler_.named_rule(string_view_type(s, length), *this);
+            state_ = pop_state();
+            after_value(ec);
+            break;
         case parse_state::member_name:
             handler_.name(string_view_type(s, length), *this);
             state_ = pop_state();
