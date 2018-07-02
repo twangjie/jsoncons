@@ -32,6 +32,7 @@ namespace jsoncons { namespace jcr {
 
 namespace detail {
     JSONCONS_DEFINE_LITERAL(integer_rule_literal,"integer")
+    JSONCONS_DEFINE_LITERAL(string_rule_literal,"string")
 }
 
 enum class parse_state : uint8_t 
@@ -141,7 +142,8 @@ class basic_jcr_parser : private serializing_context
 
     const std::unordered_map<string_type, json_content_rule::shared_ptr, std::hash<string_type>,std::equal_to<string_type>> rule_dictionary =
     {
-        {detail::integer_rule_literal<char_type>(),std::make_shared<integer_rule>()}
+        {detail::integer_rule_literal<char_type>(),std::make_shared<integer_rule>()},
+        {detail::string_rule_literal<char_type>(),std::make_shared<string_rule>()}
     };
 
 public:

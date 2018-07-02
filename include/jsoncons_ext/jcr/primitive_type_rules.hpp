@@ -19,6 +19,16 @@ namespace jsoncons {
 
 namespace jsoncons { namespace jcr {
 
+// string rule
+
+class string_rule : public virtual json_content_rule
+{
+public:
+    string_rule()
+    {
+    }
+};
+
 // integer rules
 
 class specific_integer_rule : public virtual json_content_rule
