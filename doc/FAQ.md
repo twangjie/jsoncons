@@ -116,7 +116,7 @@ try
 {
     json_serializing_options options;
     options.max_nesting_depth(20);
-    json::parse(s, options);
+    json j = json::parse(s, options);
 }
 catch (const parse_error& e)
 {
@@ -404,6 +404,17 @@ for (const auto& member : j.object_range())
 
 ### Getters
 
+#### Is there a way to use `string_view` to access the actual memory that's being used to hold a string?
+
+Use `as_string_view()`, e.g.
+```c++
+json j = json::parse("\"Hello World\"");
+auto sv = j.as_string_view();
+```
+`sv` supports the member functions of `std::string_view`, including `data()` and `size()`. 
+If your compiler supports `std::string_view` and `JSONCONS_HAS_STRING_VIEW` is defined, 
+`sv` is a `std::string_view`.
+
 #### I have a string in a JSON object that I know represents a decimal number, and I want to assign it to a C++ double. 
 
 ```c++
@@ -428,6 +439,7 @@ double sale_price = j.get_with_default("sale_price", 22.0); // returns 22.0
  
 #### How do I query a value in a hierarchy of JSON objects?
 
+```c++
 #include <jsoncons/json.hpp>
 #include <jsoncons_ext/jsonpointer/jsonpointer.hpp>
 #include <jsoncons_ext/jsonpath/json_query.hpp>
@@ -470,6 +482,7 @@ int main()
         std::cout << "(5) " << result5[0].as<std::string>() << std::endl;
     }
 }
+```
  
 <div id="A6"/>
 
