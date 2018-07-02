@@ -25,7 +25,6 @@ using namespace jsoncons::literals;
 
 BOOST_AUTO_TEST_SUITE(jcr_tests)
 
-#if 0
 BOOST_AUTO_TEST_CASE(jcr_test1)
 {
     std::string s = R"(
@@ -57,11 +56,11 @@ BOOST_AUTO_TEST_CASE(jcr_test2)
     }
     BOOST_CHECK(!ec);
 }
-#endif
+
 BOOST_AUTO_TEST_CASE(jcr_test3)
 {
     std::string s = R"(
-{ "line-count" : 0.. , "word-count" : 0.. }
+{ "line-count" : 0.., "word-count" : -10.., "para-count" : 10.. }
     )";
 
     null_jcr_input_handler handler;

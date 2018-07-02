@@ -115,7 +115,6 @@ class basic_jcr_parser : private serializing_context
     std::basic_string<CharT,std::char_traits<CharT>,char_allocator_type> string_buffer_;
     std::basic_string<char,std::char_traits<char>,numeral_allocator_type> number_buffer_;
 
-    bool is_negative_;
     uint8_t precision_;
 
     size_t line_;
@@ -152,7 +151,6 @@ public:
          err_handler_(default_err_handler_),
          cp_(0),
          cp2_(0),
-         is_negative_(false),
          precision_(0), 
          line_(1),
          column_(1),
@@ -174,7 +172,6 @@ public:
          err_handler_(err_handler),
          cp_(0),
          cp2_(0),
-         is_negative_(false),
          precision_(0), 
          line_(1),
          column_(1),
@@ -196,7 +193,6 @@ public:
          err_handler_(default_err_handler_),
          cp_(0),
          cp2_(0),
-         is_negative_(false),
          precision_(0), 
          line_(1),
          column_(1),
@@ -219,7 +215,6 @@ public:
          err_handler_(err_handler),
          cp_(0),
          cp2_(0),
-         is_negative_(false),
          precision_(0), 
          line_(1),
          column_(1),
@@ -522,17 +517,16 @@ public:
                         break;
                     case '-':
                         number_buffer_.clear();
-                        is_negative_ = true;
                         precision_ = 0;
                         ++p_;
                         ++column_;
                         state_ = parse_state::minus;
+                        number_buffer_.push_back(static_cast<char>(*p_));
                         parse_number(ec);
                         if (ec) {return;}
                         break;
                     case '0': 
                         number_buffer_.clear();
-                        is_negative_ = false;
                         precision_ = 1;
                         number_buffer_.push_back(static_cast<char>(*p_));
                         state_ = parse_state::positive_zero;
@@ -543,7 +537,6 @@ public:
                         break;
                     case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                         number_buffer_.clear();
-                        is_negative_ = false;
                         precision_ = 0;
                         state_ = parse_state::positive_integer;
                         parse_number(ec);
@@ -623,7 +616,7 @@ public:
                             ++p_;
                             ++column_;
                             break;
-                        case ',':
+                    case ',':
                             begin_member_or_element(ec);
                             if (ec) return;
                             ++p_;
@@ -896,17 +889,16 @@ public:
                             break;
                         case '-':
                             number_buffer_.clear();
-                            is_negative_ = true;
                             precision_ = 0;
                             ++p_;
                             ++column_;
                             state_ = parse_state::minus;
+                            number_buffer_.push_back(static_cast<char>(*p_));
                             parse_number(ec);
                             if (ec) {return;}
                             break;
                         case '0': 
                             number_buffer_.clear();
-                            is_negative_ = false;
                             precision_ = 1;
                             number_buffer_.push_back(static_cast<char>(*p_));
                             ++p_;
@@ -917,7 +909,6 @@ public:
                             break;
                         case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             number_buffer_.clear();
-                            is_negative_ = false;
                             precision_ = 0;
                             state_ = parse_state::positive_integer;
                             parse_number(ec);
@@ -1032,17 +1023,16 @@ public:
                         break;
                     case '-':
                         number_buffer_.clear();
-                        is_negative_ = true;
                         precision_ = 0;
                         ++p_;
                         ++column_;
                         state_ = parse_state::minus;
+                        number_buffer_.push_back(static_cast<char>(*p_));
                         parse_number(ec);
                         if (ec) {return;}
                         break;
                     case '0': 
                         number_buffer_.clear();
-                        is_negative_ = false;
                         precision_ = 1;
                         number_buffer_.push_back(static_cast<char>(*p_));
                         ++p_;
@@ -1053,7 +1043,6 @@ public:
                         break;
                     case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                         number_buffer_.clear();
-                        is_negative_ = false;
                         precision_ = 0;
                         state_ = parse_state::positive_integer;
                         parse_number(ec);
@@ -1550,25 +1539,8 @@ integer_range:
         default:
             handler_.rule(std::make_shared<integer_range_rule>(from_integer_), *this);
             state_stack_.pop_back();
-            ++p_;
-            switch (parent())
-            {
-            case parse_state::array:
-            case parse_state::object:
-                state_ = parse_state::expect_comma_or_end;
-                break;
-            case parse_state::root:
-                state_ = parse_state::done;
-                handler_.end_json();
-                break;
-            default:
-                if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
-                {
-                    ec = jcr_parser_errc::invalid_json_text;
-                    return;
-                }
-                break;
-            }
+            after_value(ec);
+            return;
         }
 uinteger_range:
         if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
@@ -1581,25 +1553,8 @@ uinteger_range:
         default:
             handler_.rule(std::make_shared<uinteger_range_rule>(from_uinteger_), *this);
             state_stack_.pop_back();
-            ++p_;
-            switch (parent())
-            {
-            case parse_state::array:
-            case parse_state::object:
-                state_ = parse_state::expect_comma_or_end;
-                break;
-            case parse_state::root:
-                state_ = parse_state::done;
-                handler_.end_json();
-                break;
-            default:
-                if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
-                {
-                    ec = jcr_parser_errc::invalid_json_text;
-                    return;
-                }
-                break;
-            }
+            after_value(ec);
+            return;
         }
 negative_zero:
         if (JSONCONS_UNLIKELY(p_ >= local_end_input)) // Buffer exhausted               
@@ -1655,12 +1610,10 @@ negative_zero:
                 if (ec) return;
                 return;
             case '.':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 ++p_;
                 ++column_;
                 goto integer_range_or_fraction;
             case 'e':case 'E':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
@@ -1752,12 +1705,10 @@ negative_integer:
                 ++column_;
                 return;
             case '.':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 ++p_;
                 ++column_;
                 goto integer_range_or_fraction;
             case 'e':case 'E':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
@@ -1822,12 +1773,10 @@ positive_zero:
                 if (ec) return;
                 return;
             case '.':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 ++p_;
                 ++column_;
                 goto uinteger_range_or_fraction;
             case 'e':case 'E':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
@@ -1911,12 +1860,10 @@ positive_integer:
                 ++column_;
                 goto positive_integer;
             case '.':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 ++p_;
                 ++column_;
                 goto uinteger_range_or_fraction;
             case 'e':case 'E':
-                JSONCONS_ASSERT(precision_ == number_buffer_.length());
                 number_buffer_.push_back(static_cast<char>(*p_));
                 ++p_;
                 ++column_;
@@ -2767,110 +2714,29 @@ private:
 
     void end_negative_value(const char* s, size_t length, std::error_code& ec)
     {
-        static const int64_t min_value = (std::numeric_limits<int64_t>::min)();
-        static const int64_t min_value_div_10 = min_value / 10;
-
-        int64_t n = 0;
-        bool overflow = false;
-        const char* end = s + length; 
-        for (; s < end; ++s)
+        jsoncons::detail::to_integer_result result = jsoncons::detail::to_integer(number_buffer_.data(), number_buffer_.length());
+        if (!result.overflow)
         {
-            int64_t x = *s - '0';
-            if (n < min_value_div_10)
-            {
-                overflow = true;
-                break;
-            }
-            n = n * 10;
-            if (n < min_value + x)
-            {
-                overflow = true;
-                break;
-            }
-
-            n -= x;
-        }        
-
-        if (!overflow)
-        {
-            handler_.rule(std::make_shared<specific_integer_rule>(n), *this);
-
-            switch (parent())
-            {
-            case parse_state::array:
-            case parse_state::object:
-                state_ = parse_state::expect_comma_or_end;
-                break;
-            case parse_state::root:
-                state_ = parse_state::done;
-                handler_.end_json();
-                break;
-            default:
-                if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
-                {
-                    ec = jcr_parser_errc::invalid_json_text;
-                    return;
-                }
-                break;
-            }
+            handler_.rule(std::make_shared<specific_integer_rule>(result.value), *this);
+            after_value(ec);
         }
         else
         {
-            end_fraction_value(s, length, ec);
+            ec = jcr_parser_errc::integer_out_of_range;
         }
     }
 
     void end_positive_value(const char* s, size_t length, std::error_code& ec)
     {
-        static const uint64_t max_value = (std::numeric_limits<uint64_t>::max)();
-        static const uint64_t max_value_div_10 = max_value / 10;
-        uint64_t n = 0;
-        bool overflow = false;
-        const char* end = s + length; 
-        for (; s < end; ++s)
+        jsoncons::detail::to_uinteger_result result = jsoncons::detail::to_uinteger(number_buffer_.data(), number_buffer_.length());
+        if (!result.overflow)
         {
-            uint64_t x = *s - '0';
-            if (n > max_value_div_10)
-            {
-                overflow = true;
-                break;
-            }
-            n = n * 10;
-            if (n > max_value - x)
-            {
-                overflow = true;
-                break;
-            }
-
-            n += x;
-        }
-
-        if (!overflow)
-        {
-            handler_.rule(std::make_shared<specific_uinteger_rule>(n), *this);
-
-            switch (parent())
-            {
-            case parse_state::array:
-            case parse_state::object:
-                state_ = parse_state::expect_comma_or_end;
-                break;
-            case parse_state::root:
-                state_ = parse_state::done;
-                handler_.end_json();
-                break;
-            default:
-                if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
-                {
-                    ec = jcr_parser_errc::invalid_json_text;
-                    return;
-                }
-                break;
-            }
+            handler_.rule(std::make_shared<specific_uinteger_rule>(result.value), *this);
+            after_value(ec);
         }
         else
         {
-            end_fraction_value(s, length, ec);
+            ec = jcr_parser_errc::integer_out_of_range;
         }
     }
 
@@ -2879,8 +2745,6 @@ private:
         try
         {
             double d = str_to_double_(s, length);
-            if (is_negative_)
-                d = -d;
 
             if (precision_ > std::numeric_limits<double>::max_digits10)
             {
@@ -2901,24 +2765,7 @@ private:
             handler_.null_value(*this); // recovery
         }
 
-        switch (parent())
-        {
-        case parse_state::array:
-        case parse_state::object:
-            state_ = parse_state::expect_comma_or_end;
-            break;
-        case parse_state::root:
-            state_ = parse_state::done;
-            handler_.end_json();
-            break;
-        default:
-            if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
-            {
-                ec = jcr_parser_errc::invalid_json_text;
-                return;
-            }
-            break;
-        }
+        after_value(ec);
     }
 
     void append_codepoint(int c, std::error_code& ec)
@@ -3002,6 +2849,28 @@ private:
             state_ = parse_state::expect_value;
             break;
         case parse_state::root:
+            break;
+        default:
+            if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))
+            {
+                ec = jcr_parser_errc::invalid_json_text;
+                return;
+            }
+            break;
+        }
+    }
+
+    void after_value(std::error_code& ec) 
+    {
+        switch (parent())
+        {
+        case parse_state::array:
+        case parse_state::object:
+            state_ = parse_state::expect_comma_or_end;
+            break;
+        case parse_state::root:
+            state_ = parse_state::done;
+            handler_.end_json();
             break;
         default:
             if (err_handler_.error(jcr_parser_errc::invalid_json_text, *this))

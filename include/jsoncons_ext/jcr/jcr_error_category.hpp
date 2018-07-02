@@ -44,7 +44,8 @@ enum class jcr_parser_errc
     over_long_utf8_sequence,
     illegal_codepoint,
     illegal_surrogate_value,
-    unpaired_high_surrogate
+    unpaired_high_surrogate,
+    integer_out_of_range
 };
 
 class json_error_category_impl
@@ -98,7 +99,7 @@ public:
         case jcr_parser_errc::invalid_number:
             return "Invalid number";
         case jcr_parser_errc::expected_comma_or_right_brace:
-            return "Expected comma or right brace ']'";
+            return "Expected comma or right brace '}'";
         case jcr_parser_errc::expected_comma_or_right_bracket:
             return "Expected comma or right bracket ']'";
         case jcr_parser_errc::unexpected_right_brace:
@@ -117,6 +118,8 @@ public:
             return "UTF-16 surrogate values are illegal in UTF-32";
         case jcr_parser_errc::unpaired_high_surrogate:
             return "Expected low surrogate following the high surrogate";
+        case jcr_parser_errc::integer_out_of_range:
+            return "Integer out of range";
         default:
             return "Unknown JSON parser error";
         }
