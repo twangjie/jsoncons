@@ -45,8 +45,8 @@ TEST_CASE("test_exception_left_brace")
     catch (const ser_error& e)
     {
         CHECK(e.code() == json_errc::expected_comma_or_right_bracket);
-        CHECK(14 == e.line_number());
-        CHECK(30 == e.column_number());
+        CHECK(14 == e.line());
+        CHECK(30 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -66,8 +66,8 @@ TEST_CASE("test_exception_right_brace")
     {
         //std::cout << e.what() << std::endl;
         CHECK(e.code() == json_errc::expected_comma_or_right_brace);
-        CHECK(17 == e.line_number());
-        CHECK(9 == e.column_number());
+        CHECK(17 == e.line());
+        CHECK(9 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -86,8 +86,8 @@ TEST_CASE("test_exception_array_eof")
     catch (const ser_error& e)
     {
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(5 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(5 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -107,8 +107,8 @@ TEST_CASE("test_exception_unicode_eof")
     {
         //std::cout << e.what() << std::endl;
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(5 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(5 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -128,8 +128,8 @@ TEST_CASE("test_exception_tru_eof")
     {
         //std::cout << e.what() << std::endl;
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(5 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(5 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -149,8 +149,8 @@ TEST_CASE("test_exception_fals_eof")
     {
         //std::cout << e.what() << std::endl;
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(6 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(6 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -170,8 +170,8 @@ TEST_CASE("test_exception_nul_eof")
     {
         //std::cout << e.what() << std::endl;
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(5 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(5 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -190,8 +190,8 @@ TEST_CASE("test_exception_true_eof")
     catch (const ser_error& e)
     {
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(6 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(6 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -210,8 +210,8 @@ TEST_CASE("test_exception_false_eof")
     catch (const ser_error& e)
     {
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(7 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(7 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -230,8 +230,8 @@ TEST_CASE("test_exception_null_eof")
     catch (const ser_error& e)
     {
         CHECK(e.code() == json_errc::unexpected_eof);
-        CHECK(1 == e.line_number());
-        CHECK(6 == e.column_number());
+        CHECK(1 == e.line());
+        CHECK(6 == e.column());
     }
     CHECK(false == decoder.is_valid());
 }
@@ -246,7 +246,7 @@ TEST_CASE("test_exception")
     }
     catch (const ser_error& e)
     {
-        CHECK((e.code() == json_errc::unexpected_eof && e.line_number() == 2 && e.column_number() == 9));
+        CHECK((e.code() == json_errc::unexpected_eof && e.line() == 2 && e.column() == 9));
     }
 }
 
