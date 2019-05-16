@@ -29,16 +29,38 @@ void validate(cddl::validator& validator, const std::string& jtext)
 
 TEST_CASE("cddl tests")
 {
-    std::string s = R"(person = {(
-                               age: int,
-                               name: tstr,
-                               employer: tstr,
+    SECTION("test 1")
+    {
+        std::string s = R"( 
+        Geography = [
+         city           : tstr,
+         gpsCoordinates : GpsCoordinates,
+       ]
+
+       GpsCoordinates = {
+         longitude      : uint,            ; degrees, scaled by 10^7
+         latitude       : uint,            ; degreed, scaled by 10^7
+       }
+       )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::validator validator(std::move(schema)); 
+        //cddl::validate(validator, "42");
+    }
+    /* SECTION("test 2")
+    {
+        std::string s = R"(person = {(
+                                   age: int,
+                                   name: tstr,
+                                   employer: tstr,
                              )})";
 
-    cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
-    //cddl::validator validator(std::move(schema)); 
-    //cddl::validate(validator, "42");
+        //cddl::validator validator(std::move(schema)); 
+        //cddl::validate(validator, "42");
+    } */
 
 }
 
