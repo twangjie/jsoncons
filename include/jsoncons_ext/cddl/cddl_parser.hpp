@@ -572,11 +572,11 @@ public:
                             break;
                         case 'x':
                             buffer.push_back(*p_);
-                            state_stack.back().state = cddl_state::hex_number;
+                            state_stack.back().state = cddl_state::hex_number_value;
                             ++p_;
                             break;
                         default:
-                            state_stack.back().state = cddl_state::number;
+                            state_stack.back().state = cddl_state::number_value;
                             break;
                     }
                     break;
