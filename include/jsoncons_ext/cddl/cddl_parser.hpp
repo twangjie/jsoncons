@@ -32,6 +32,9 @@ enum class cddl_state : uint8_t
     expect_value,
     expect_memberkey,
     value,
+    number_value,
+    hex_number_value,
+    zero_number_value,
     quoted_value,
     expect_slash_or_comma_or_right_bracket,
     array_definition,
@@ -147,6 +150,19 @@ public:
                         case '\"':
                             buffer.clear();
                             state_stack.back().state = cddl_state::quoted_value;
+                            ++p_;
+                            break;
+                        case '-':
+                        case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::number_value;
+                            ++p_;
+                            break;
+                        case '0': 
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::zero_number_value;
                             ++p_;
                             break;
                         default:
@@ -481,6 +497,86 @@ public:
                                 buffer.push_back(*p_);
                                 ++p_;
                             }
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::number_value: 
+                {
+                    switch (*p_)
+                    {
+                        case ' ': case '\t': case '\r': case '\n':
+                            std::cout << "number: " << buffer << "\n";
+                            advance_past_space_character();
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            break;
+                        case ',':
+                            std::cout << "number: " << buffer << "\n";
+                            state_stack.pop_back();
+                            break;
+                        default:
+                            if (*p_ == state_stack.back().right_bracket)
+                            {
+                                std::cout << "value: " << buffer << "\n";
+                                state_stack.pop_back();
+                            }
+                            else
+                            {
+                                buffer.push_back(*p_);
+                                ++p_;
+                            }
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::hex_number_value: 
+                {
+                    switch (*p_)
+                    {
+                        case ' ': case '\t': case '\r': case '\n':
+                            std::cout << "number: " << buffer << "\n";
+                            advance_past_space_character();
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            break;
+                        case ',':
+                            std::cout << "number: " << buffer << "\n";
+                            state_stack.pop_back();
+                            break;
+                        default:
+                            if (*p_ == state_stack.back().right_bracket)
+                            {
+                                std::cout << "value: " << buffer << "\n";
+                                state_stack.pop_back();
+                            }
+                            else
+                            {
+                                buffer.push_back(*p_);
+                                ++p_;
+                            }
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::zero_number_value: 
+                {
+                    switch (*p_)
+                    {
+                        case ' ': case '\t': case '\r': case '\n':
+                            std::cout << "number: " << buffer << "\n";
+                            advance_past_space_character();
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            break;
+                        case ',':
+                            std::cout << "number: " << buffer << "\n";
+                            state_stack.pop_back();
+                            break;
+                        case 'x':
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::hex_number;
+                            ++p_;
+                            break;
+                        default:
+                            state_stack.back().state = cddl_state::number;
                             break;
                     }
                     break;
