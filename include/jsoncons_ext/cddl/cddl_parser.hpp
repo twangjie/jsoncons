@@ -464,7 +464,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "value: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.pop_back();
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
                             break;
                         case ',':
                             std::cout << "value: " << buffer << "\n";
