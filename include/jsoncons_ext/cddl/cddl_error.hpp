@@ -19,8 +19,10 @@ enum class cddl_errc
     expected_id,
     invalid_id,
     expected_groupent,
-    expected_comma_or_left_paren_or_right_bracket,
-    expected_comma_or_left_paren_or_right_brace
+    expected_comma_or_left_par_or_right_sqbracket,
+    expected_comma_or_left_par_or_right_curbracket,
+    expected_comma_or_right_par,
+    expected_slash_or_comma_or_right_bracket
 };
 
 class cddl_error_category_impl
@@ -45,10 +47,14 @@ public:
                 return "Invalid rule id";
             case cddl_errc::expected_groupent:
                 return "Expected [ or { or (";
-            case cddl_errc::expected_comma_or_left_paren_or_right_bracket:
+            case cddl_errc::expected_comma_or_left_par_or_right_sqbracket:
                 return "Expected , or ( or ]";
-            case cddl_errc::expected_comma_or_left_paren_or_right_brace:
+            case cddl_errc::expected_comma_or_left_par_or_right_curbracket:
                 return "Expected , or ( or }";
+            case cddl_errc::expected_comma_or_right_par:
+                return "Expected , or )";
+            case cddl_errc::expected_slash_or_comma_or_right_bracket:
+                return "Expected / or , or right bracket";
             default:
                 return "Unknown CDDL parser error";
         }

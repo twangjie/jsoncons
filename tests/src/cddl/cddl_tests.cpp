@@ -48,6 +48,40 @@ TEST_CASE("cddl tests")
         //cddl::validator validator(std::move(schema)); 
         //cddl::validate(validator, "42");
     }
+    SECTION("test 2")
+    {
+        std::string s = R"( 
+            pii = (
+                      age: int,
+                      name: tstr,
+                      employer: tstr,
+                   )
+
+            person = {
+                         pii
+                     }       
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::validator validator(std::move(schema)); 
+        //cddl::validate(validator, "42");
+    }
+    SECTION("test 3")
+    {
+        std::string s = R"( 
+            attire = "bow tie" / "necktie" / "Internet attire"
+            protocol = 6 / 17
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::validator validator(std::move(schema)); 
+        //cddl::validate(validator, "42");
+    }
+
+
+
     /* SECTION("test 2")
     {
         std::string s = R"(person = {(

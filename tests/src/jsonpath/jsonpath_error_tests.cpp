@@ -73,7 +73,7 @@ void test_error_code(const json& root, const std::string& path, std::error_code 
     test_error_code(root, "..*", jsonpath_errc::expected_root,1,1);`
 }*/
 
-TEST_CASE("test_right_bracket_error")
+TEST_CASE("test_right_sqbracket_error")
 {
 
     json root = json::parse(jsonpath_fixture::store_text());

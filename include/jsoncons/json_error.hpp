@@ -34,10 +34,10 @@ namespace jsoncons {
         invalid_unicode_escape_sequence,
         leading_zero,
         invalid_number,
-        expected_comma_or_right_brace,
-        expected_comma_or_right_bracket,
-        unexpected_right_bracket,
-        unexpected_right_brace,
+        expected_comma_or_right_curbracket,
+        expected_comma_or_right_sqbracket,
+        unexpected_right_sqbracket,
+        unexpected_right_curbracket,
         illegal_comment,
         expected_continuation_byte,
         over_long_utf8_sequence,
@@ -96,13 +96,13 @@ public:
             return "A number cannot have a leading zero";
         case json_errc::invalid_number:
             return "Invalid number";
-        case json_errc::expected_comma_or_right_brace:
+        case json_errc::expected_comma_or_right_curbracket:
             return "Expected comma or right brace '}'";
-        case json_errc::expected_comma_or_right_bracket:
+        case json_errc::expected_comma_or_right_sqbracket:
             return "Expected comma or right bracket ']'";
-        case json_errc::unexpected_right_brace:
+        case json_errc::unexpected_right_curbracket:
             return "Unexpected right brace '}'";
-        case json_errc::unexpected_right_bracket:
+        case json_errc::unexpected_right_sqbracket:
             return "Unexpected right bracket ']'";
         case json_errc::illegal_comment:
             return "Illegal comment";

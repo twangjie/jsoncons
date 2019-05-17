@@ -107,8 +107,8 @@ enum class filter_path_mode
 enum class filter_state
 {
     start,
-    expect_right_round_bracket,
-    expect_oper_or_right_round_bracket,
+    expect_right_par,
+    expect_oper_or_right_par,
     expect_path_or_value_or_unary_op,
     expect_regex,
     regex,
@@ -123,7 +123,7 @@ enum class filter_state
     unquoted_argument,
     single_quoted_argument,
     double_quoted_argument,
-    expect_more_args_or_right_round_bracket,
+    expect_more_args_or_right_par,
     done
 };
 
@@ -1310,7 +1310,7 @@ public:
                     {
                         case '\'':
                             buffer.push_back('\"');
-                            state = filter_state::expect_more_args_or_right_round_bracket;
+                            state = filter_state::expect_more_args_or_right_par;
                             break;
                         default: 
                             buffer.push_back(*p);
@@ -1326,7 +1326,7 @@ public:
                     {
                         case '\"':
                             buffer.push_back('\"');
-                            state = filter_state::expect_more_args_or_right_round_bracket;
+                            state = filter_state::expect_more_args_or_right_par;
                             break;
                         default: 
                             buffer.push_back(*p);
@@ -1358,7 +1358,7 @@ public:
                     ++column_;
                     break;
                 }
-                case filter_state::expect_more_args_or_right_round_bracket:
+                case filter_state::expect_more_args_or_right_par:
                 {
                     switch (*p)
                     {
@@ -1685,7 +1685,7 @@ public:
                         break;
                 };
                 break;
-            case filter_state::expect_oper_or_right_round_bracket: 
+            case filter_state::expect_oper_or_right_par: 
                 switch (*p)
                 {
                     case '\r':
@@ -1734,7 +1734,7 @@ public:
                         break;
                 };
                 break;
-            case filter_state::expect_right_round_bracket: 
+            case filter_state::expect_right_par: 
                 switch (*p)
                 {
                     case '\r':
@@ -1759,7 +1759,7 @@ public:
                         }
                         else 
                         {
-                            state = filter_state::expect_oper_or_right_round_bracket;
+                            state = filter_state::expect_oper_or_right_par;
                         }
                         break;
                     default: 

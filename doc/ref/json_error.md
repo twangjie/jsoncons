@@ -28,10 +28,10 @@ constant                            |Description
 `invalid_unicode_escape_sequence`   |Invalid codepoint, expected four hexadecimal digits.
 `leading_zero`                    |A number cannot have a leading zero
 `invalid_number`                    |Invalid number
-`expected_comma_or_right_brace`           |Expected comma or right brace ']'        
-`expected_comma_or_right_bracket`          |Expected comma or right bracket '}'       
-`unexpected_right_brace`          |Unexpected right brace '}'       
-`unexpected_right_bracket`           |Unexpected right bracket ']'        
+`expected_comma_or_right_curbracket`           |Expected comma or right brace ']'        
+`expected_comma_or_right_sqbracket`          |Expected comma or right bracket '}'       
+`unexpected_right_curbracket`          |Unexpected right brace '}'       
+`unexpected_right_sqbracket`           |Unexpected right bracket ']'        
 
 
 

@@ -362,8 +362,8 @@ public:
     {
         if (nesting_depth_ < 1)
         {
-            err_handler_.fatal_error(json_errc::unexpected_right_brace, *this);
-            ec = json_errc::unexpected_right_brace;
+            err_handler_.fatal_error(json_errc::unexpected_right_curbracket, *this);
+            ec = json_errc::unexpected_right_curbracket;
             continue_ = false;
             return;
         }
@@ -375,15 +375,15 @@ public:
         }
         else if (state_ == json_parse_state::array)
         {
-            err_handler_.fatal_error(json_errc::expected_comma_or_right_bracket, *this);
-            ec = json_errc::expected_comma_or_right_bracket;
+            err_handler_.fatal_error(json_errc::expected_comma_or_right_sqbracket, *this);
+            ec = json_errc::expected_comma_or_right_sqbracket;
             continue_ = false;
             return;
         }
         else
         {
-            err_handler_.fatal_error(json_errc::unexpected_right_brace, *this);
-            ec = json_errc::unexpected_right_brace;
+            err_handler_.fatal_error(json_errc::unexpected_right_curbracket, *this);
+            ec = json_errc::unexpected_right_curbracket;
             continue_ = false;
             return;
         }
@@ -418,8 +418,8 @@ public:
     {
         if (nesting_depth_ < 1)
         {
-            err_handler_.fatal_error(json_errc::unexpected_right_bracket, *this);
-            ec = json_errc::unexpected_right_bracket;
+            err_handler_.fatal_error(json_errc::unexpected_right_sqbracket, *this);
+            ec = json_errc::unexpected_right_sqbracket;
             continue_ = false;
             return;
         }
@@ -431,15 +431,15 @@ public:
         }
         else if (state_ == json_parse_state::object)
         {
-            err_handler_.fatal_error(json_errc::expected_comma_or_right_brace, *this);
-            ec = json_errc::expected_comma_or_right_brace;
+            err_handler_.fatal_error(json_errc::expected_comma_or_right_curbracket, *this);
+            ec = json_errc::expected_comma_or_right_curbracket;
             continue_ = false;
             return;
         }
         else
         {
-            err_handler_.fatal_error(json_errc::unexpected_right_bracket, *this);
-            ec = json_errc::unexpected_right_bracket;
+            err_handler_.fatal_error(json_errc::unexpected_right_sqbracket, *this);
+            ec = json_errc::unexpected_right_sqbracket;
             continue_ = false;
             return;
         }
@@ -734,13 +734,13 @@ public:
                                 if (ec) {return;}
                                 break;
                             case '}':
-                                err_handler_.fatal_error(json_errc::unexpected_right_brace, *this);
-                                ec = json_errc::unexpected_right_brace;
+                                err_handler_.fatal_error(json_errc::unexpected_right_curbracket, *this);
+                                ec = json_errc::unexpected_right_curbracket;
                                 continue_ = false;
                                 return;
                             case ']':
-                                err_handler_.fatal_error(json_errc::unexpected_right_bracket, *this);
-                                ec = json_errc::unexpected_right_bracket;
+                                err_handler_.fatal_error(json_errc::unexpected_right_sqbracket, *this);
+                                ec = json_errc::unexpected_right_sqbracket;
                                 continue_ = false;
                                 return;
                             default:
@@ -807,19 +807,19 @@ public:
                             default:
                                 if (parent() == json_parse_state::array)
                                 {
-                                    continue_ = err_handler_.error(json_errc::expected_comma_or_right_bracket, *this);
+                                    continue_ = err_handler_.error(json_errc::expected_comma_or_right_sqbracket, *this);
                                     if (!continue_)
                                     {
-                                        ec = json_errc::expected_comma_or_right_bracket;
+                                        ec = json_errc::expected_comma_or_right_sqbracket;
                                         return;
                                     }
                                 }
                                 else if (parent() == json_parse_state::object)
                                 {
-                                    continue_ = err_handler_.error(json_errc::expected_comma_or_right_brace, *this);
+                                    continue_ = err_handler_.error(json_errc::expected_comma_or_right_curbracket, *this);
                                     if (!continue_)
                                     {
-                                        ec = json_errc::expected_comma_or_right_brace;
+                                        ec = json_errc::expected_comma_or_right_curbracket;
                                         return;
                                     }
                                 }

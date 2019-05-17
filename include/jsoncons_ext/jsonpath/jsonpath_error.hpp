@@ -84,23 +84,23 @@ enum class jsonpath_errc
     ok = 0,
     expected_root,
     expected_current_node,
-    expected_right_bracket,
+    expected_right_sqbracket,
     expected_name,
     expected_separator,
     invalid_filter,
     invalid_filter_expected_slash,
     invalid_filter_unbalanced_paren,
     invalid_filter_unsupported_operator,
-    invalid_filter_expected_right_brace,
+    invalid_filter_expected_right_curbracket,
     invalid_filter_expected_primary,
     expected_slice_start,
     expected_slice_end,
     expected_slice_step,
-    expected_left_bracket_token,
-    expected_minus_or_digit_or_colon_or_comma_or_right_bracket,
-    expected_digit_or_colon_or_comma_or_right_bracket,
-    expected_minus_or_digit_or_comma_or_right_bracket,
-    expected_digit_or_comma_or_right_bracket,
+    expected_left_sqbracket_token,
+    expected_minus_or_digit_or_colon_or_comma_or_right_sqbracket,
+    expected_digit_or_colon_or_comma_or_right_sqbracket,
+    expected_minus_or_digit_or_comma_or_right_sqbracket,
+    expected_digit_or_comma_or_right_sqbracket,
     unexpected_operator,
     invalid_function_name,
     invalid_argument,
@@ -127,7 +127,7 @@ public:
                 return "Expected $";
             case jsonpath_errc::expected_current_node:
                 return "Expected @";
-            case jsonpath_errc::expected_right_bracket:
+            case jsonpath_errc::expected_right_sqbracket:
                 return "Expected ]";
             case jsonpath_errc::expected_name:
                 return "Expected a name following a dot";
@@ -147,19 +147,19 @@ public:
                 return "Invalid path filter, unbalanced parenthesis";
             case jsonpath_errc::invalid_filter_unsupported_operator:
                 return "Unsupported operator";
-            case jsonpath_errc::invalid_filter_expected_right_brace:
+            case jsonpath_errc::invalid_filter_expected_right_curbracket:
                 return "Invalid path filter, expected right brace }";
             case jsonpath_errc::invalid_filter_expected_primary:
                 return "Invalid path filter, expected primary expression.";
-            case jsonpath_errc::expected_left_bracket_token:
+            case jsonpath_errc::expected_left_sqbracket_token:
                 return "Expected ?,',\",0-9,*";
-            case jsonpath_errc::expected_minus_or_digit_or_colon_or_comma_or_right_bracket:
+            case jsonpath_errc::expected_minus_or_digit_or_colon_or_comma_or_right_sqbracket:
                 return "Expected - or 0-9 or : or , or ]";
-            case jsonpath_errc::expected_minus_or_digit_or_comma_or_right_bracket:
+            case jsonpath_errc::expected_minus_or_digit_or_comma_or_right_sqbracket:
                 return "Expected - or 0-9 or , or ]";
-            case jsonpath_errc::expected_digit_or_comma_or_right_bracket:
+            case jsonpath_errc::expected_digit_or_comma_or_right_sqbracket:
                 return "Expected - or 0-9 or , or ]";
-            case jsonpath_errc::expected_digit_or_colon_or_comma_or_right_bracket:
+            case jsonpath_errc::expected_digit_or_colon_or_comma_or_right_sqbracket:
                 return "Expected 0-9 or : or , or ]";
             case jsonpath_errc::invalid_function_name:
                 return "Invalid function name";
