@@ -32,9 +32,13 @@ enum class cddl_state : uint8_t
     expect_value,
     expect_memberkey,
     value,
-    number_value,
+    minus,
+    digit1,
     hex_number_value,
-    zero_number_value,
+    zero_digit,
+    fraction,
+    plus_minus_exponent,
+    exponent,
     quoted_value,
     expect_slash_or_comma_or_right_bracket,
     array_definition,
@@ -153,21 +157,48 @@ public:
                             ++p_;
                             break;
                         case '-':
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::minus;
+                            ++p_;
+                            break;
                         case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.clear();
                             buffer.push_back(*p_);
-                            state_stack.back().state = cddl_state::number_value;
+                            state_stack.back().state = cddl_state::digit1;
                             ++p_;
                             break;
                         case '0': 
                             buffer.clear();
                             buffer.push_back(*p_);
-                            state_stack.back().state = cddl_state::zero_number_value;
+                            state_stack.back().state = cddl_state::zero_digit;
                             ++p_;
                             break;
                         default:
                             buffer.clear();
                             state_stack.back().state = cddl_state::value;
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::minus: 
+                {
+                    switch (*p_)
+                    {
+                        case '0': 
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::zero_digit;
+                            ++p_;
+                            break;
+                        case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::digit1;
+                            ++p_;
+                            break;
+                        default:
+                            throw ser_error(cddl_errc::invalid_number,line_,column_);
                             break;
                     }
                     break;
@@ -501,7 +532,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::number_value: 
+                case cddl_state::digit1: 
                 {
                     switch (*p_)
                     {
@@ -514,6 +545,20 @@ public:
                             std::cout << "number: " << buffer << "\n";
                             state_stack.pop_back();
                             break;
+                        case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.push_back(*p_);
+                            ++p_;
+                            break;
+                        case '.':
+                            state_stack.back().state = cddl_state::fraction;
+                            buffer.push_back(*p_);
+                            ++p_;
+                            break;
+                        case 'e':
+                            state_stack.back().state = cddl_state::plus_minus_exponent;
+                            buffer.push_back(*p_);
+                            ++p_;
+                            break;
                         default:
                             if (*p_ == state_stack.back().right_bracket)
                             {
@@ -522,8 +567,91 @@ public:
                             }
                             else
                             {
-                                buffer.push_back(*p_);
-                                ++p_;
+                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                            }
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::plus_minus_exponent: 
+                {
+                    switch (*p_)
+                    {
+                        case '+':
+                        case '-':
+                        case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.push_back(*p_);
+                            ++p_;
+                            state_stack.back().state = cddl_state::exponent;
+                            break;
+                        default:
+                            if (*p_ == state_stack.back().right_bracket)
+                            {
+                                std::cout << "value: " << buffer << "\n";
+                                state_stack.pop_back();
+                            }
+                            else
+                            {
+                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                            }
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::exponent: 
+                {
+                    switch (*p_)
+                    {
+                        case ' ': case '\t': case '\r': case '\n':
+                            std::cout << "number: " << buffer << "\n";
+                            advance_past_space_character();
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            break;
+                        case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.push_back(*p_);
+                            ++p_;
+                            break;
+                        default:
+                            if (*p_ == state_stack.back().right_bracket)
+                            {
+                                std::cout << "value: " << buffer << "\n";
+                                state_stack.pop_back();
+                            }
+                            else
+                            {
+                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                            }
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::fraction: 
+                {
+                    switch (*p_)
+                    {
+                        case ' ': case '\t': case '\r': case '\n':
+                            std::cout << "number: " << buffer << "\n";
+                            advance_past_space_character();
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            break;
+                        case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.push_back(*p_);
+                            ++p_;
+                            break;
+                        case 'e':
+                            state_stack.back().state = cddl_state::plus_minus_exponent;
+                            buffer.push_back(*p_);
+                            ++p_;
+                            break;
+                        default:
+                            if (*p_ == state_stack.back().right_bracket)
+                            {
+                                std::cout << "value: " << buffer << "\n";
+                                state_stack.pop_back();
+                            }
+                            else
+                            {
+                                throw ser_error(cddl_errc::invalid_id,line_,column_);
                             }
                             break;
                     }
@@ -557,7 +685,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::zero_number_value: 
+                case cddl_state::zero_digit: 
                 {
                     switch (*p_)
                     {
@@ -576,7 +704,9 @@ public:
                             ++p_;
                             break;
                         default:
-                            state_stack.back().state = cddl_state::number_value;
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::digit1;
+                            ++p_;
                             break;
                     }
                     break;

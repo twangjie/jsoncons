@@ -22,7 +22,8 @@ enum class cddl_errc
     expected_comma_or_left_par_or_right_sqbracket,
     expected_comma_or_left_par_or_right_curbracket,
     expected_comma_or_right_par,
-    expected_slash_or_comma_or_right_bracket
+    expected_slash_or_comma_or_right_bracket,
+    invalid_number
 };
 
 class cddl_error_category_impl
@@ -55,6 +56,8 @@ public:
                 return "Expected , or )";
             case cddl_errc::expected_slash_or_comma_or_right_bracket:
                 return "Expected / or , or right bracket";
+            case cddl_errc::invalid_number:
+                return "Invalid number";
             default:
                 return "Unknown CDDL parser error";
         }

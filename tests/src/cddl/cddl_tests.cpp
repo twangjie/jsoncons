@@ -29,17 +29,6 @@ void validate(cddl::validator& validator, const std::string& jtext)
 
 TEST_CASE("cddl tests")
 {
-    double x = -10.0;
-
-    std::stringstream ss;
-    ss << std::hexfloat << x << "\n";
-    std::cout << "HEXFLOAT (1) " << ss.str() << "\n";
-
-    double y;
-    ss >> y;
-
-    std::cout << "HEXFLOAT (2) " << y << "\n";
-
     SECTION("test 1")
     {
         std::string s = R"( 
