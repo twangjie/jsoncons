@@ -74,18 +74,6 @@ Constructs a new encoder that writes to the specified result.
                            semantic_tag tag=semantic_tag::none, 
                            const ser_context& context=null_ser_context()); 
 
-    bool big_integer_value(const string_view_type& s, 
-                           const ser_context& context=null_ser_context());  
-
-    bool big_decimal_value(const string_view_type& s, 
-                           const ser_context& context=null_ser_context());  
-
-    bool date_time_value(const string_view_type& s, 
-                         const ser_context& context=null_ser_context());  
-
-    bool timestamp_value(int64_t val, 
-                         const ser_context& context=null_ser_context());  
-
     bool int64_value(int64_t value, 
                      semantic_tag tag = semantic_tag::none, 
                      const ser_context& context=null_ser_context());

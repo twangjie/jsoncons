@@ -24,16 +24,22 @@ struct null_type
 enum class semantic_tag : uint8_t 
 {
     none = 0,
-    undefined,
-    date_time,
-    timestamp,
-    big_integer,
-    big_decimal,
-    base16,
-    base64,
-    base64url,
-    uri,
-    big_float
+    undefined = 0x01,
+    datetime = 0x02,
+    timestamp = 0x03,
+    bigint = 0x04,
+    bigdec = 0x05,
+    bigfloat = 0x06,
+    base16 = 0x07,
+    base64 = 0x08,
+    base64url = 0x09,
+    uri = 0x0a
+#if !defined(JSONCONS_NO_DEPRECATED)
+    , big_integer = 0x04
+    , big_decimal = 0x05
+    , big_float = 0x06
+    , date_time = 0x02
+#endif
 };
 
 #if !defined(JSONCONS_NO_DEPRECATED)
@@ -170,27 +176,26 @@ public:
         }
         return do_byte_string_value(byte_string(p, size), tag, context);
     }
-#endif
-
     bool big_integer_value(const string_view_type& s, const ser_context& context=null_ser_context()) 
     {
-        return do_string_value(s, semantic_tag::big_integer, context);
+        return do_string_value(s, semantic_tag::bigint, context);
     }
 
     bool big_decimal_value(const string_view_type& s, const ser_context& context=null_ser_context()) 
     {
-        return do_string_value(s, semantic_tag::big_decimal, context);
+        return do_string_value(s, semantic_tag::bigdec, context);
     }
 
     bool date_time_value(const string_view_type& s, const ser_context& context=null_ser_context()) 
     {
-        return do_string_value(s, semantic_tag::date_time, context);
+        return do_string_value(s, semantic_tag::datetime, context);
     }
 
     bool timestamp_value(int64_t val, const ser_context& context=null_ser_context()) 
     {
         return do_int64_value(val, semantic_tag::timestamp, context);
     }
+#endif
 
     bool int64_value(int64_t value, 
                      semantic_tag tag = semantic_tag::none, 
@@ -275,12 +280,12 @@ public:
 
     bool bignum_value(const string_view_type& s, const ser_context& context=null_ser_context()) 
     {
-        return do_string_value(s, semantic_tag::big_integer, context);
+        return do_string_value(s, semantic_tag::bigint, context);
     }
 
     bool decimal_value(const string_view_type& s, const ser_context& context=null_ser_context()) 
     {
-        return do_string_value(s, semantic_tag::big_decimal, context);
+        return do_string_value(s, semantic_tag::bigdec, context);
     }
 
     bool epoch_time_value(int64_t val, const ser_context& context=null_ser_context()) 
