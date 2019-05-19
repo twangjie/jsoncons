@@ -239,7 +239,6 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ':':
-                            //state_stack.back().state = cddl_state::expect_value;
                             state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
@@ -444,7 +443,6 @@ public:
                             break;
                         default:
                             buffer.clear();
-                            //state_stack.back().state = cddl_state::expect_value;
                             state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             break;
@@ -516,7 +514,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "value: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         case ',':
                             std::cout << "value: " << buffer << "\n";
@@ -544,7 +542,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "number: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         case ',':
                             std::cout << "number: " << buffer << "\n";
@@ -610,7 +608,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "number: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
@@ -637,7 +635,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "number: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
@@ -669,7 +667,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "number: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         case ',':
                             std::cout << "number: " << buffer << "\n";
@@ -697,7 +695,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "number: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         case ',':
                             std::cout << "number: " << buffer << "\n";
@@ -727,7 +725,7 @@ public:
                             state_stack.pop_back();
                             break;
                         case '/':
-                            state_stack.back().state = cddl_state::expect_value;
+                            state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
                             break;
                         default:
@@ -757,7 +755,7 @@ public:
                     {
                         case '\"':
                             std::cout << "value: " << buffer << "\n";
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.pop_back();
                             ++p_;
                             break;
                         default:
