@@ -46,7 +46,8 @@ enum class cddl_state : uint8_t
     map_definition,
     map_definition2,
     group,
-    group2
+    group2,
+    after_value
 };
 
 template <class CharT>
@@ -238,7 +239,9 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ':':
-                            state_stack.back().state = cddl_state::expect_value;
+                            //state_stack.back().state = cddl_state::expect_value;
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
                             break;
                         default:
@@ -441,7 +444,9 @@ public:
                             break;
                         default:
                             buffer.clear();
-                            state_stack.back().state = cddl_state::expect_value;
+                            //state_stack.back().state = cddl_state::expect_value;
+                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             break;
                     }
                     break;
