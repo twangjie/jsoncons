@@ -40,7 +40,9 @@ enum class cddl_state : uint8_t
     plus_minus_exponent,
     exponent,
     quoted_value,
-    expect_slash_or_comma_or_right_bracket,
+    expect_rangeop_or_slash_or_comma_or_right_bracket,
+    expect_rangeop,
+    expect_exclusive_or_inclusive_rangeop,
     array_definition,
     array_definition2,
     map_definition,
@@ -113,6 +115,7 @@ public:
                                 buffer.push_back(*p_);
                                 state_stack.emplace_back(cddl_state::id);
                                 ++p_;
+                                ++column_;
                             }
                             else
                             {
@@ -135,6 +138,7 @@ public:
                         case '=':
                             state_stack.back().state = cddl_state::expect_groupent;
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             throw ser_error(cddl_errc::expected_assign,line_,column_);
@@ -156,24 +160,28 @@ public:
                             buffer.clear();
                             state_stack.back().state = cddl_state::quoted_value;
                             ++p_;
+                            ++column_;
                             break;
                         case '-':
                             buffer.clear();
                             buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::minus;
                             ++p_;
+                            ++column_;
                             break;
                         case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.clear();
                             buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::digit1;
                             ++p_;
+                            ++column_;
                             break;
                         case '0': 
                             buffer.clear();
                             buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::zero_digit;
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             buffer.clear();
@@ -191,12 +199,14 @@ public:
                             buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::zero_digit;
                             ++p_;
+                            ++column_;
                             break;
                         case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.clear();
                             buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::digit1;
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             throw ser_error(cddl_errc::invalid_number,line_,column_);
@@ -239,9 +249,10 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ':':
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             if (*p_ == state_stack.back().right_bracket)
@@ -268,10 +279,12 @@ public:
                             break;
                         case ']':
                             ++p_;
+                            ++column_;
                             state_stack.pop_back();
                             break;
                         case '(':
                             ++p_;
+                            ++column_;
                             state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
@@ -280,6 +293,7 @@ public:
                             state_stack.back().state = cddl_state::array_definition2;
                             state_stack.emplace_back(cddl_state::memberkey, ']');
                             ++p_;
+                            ++column_;
                             break;
                     }
                     break;
@@ -297,14 +311,17 @@ public:
                         case ']':
                             state_stack.pop_back();
                             ++p_;
+                            ++column_;
                             break;
                         case ',':
                             buffer.clear();
                             state_stack.emplace_back(cddl_state::expect_memberkey,']');
                             ++p_;
+                            ++column_;
                             break;
                         case '(':
                             ++p_;
+                            ++column_;
                             state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
@@ -325,10 +342,12 @@ public:
                             break;
                         case '}':
                             ++p_;
+                            ++column_;
                             state_stack.pop_back();
                             break;
                         case '(':
                             ++p_;
+                            ++column_;
                             state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
@@ -337,6 +356,7 @@ public:
                             state_stack.back().state = cddl_state::map_definition2;
                             state_stack.emplace_back(cddl_state::memberkey, '}');
                             ++p_;
+                            ++column_;
                             break;
                     }
                     break;
@@ -355,13 +375,16 @@ public:
                             buffer.clear();
                             state_stack.emplace_back(cddl_state::expect_memberkey, '}');
                             ++p_;
+                            ++column_;
                             break;
                         case '}':
                             ++p_;
+                            ++column_;
                             state_stack.pop_back();
                             break;
                         case '(':
                             ++p_;
+                            ++column_;
                             state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
@@ -382,6 +405,7 @@ public:
                             break;
                         case ')':
                             ++p_;
+                            ++column_;
                             state_stack.pop_back();
                             break;
                         default:
@@ -390,6 +414,7 @@ public:
                             state_stack.back().state = cddl_state::group2;
                             state_stack.emplace_back(cddl_state::memberkey, ')');
                             ++p_;
+                            ++column_;
                             break;
                     }
                     break;
@@ -408,9 +433,11 @@ public:
                             buffer.clear();
                             state_stack.emplace_back(cddl_state::expect_memberkey, ')');
                             ++p_;
+                            ++column_;
                             break;
                         case ')':
                             ++p_;
+                            ++column_;
                             state_stack.pop_back();
                             break;
                         default:
@@ -431,19 +458,22 @@ public:
                             break;
                         case '[':
                             ++p_;
+                            ++column_;
                             state_stack.back().state = cddl_state::array_definition;
                             break;
                         case '{':
                             ++p_;
+                            ++column_;
                             state_stack.back().state = cddl_state::map_definition;
                             break;
                         case '(':
                             ++p_;
+                            ++column_;
                             state_stack.back().state = cddl_state::group;
                             break;
                         default:
                             buffer.clear();
-                            state_stack.back().state = cddl_state::expect_slash_or_comma_or_right_bracket;
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             break;
                     }
@@ -467,6 +497,7 @@ public:
                             {
                                 buffer.push_back(*p_);
                                 ++p_;
+                                ++column_;
                             }
                             else
                             {
@@ -502,6 +533,7 @@ public:
                             {
                                 buffer.push_back(*p_);
                                 ++p_;
+                                ++column_;
                             }
                             break;
                     }
@@ -530,6 +562,7 @@ public:
                             {
                                 buffer.push_back(*p_);
                                 ++p_;
+                                ++column_;
                             }
                             break;
                     }
@@ -551,16 +584,19 @@ public:
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             break;
                         case '.':
                             state_stack.back().state = cddl_state::fraction;
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             break;
                         case 'e':
                             state_stack.back().state = cddl_state::plus_minus_exponent;
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             if (*p_ == state_stack.back().right_bracket)
@@ -585,6 +621,7 @@ public:
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             state_stack.back().state = cddl_state::exponent;
                             break;
                         default:
@@ -613,6 +650,7 @@ public:
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             if (*p_ == state_stack.back().right_bracket)
@@ -640,11 +678,13 @@ public:
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             break;
                         case 'e':
                             state_stack.back().state = cddl_state::plus_minus_exponent;
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             if (*p_ == state_stack.back().right_bracket)
@@ -683,6 +723,7 @@ public:
                             {
                                 buffer.push_back(*p_);
                                 ++p_;
+                                ++column_;
                             }
                             break;
                     }
@@ -705,16 +746,18 @@ public:
                             buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::hex_number_value;
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::digit1;
                             ++p_;
+                            ++column_;
                             break;
                     }
                     break;
                 }
-                case cddl_state::expect_slash_or_comma_or_right_bracket: 
+                case cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket: 
                 {
                     switch (*p_)
                     {
@@ -727,6 +770,12 @@ public:
                         case '/':
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
+                            ++column_;
+                            break;
+                        case '.':
+                            state_stack.back().state = cddl_state::expect_rangeop;
+                            ++p_;
+                            ++column_;
                             break;
                         default:
                             switch (state_stack.back().right_bracket)
@@ -741,10 +790,42 @@ public:
                                     }
                                     else
                                     {
-                                        throw ser_error(cddl_errc::expected_slash_or_comma_or_right_bracket,line_,column_);
+                                        throw ser_error(cddl_errc::expected_rangeop_or_slash_or_comma_or_right_bracket,line_,column_);
                                     }
                                     break;
                             }
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::expect_rangeop: 
+                {
+                    switch (*p_)
+                    {
+                        case '.':
+                            state_stack.back().state = cddl_state::expect_exclusive_or_inclusive_rangeop;
+                            ++p_;
+                            ++column_;
+                            break;
+                        default:
+                            throw ser_error(cddl_errc::expected_rangeop_or_slash_or_comma_or_right_bracket,line_,column_);
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::expect_exclusive_or_inclusive_rangeop: 
+                {
+                    switch (*p_)
+                    {
+                        case '.': // inclusive
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
+                            state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
+                            ++p_;
+                            ++column_;
+                            break;
+                        default:
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
+                            state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             break;
                     }
                     break;
@@ -757,10 +838,12 @@ public:
                             std::cout << "value: " << buffer << "\n";
                             state_stack.pop_back();
                             ++p_;
+                            ++column_;
                             break;
                         default:
                             buffer.push_back(*p_);
                             ++p_;
+                            ++column_;
                             break;
                     }
                     break;
@@ -847,6 +930,7 @@ private:
                     return;
                 default:
                     ++p_;
+                    ++column_;
                     break;
             }
         }

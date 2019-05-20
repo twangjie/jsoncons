@@ -22,7 +22,7 @@ enum class cddl_errc
     expected_comma_or_left_par_or_right_sqbracket,
     expected_comma_or_left_par_or_right_curbracket,
     expected_comma_or_right_par,
-    expected_slash_or_comma_or_right_bracket,
+    expected_rangeop_or_slash_or_comma_or_right_bracket,
     invalid_number
 };
 
@@ -54,8 +54,8 @@ public:
                 return "Expected , or ( or }";
             case cddl_errc::expected_comma_or_right_par:
                 return "Expected , or )";
-            case cddl_errc::expected_slash_or_comma_or_right_bracket:
-                return "Expected / or , or right bracket";
+            case cddl_errc::expected_rangeop_or_slash_or_comma_or_right_bracket:
+                return "Expected .. or / or , or right bracket";
             case cddl_errc::invalid_number:
                 return "Invalid number";
             default:

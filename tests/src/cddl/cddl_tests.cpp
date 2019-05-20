@@ -29,6 +29,7 @@ void validate(cddl::validator& validator, const std::string& jtext)
 
 TEST_CASE("cddl tests")
 {
+#if 0
     SECTION("test 1")
     {
         std::string s = R"( 
@@ -72,6 +73,20 @@ TEST_CASE("cddl tests")
         std::string s = R"( 
             attire = "bow tie" / "necktie" / "Internet attire"
             protocol = 6 / 17
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::validator validator(std::move(schema)); 
+        //cddl::validate(validator, "42");
+    }
+#endif
+    SECTION("test 4")
+    {
+        std::string s = R"( 
+            attire = "bow tie" / "necktie" / "Internet attire"
+            protocol = 6 .. 17
+            age = 18 ... 30
         )";
 
         cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
