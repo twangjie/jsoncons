@@ -120,7 +120,7 @@ public:
                                 buffer.clear();
                                 buffer.push_back(*p_);
                                 state_stack.emplace_back(cddl_state::foo);
-                                state_stack.emplace_back(cddl_state::id);
+                                state_stack.emplace_back(cddl_state::id,'=');
                                 ++p_;
                                 ++column_;
                             }
@@ -507,7 +507,7 @@ public:
                 {
                     switch (*p_)
                     {
-                        case ' ': case '\t': case '\r': case '\n':case '=':
+                        case ' ': case '\t': case '\r': case '\n':
                             if (is_hyphen_or_dot(buffer.back()))
                             {
                                 throw ser_error(cddl_errc::invalid_id,line_,column_);
@@ -516,7 +516,16 @@ public:
                             std::cout << "id: " << buffer << "\n";
                             break;
                         default:
-                            if (is_ealpha(*p_) || is_digit(*p_) || is_hyphen_or_dot(*p_))
+                            if (*p_ == state_stack.back().delimiter)
+                            {
+                                if (is_hyphen_or_dot(buffer.back()))
+                                {
+                                    throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                }
+                                state_stack.pop_back();
+                                std::cout << "id: " << buffer << "\n";
+                            }
+                            else if (is_ealpha(*p_) || is_digit(*p_) || is_hyphen_or_dot(*p_))
                             {
                                 buffer.push_back(*p_);
                                 ++p_;
