@@ -66,15 +66,20 @@ private:
     struct state_item
     {
         cddl_state state;
-        char_type right_bracket;
+        char_type delimiter;
 
-        state_item(cddl_state state, char_type right_bracket = 0)
-            : state(state), right_bracket(right_bracket)
+        explicit state_item(cddl_state state)
+            : state(state), delimiter(0)
+        {
+        }
+
+        state_item(cddl_state state, char_type delimiter)
+            : state(state), delimiter(delimiter)
         {
         }
 
         state_item(cddl_state state, const state_item& parent)
-            : state(state), right_bracket(parent.right_bracket)
+            : state(state), delimiter(parent.delimiter)
         {
         }
     };
@@ -225,7 +230,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 state_stack.pop_back();
                             }
@@ -255,7 +260,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 state_stack.pop_back();
                             }
@@ -524,7 +529,7 @@ public:
                             state_stack.back().state = cddl_state::expect_colon_or_right_bracket;
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 std::cout << "reference: " << buffer << "\n";
                                 state_stack.pop_back();
@@ -553,7 +558,7 @@ public:
                             state_stack.pop_back();
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 std::cout << "value: " << buffer << "\n";
                                 state_stack.pop_back();
@@ -599,7 +604,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 std::cout << "value: " << buffer << "\n";
                                 state_stack.pop_back();
@@ -625,7 +630,7 @@ public:
                             state_stack.back().state = cddl_state::exponent;
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 std::cout << "value: " << buffer << "\n";
                                 state_stack.pop_back();
@@ -653,7 +658,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 std::cout << "value: " << buffer << "\n";
                                 state_stack.pop_back();
@@ -687,7 +692,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 std::cout << "value: " << buffer << "\n";
                                 state_stack.pop_back();
@@ -714,7 +719,7 @@ public:
                             state_stack.pop_back();
                             break;
                         default:
-                            if (*p_ == state_stack.back().right_bracket)
+                            if (*p_ == state_stack.back().delimiter)
                             {
                                 std::cout << "value: " << buffer << "\n";
                                 state_stack.pop_back();
@@ -778,13 +783,13 @@ public:
                             ++column_;
                             break;
                         default:
-                            switch (state_stack.back().right_bracket)
+                            switch (state_stack.back().delimiter)
                             {
                                 case 0:
                                     state_stack.pop_back();
                                     break;
                                 default:
-                                    if (*p_ == state_stack.back().right_bracket)
+                                    if (*p_ == state_stack.back().delimiter)
                                     {
                                         state_stack.pop_back();
                                     }
