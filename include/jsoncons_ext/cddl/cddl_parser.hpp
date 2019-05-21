@@ -49,8 +49,7 @@ enum class cddl_state : uint8_t
     map_definition2,
     group,
     group2,
-    after_value,
-    foo
+    after_value
 };
 
 template <class CharT>
@@ -119,7 +118,7 @@ public:
                             {
                                 buffer.clear();
                                 buffer.push_back(*p_);
-                                state_stack.emplace_back(cddl_state::foo);
+                                state_stack.emplace_back(cddl_state::expect_assign);
                                 state_stack.emplace_back(cddl_state::id,'=');
                                 ++p_;
                                 ++column_;
@@ -132,23 +131,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::foo:
-                {
-                    switch (*p_)
-                    {
-                        case ' ': case '\t': case '\r': case '\n':
-                            advance_past_space_character();
-                            break;
-                        case ';':
-                            skip_to_end_of_line();
-                            break;
-                        default:
-                            state_stack.back().state = cddl_state::expect_assign;
-                            break;
-                    }
-                    break;
-                }
-                case cddl_state::expect_assign: 
+                case cddl_state::expect_assign:
                 {
                     switch (*p_)
                     {
