@@ -238,7 +238,8 @@ public:
                             else
                             {
                                 buffer.clear();
-                                state_stack.back().state = cddl_state::memberkey;
+                                state_stack.back().state = cddl_state::expect_colon_or_right_bracket;
+                                state_stack.emplace_back(cddl_state::memberkey, state_stack.back());
                             }
                             break;
                     }
@@ -294,12 +295,8 @@ public:
                             state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
-                            buffer.clear();
-                            buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::array_definition2;
-                            state_stack.emplace_back(cddl_state::memberkey, ']');
-                            ++p_;
-                            ++column_;
+                            state_stack.emplace_back(cddl_state::expect_memberkey, ']');
                             break;
                     }
                     break;
@@ -320,7 +317,6 @@ public:
                             ++column_;
                             break;
                         case ',':
-                            buffer.clear();
                             state_stack.emplace_back(cddl_state::expect_memberkey,']');
                             ++p_;
                             ++column_;
@@ -357,12 +353,8 @@ public:
                             state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
-                            buffer.clear();
-                            buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::map_definition2;
-                            state_stack.emplace_back(cddl_state::memberkey, '}');
-                            ++p_;
-                            ++column_;
+                            state_stack.emplace_back(cddl_state::expect_memberkey, '}');
                             break;
                     }
                     break;
@@ -378,7 +370,6 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ',':
-                            buffer.clear();
                             state_stack.emplace_back(cddl_state::expect_memberkey, '}');
                             ++p_;
                             ++column_;
@@ -415,12 +406,8 @@ public:
                             state_stack.pop_back();
                             break;
                         default:
-                            buffer.clear();
-                            buffer.push_back(*p_);
                             state_stack.back().state = cddl_state::group2;
-                            state_stack.emplace_back(cddl_state::memberkey, ')');
-                            ++p_;
-                            ++column_;
+                            state_stack.emplace_back(cddl_state::expect_memberkey, ')');
                             break;
                     }
                     break;
@@ -436,7 +423,6 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ',':
-                            buffer.clear();
                             state_stack.emplace_back(cddl_state::expect_memberkey, ')');
                             ++p_;
                             ++column_;
@@ -529,14 +515,14 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             std::cout << "memberkey: " << buffer << "\n";
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_colon_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         case ';':
                             skip_to_end_of_line();
                             break;
                         case ':':
                             std::cout << "memberkey: " << buffer << "\n";
-                            state_stack.back().state = cddl_state::expect_colon_or_right_bracket;
+                            state_stack.pop_back();
                             break;
                         default:
                             if (*p_ == state_stack.back().delimiter)
