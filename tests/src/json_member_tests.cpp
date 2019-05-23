@@ -32,6 +32,7 @@ TEST_CASE("json(string, semantic_tag::datetime)")
     CHECK(j.as<std::string>() == s);
 }
 
+
 TEST_CASE("json(string, semantic_tag::timestamp)")
 {
     SECTION("positive integer")
@@ -98,3 +99,4 @@ TEST_CASE("json get_allocator() tests")
         CHECK(j.get_allocator() == alloc);
     }
 }
+

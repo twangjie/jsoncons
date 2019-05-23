@@ -522,7 +522,7 @@ TEST_CASE("cbor conversion tests")
     it2++;
     CHECK(bool(it2->as_bignum() == bignum{"-18446744073709551617"}));
     it2++;
-    CHECK(bool(it2->as_string() == bignum{"273.15"}));
+    CHECK(bool(it2->as_string() == std::string{"273.15"}));
     it2++;
     CHECK((it2 == range2.end()));
 }
@@ -638,8 +638,11 @@ TEST_CASE("cbor bigfloat tests")
                                  };
 
         json j = cbor::decode_cbor<json>(v);
-        std::string s = j.as<std::string>();
-        CHECK(s == std::string("1.5"));
+
+        //std::string s = j.as<std::string>();
+
+        double val = j.as<double>();
+        CHECK(val == Approx(1.5).epsilon(0.0000000001));
     }
     SECTION("-1.5")
     {
@@ -650,8 +653,11 @@ TEST_CASE("cbor bigfloat tests")
                                  };
 
         json j = cbor::decode_cbor<json>(v);
-        std::string s = j.as<std::string>();
-        CHECK(s == std::string("-1.5"));
+        //std::string s = j.as<std::string>();
+        //CHECK(s == std::string("-1.5"));
+
+        double val = j.as<double>();
+        CHECK(val == Approx(-1.5).epsilon(0.0000000001));
     }
 } 
 

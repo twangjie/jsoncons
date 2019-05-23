@@ -93,7 +93,7 @@ public:
     }
 
     basic_bignum(const basic_bignum<Allocator>& n)
-        : basic_bignum_base<Allocator>(n.allocator()), values_{0,0}, neg_(n.neg_), length_(n.length_)
+        : basic_bignum_base<Allocator>(n.allocator()), neg_(n.neg_), length_(n.length_)
     {
         if (!n.dynamic_)
         {
@@ -111,26 +111,10 @@ public:
         }
     }
 
-    basic_bignum(basic_bignum<Allocator>&& n)
-        : values_{0,0}, data_(values_), neg_(n.neg_), dynamic_(false), length_(n.length_)
+    basic_bignum(basic_bignum<Allocator>&& other)
+        : basic_bignum_base<Allocator>(other.allocator()), neg_(other.neg_), dynamic_(false), length_(other.length_)
     {
-        if (n.dynamic_)
-        {
-            data_ = n.data_;
-            dynamic_ = true;
-
-            n.data_ = n.values_;
-            n.dynamic_ = false;
-            n.length_ = 0;
-            n.neg_ = false;
-        }
-        else
-        {
-            values_[0] = n.data_[0];
-            values_[1] = n.data_[1];
-            data_ = values_;
-            dynamic_ = false;
-        }
+        initialize(std::move(other));
     }
 
     template <typename CharT>
@@ -152,6 +136,20 @@ public:
         : values_{0,0}
     {
         initialize(data, length);
+    }
+
+    template <typename CharT, typename CharTraits, typename UserAllocator>
+    basic_bignum(const std::basic_string<CharT,CharTraits,UserAllocator>& s, uint8_t base)
+        : values_{0,0}
+    {
+        initialize(s.data(), s.length(), base);
+    }
+
+    template <typename CharT>
+    basic_bignum(const CharT* data, size_t length, uint8_t base)
+        : values_{0,0}
+    {
+        initialize(data, length, base);
     }
 
     basic_bignum(int signum, std::initializer_list<uint8_t> l)
@@ -826,6 +824,62 @@ public:
         data.resize(i);
     }
 
+    template <typename Ch, typename Traits, typename Alloc>
+    void dump_hex_string(std::basic_string<Ch,Traits,Alloc>& data) const
+    {
+        basic_bignum<Allocator> v(*this);
+
+        int len = int(uint32_t(v.length()) * basic_bignum<Allocator>::basic_type_bits / 3) + 2;
+        data.resize(len);
+
+        int n = len;
+        int i = 0;
+                                      // 1/3 > ln(2)/ln(10)
+        static uint64_t p10 = 1;
+        static uint64_t ip10 = 0;
+
+        if ( v.length() == 0 )
+        {
+            data[0] = '0';
+            i = 1;
+        }
+        else
+        {
+            uint64_t r;
+            if ( p10 == 1 )
+            {
+                while ( p10 <= (std::numeric_limits<uint64_t>::max)()/16 )
+                {
+                    p10 *= 16;
+                    ip10++;
+                }
+            }                     // p10 is max unsigned power of 16
+            basic_bignum<Allocator> R;
+            basic_bignum<Allocator> LP10 = p10; // LP10 = p10 = ::pow(16, ip10)
+            if ( v.neg_ )
+            {
+                data[0] = '-';
+                i = 1;
+            }
+            do
+            {
+                v.divide( LP10, v, R, true );
+                r = (R.length() ? R.data_[0] : 0);
+                for ( size_t j=0; j < ip10; j++ )
+                {
+                    uint8_t c = r % 16;
+                    data[--n] = (c < 10) ? ('0' + c) : ('A' - 10 + c);
+                    r /= 16;
+                    if ( r + v.length() == 0 )
+                        break;
+                }
+            } while ( v.length() );
+            while ( n < len )
+                data[i++] = data[n++];
+        }
+        data.resize(i);
+    }
+
 //  Global Operators
 
     friend bool operator==( const basic_bignum<Allocator>& x, const basic_bignum<Allocator>& y )
@@ -1379,6 +1433,30 @@ private:
         }
     }
 
+    void initialize(basic_bignum<Allocator>&& other)
+    {
+        neg_ = other.neg_;
+        length_ = other.length_;
+        dynamic_ = other.dynamic_;
+
+        if (other.dynamic_)
+        {
+            capacity_ = other.capacity_;
+            data_ = other.data_;
+
+            other.data_ = other.values_;
+            other.dynamic_ = false;
+            other.length_ = 0;
+            other.neg_ = false;
+        }
+        else
+        {
+            values_[0] = other.data_[0];
+            values_[1] = other.data_[1];
+            data_ = values_;
+        }
+    }
+
     void reduce()
     {
         uint64_t* p = end() - 1;
@@ -1432,33 +1510,90 @@ private:
     template <typename CharT>
     void initialize(const CharT* data, size_t length)
     {
-        bool neg = false;
-
-        const CharT* end = data+length;
-        while (data != end && isspace(*data))
-        {
-            ++data;
-            --length;
-        }
-
-        if ( *data == '-' )
+        bool neg;
+        if (*data == '-')
         {
             neg = true;
             data++;
             --length;
         }
+        else
+        {
+            neg = false;
+        }
 
         basic_bignum<Allocator> v = 0;
         for (size_t i = 0; i < length; i++)
         {
-            v = (v * 10) + (uint64_t)(data[i] - '0');
+            CharT c = data[i];
+            switch (c)
+            {
+                case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                    v = (v * 10) + (uint64_t)(c - '0');
+                    break;
+                default:
+                    throw std::runtime_error(std::string("Invalid digit ") + "\'" + (char)c + "\'");
+            }
         }
 
         if ( neg )
         {
             v.neg_ = true;
         }
-        initialize( v );
+        initialize(std::move(v));
+    }
+
+    template <typename CharT>
+    void initialize(const CharT* data, size_t length, uint8_t base)
+    {
+        if (!(base >= 2 && base <= 16))
+        {
+            throw std::runtime_error("Unsupported base");
+        }
+
+        bool neg;
+        if (*data == '-')
+        {
+            neg = true;
+            data++;
+            --length;
+        }
+        else
+        {
+            neg = false;
+        }
+
+        basic_bignum<Allocator> v = 0;
+        for (size_t i = 0; i < length; i++)
+        {
+            CharT c = data[i];
+            uint64_t d;
+            switch (c)
+            {
+                case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                    d = (uint64_t)(c - '0');
+                    break;
+                case 'a':case 'b':case 'c':case 'd':case 'e':case 'f':
+                    d = (uint64_t)(c - ('a' - 10));
+                    break;
+                case 'A':case 'B':case 'C':case 'D':case 'E':case 'F':
+                    d = (uint64_t)(c - ('A' - 10));
+                    break;
+                default:
+                    throw std::runtime_error(std::string("Invalid digit in base ") + std::to_string(base) + ": \'" + (char)c + "\'");
+            }
+            if (d >= base)
+            {
+                throw std::runtime_error(std::string("Invalid digit in base ") + std::to_string(base) + ": \'" + (char)c + "\'");
+            }
+            v = (v * base) + d;
+        }
+
+        if ( neg )
+        {
+            v.neg_ = true;
+        }
+        initialize(std::move(v));
     }
 };
 

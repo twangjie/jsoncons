@@ -1,3 +1,34 @@
+master
+------
+
+Changes to bigfloat mapping
+
+In previous versions, jsoncons arrays that contained
+
+- an int64_t or a uint64_t (defines base-2 exponent)
+- an int64_t or a uint64_t or a string tagged with `semantic_tag::bigint` (defines the mantissa)
+
+and that were tagged with `semantic_tag::bigfloat`, were encoded into CBOR bigfloats. 
+This behaviour has been deprecated.
+
+CBOR bigfloats are now decoded into a jsoncons string that consists of the following parts
+
+- (optional) minus sign
+- 0x
+- nonempty sequence of hexadecimal digits (defines mantissa)
+- p followed with optional minus or plus sign and nonempty sequence of hexadecimal digits (defines base-2 exponent)
+
+and tagged with `semantic_tag::bigfloat` (before they were decoded into a jsoncons array and tagged with `semantic_tag::bigfloat`)
+
+jsoncons strings that consist of the following parts
+
+- (optional) plus or minus sign
+- 0x or 0X
+- nonempty sequence of hexadecimal digits optionally containing a decimal-point character
+- (optional) p or P followed with optional minus or plus sign and nonempty sequence of decimal digits,
+
+and tagged with `semantic_tag::bigfloat` are now encoded into CBOR bignums.
+
 v0.125.0
 --------
 
