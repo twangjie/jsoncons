@@ -23,7 +23,8 @@ enum class cddl_errc
     expected_comma_or_left_par_or_right_curbracket,
     expected_comma_or_right_par,
     expected_rangeop_or_slash_or_comma_or_right_bracket,
-    invalid_number
+    invalid_number,
+    expected_uint_or_space
 };
 
 class cddl_error_category_impl
@@ -58,8 +59,10 @@ public:
                 return "Expected .. or / or , or right bracket";
             case cddl_errc::invalid_number:
                 return "Invalid number";
+            case cddl_errc::expected_uint_or_space:
+                return "Expected unsigned integer or space";
             default:
-                return "Unknown CDDL parser error";
+                return "Expected unsigned integer or space";
         }
     }
 };

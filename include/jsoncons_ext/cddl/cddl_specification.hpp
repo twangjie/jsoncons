@@ -1,4 +1,4 @@
-// Copyright 2019 Daniel Parker
+// Copyright 2019
 // Distributed under the Boost license, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -18,6 +18,14 @@ class basic_cddl_specification
 public:
     typedef CharT char_type;
 
+    basic_cddl_specification() = default;
+
+    basic_cddl_specification(const basic_cddl_specification&) = default;
+    basic_cddl_specification(basic_cddl_specification&&) = default;
+
+    basic_cddl_specification& operator=(const basic_cddl_specification&) = default;
+    basic_cddl_specification& operator=(basic_cddl_specification&&) = default;
+
     static basic_cddl_specification parse(const std::basic_string<CharT>& s);
 };
 
@@ -25,11 +33,13 @@ enum class cddl_state : uint8_t
 {
     expect_rule,
     id,
-    memberkey,
     expect_assign,
-    expect_colon_or_right_bracket,
+    expect_colon_or_comma_or_delimiter,
     expect_groupent,
     expect_value,
+    expect_occur_or_memberkey,
+    expect_occur_or_value,
+    occur,
     expect_memberkey,
     value,
     minus,
@@ -40,7 +50,7 @@ enum class cddl_state : uint8_t
     plus_minus_exponent,
     exponent,
     quoted_value,
-    expect_rangeop_or_slash_or_comma_or_right_bracket,
+    expect_rangeop_or_slash_or_comma_or_delimiter,
     expect_rangeop,
     expect_exclusive_or_inclusive_rangeop,
     array_definition,
@@ -220,6 +230,78 @@ public:
                     }
                     break;
                 }
+                case cddl_state::expect_occur_or_memberkey:
+                {
+                    switch (*p_)
+                    {
+                        case ' ': case '\t': case '\r': case '\n':
+                            advance_past_space_character();
+                            break;
+                        case ';':
+                            skip_to_end_of_line();
+                            break;
+                        case '?':
+                        case '*':
+                        case '+':
+                            buffer.clear();
+                            state_stack.back().state = cddl_state::occur;
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.clear();
+                            state_stack.back().state = cddl_state::expect_occur_or_value;
+                            break;
+                        default:
+                            state_stack.back().state = cddl_state::expect_memberkey;
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::expect_occur_or_value:
+                {
+                    switch (*p_)
+                    {
+                        case '?':
+                        case '*':
+                        case '+':
+                            std::cout << "x: " << buffer << "\n"; 
+                            buffer.clear();
+                            state_stack.back().state = cddl_state::occur;
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.push_back(*p_);
+                            ++p_;
+                            ++column_;
+                            break;
+                        default:
+                            state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
+                            state_stack.emplace_back(cddl_state::digit1, state_stack.back());
+                            break;
+                    }
+                    break;
+                }
+                case cddl_state::occur:
+                {
+                    switch (*p_)
+                    {
+                        case ' ': case '\t': case '\r': case '\n':
+                            advance_past_space_character();
+                            state_stack.back().state = cddl_state::expect_memberkey;
+                            break;
+                        case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.push_back(*p_);
+                            ++p_;
+                            ++column_;
+                            break;
+                        default:
+                            throw ser_error(cddl_errc::expected_uint_or_space,line_,column_);
+                            break;
+                    }
+                    break;
+                }
                 case cddl_state::expect_memberkey:
                 {
                     switch (*p_)
@@ -238,14 +320,21 @@ public:
                             else
                             {
                                 buffer.clear();
-                                state_stack.back().state = cddl_state::expect_colon_or_right_bracket;
-                                state_stack.emplace_back(cddl_state::memberkey, state_stack.back());
+                                state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
+                                if (is_ealpha(*p_))
+                                {
+                                    state_stack.emplace_back(cddl_state::id, state_stack.back());
+                                }
+                                else
+                                {
+                                    state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
+                                }
                             }
                             break;
                     }
                     break;
                 }
-                case cddl_state::expect_colon_or_right_bracket:
+                case cddl_state::expect_colon_or_comma_or_delimiter:
                 {
                     switch (*p_)
                     {
@@ -256,10 +345,13 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ':':
-                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
                             ++column_;
+                            break;
+                        case ',':
+                            state_stack.pop_back();
                             break;
                         default:
                             if (*p_ == state_stack.back().delimiter)
@@ -296,7 +388,7 @@ public:
                             break;
                         default:
                             state_stack.back().state = cddl_state::array_definition2;
-                            state_stack.emplace_back(cddl_state::expect_memberkey, ']');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, ']');
                             break;
                     }
                     break;
@@ -317,7 +409,7 @@ public:
                             ++column_;
                             break;
                         case ',':
-                            state_stack.emplace_back(cddl_state::expect_memberkey,']');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey,']');
                             ++p_;
                             ++column_;
                             break;
@@ -354,7 +446,7 @@ public:
                             break;
                         default:
                             state_stack.back().state = cddl_state::map_definition2;
-                            state_stack.emplace_back(cddl_state::expect_memberkey, '}');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, '}');
                             break;
                     }
                     break;
@@ -370,7 +462,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ',':
-                            state_stack.emplace_back(cddl_state::expect_memberkey, '}');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, '}');
                             ++p_;
                             ++column_;
                             break;
@@ -407,7 +499,7 @@ public:
                             break;
                         default:
                             state_stack.back().state = cddl_state::group2;
-                            state_stack.emplace_back(cddl_state::expect_memberkey, ')');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, ')');
                             break;
                     }
                     break;
@@ -423,7 +515,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ',':
-                            state_stack.emplace_back(cddl_state::expect_memberkey, ')');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, ')');
                             ++p_;
                             ++column_;
                             break;
@@ -465,7 +557,7 @@ public:
                             break;
                         default:
                             buffer.clear();
-                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             break;
                     }
@@ -502,39 +594,11 @@ public:
                             }
                             else
                             {
-                                throw ser_error(cddl_errc::invalid_id,line_,column_);
-                            }
-                            break;
-                    }
-                    break;
-                }
-                case cddl_state::memberkey: 
-                {
-                    switch (*p_)
-                    {
-                        case ' ': case '\t': case '\r': case '\n':
-                            std::cout << "memberkey: " << buffer << "\n";
-                            advance_past_space_character();
-                            state_stack.pop_back();
-                            break;
-                        case ';':
-                            skip_to_end_of_line();
-                            break;
-                        case ':':
-                            std::cout << "memberkey: " << buffer << "\n";
-                            state_stack.pop_back();
-                            break;
-                        default:
-                            if (*p_ == state_stack.back().delimiter)
-                            {
-                                std::cout << "reference: " << buffer << "\n";
+                                if (is_hyphen_or_dot(buffer.back()))
+                                {
+                                    throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                }
                                 state_stack.pop_back();
-                            }
-                            else
-                            {
-                                buffer.push_back(*p_);
-                                ++p_;
-                                ++column_;
                             }
                             break;
                     }
@@ -758,7 +822,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket: 
+                case cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter: 
                 {
                     switch (*p_)
                     {
@@ -819,13 +883,13 @@ public:
                     switch (*p_)
                     {
                         case '.': // inclusive
-                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
                             ++column_;
                             break;
                         default:
-                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_right_bracket;
+                            state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             break;
                     }

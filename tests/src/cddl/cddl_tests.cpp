@@ -13,23 +13,21 @@
 #include <ctime>
 #include <new>
 #include <jsoncons/json.hpp>
+#include <jsoncons/json_pull_reader.hpp>
 #include <jsoncons_ext/cddl/cddl.hpp>
 
 using namespace jsoncons;
 
 namespace jsoncons { namespace cddl {
 
-void validate(cddl::validator& validator, const std::string& jtext)    
-{
-    json j = json::parse(jtext);
-    j.dump(validator);
-}
-
 }}
 
 TEST_CASE("cddl tests")
 {
-#if 0
+    std::string root = R"(
+        "city" : "Toronto"
+    )";
+
     SECTION("test 1")
     {
         std::string s = R"( 
@@ -46,9 +44,15 @@ TEST_CASE("cddl tests")
 
         cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
-        //cddl::validator validator(std::move(schema)); 
-        //cddl::validate(validator, "42");
+        cddl::cddl_validator validator(std::move(spec)); 
+
+        json_pull_reader reader(root);
+        validator.validate(reader);
     }
+}
+#if 0
+TEST_CASE("cddl tests 2")
+{
     SECTION("test 2")
     {
         std::string s = R"( 
@@ -58,15 +62,13 @@ TEST_CASE("cddl tests")
                       employer: tstr,
                    )
 
-            person = {
-                         pii
-                     }       
+            person = {pii}       
         )";
 
         cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
-        //cddl::validator validator(std::move(schema)); 
-        //cddl::validate(validator, "42");
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
     }
     SECTION("test 3")
     {
@@ -77,10 +79,10 @@ TEST_CASE("cddl tests")
 
         cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
-        //cddl::validator validator(std::move(schema)); 
-        //cddl::validate(validator, "42");
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
     }
-#endif
+
     SECTION("test 4")
     {
         std::string s = R"( 
@@ -91,13 +93,11 @@ TEST_CASE("cddl tests")
 
         cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
-        //cddl::validator validator(std::move(schema)); 
-        //cddl::validate(validator, "42");
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
     }
 
-
-
-    /* SECTION("test 2")
+    SECTION("test 5")
     {
         std::string s = R"(person = {(
                                    age: int,
@@ -107,9 +107,81 @@ TEST_CASE("cddl tests")
 
         cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
-        //cddl::validator validator(std::move(schema)); 
-        //cddl::validate(validator, "42");
-    } */
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
+    } 
 
+    SECTION("test 6")
+    {
+        std::string s = R"(
+        person = {
+              identity,
+              employer: tstr,
+            }
+
+            dog = {
+              identity,
+              leash-length: float,
+            }
+
+            identity = (
+              age: int,
+              name: tstr,
+            )
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
+    } 
+
+    SECTION("Occurrence *")
+    {
+        std::string s = R"(
+            apartment = {
+                kitchen: size,
+                * bedroom: size,
+            }
+            size = float ; in m2        
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
+    } 
+    SECTION("Occurrence ?")
+    {
+        std::string s = R"(
+            apartment = {
+                kitchen: size,
+                ? bedroom: size,
+            }
+            size = float ; in m2        
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
+    } 
+    SECTION("Arrays")
+    {
+        std::string s = R"(
+            unlimited-people = [* person]
+            one-or-two-people = [1*2 person]
+            at-least-two-people = [2* person]
+            person = (
+                name: tstr,
+                age: uint,
+            )        
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        //cddl::cddl_validator cddl_validator(std::move(schema)); 
+        //cddl::validate(cddl_validator, "42");
+    } 
 }
-
+#endif
