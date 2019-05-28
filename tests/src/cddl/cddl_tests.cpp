@@ -25,7 +25,10 @@ namespace jsoncons { namespace cddl {
 TEST_CASE("cddl tests")
 {
     std::string root = R"(
-        "city" : "Toronto"
+    [
+        "city" : "Toronto",
+        {"longitude" : 100, "latitude" : 100}
+    ]
     )";
 
     SECTION("test 1")
