@@ -4,29 +4,57 @@
 
 // See https://github.com/danielaparker/jsoncons for latest version
 
-#ifndef JSONCONS_CDDL_CDDL_PARSER_HPP
-#define JSONCONS_CDDL_CDDL_PARSER_HPP
+#ifndef JSONCONS_CDDL_CDDL_SPECIFICATION_HPP
+#define JSONCONS_CDDL_CDDL_SPECIFICATION_HPP
 
 #include <jsoncons/json.hpp>
 #include <jsoncons_ext/cddl/cddl_error.hpp>
+#include <memory>
 
 namespace jsoncons { namespace cddl {
 
-template <class CharT>
-class basic_cddl_specification
+class cddl_specification
 {
 public:
-    typedef CharT char_type;
+    cddl_specification() = default;
+    cddl_specification(const cddl_specification&) = default;
+    cddl_specification(cddl_specification&&) = default;
+    cddl_specification& operator=(const cddl_specification&) = default;
+    cddl_specification& operator=(cddl_specification&&) = default;
 
-    basic_cddl_specification() = default;
+    virtual ~cddl_specification() = default;
 
-    basic_cddl_specification(const basic_cddl_specification&) = default;
-    basic_cddl_specification(basic_cddl_specification&&) = default;
+    virtual void validate(staj_reader&)
+    {
+        throw std::runtime_error("Invalid specification");
+    }
 
-    basic_cddl_specification& operator=(const basic_cddl_specification&) = default;
-    basic_cddl_specification& operator=(basic_cddl_specification&&) = default;
+    static std::unique_ptr<cddl_specification> parse(const std::string& s);
+};
 
-    static basic_cddl_specification parse(const std::basic_string<CharT>& s);
+class array_rule : public cddl_specification
+{
+public:
+    array_rule() = default;
+    array_rule(const array_rule&) = default;
+    array_rule(array_rule&&) = default;
+    array_rule& operator=(const array_rule&) = default;
+    array_rule& operator=(array_rule&&) = default;
+
+    virtual void validate(staj_reader& reader)
+    {
+        const staj_event& event = reader.current();
+
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_array:
+                std::cout << "OK\n";
+                break;
+            default:
+                throw std::runtime_error("Expected array");
+                break;
+        }
+    }
 };
 
 enum class cddl_state : uint8_t
@@ -62,28 +90,26 @@ enum class cddl_state : uint8_t
     after_value
 };
 
-template <class CharT>
-class basic_cddl_parser
+class cddl_parser
 {
 public:
-    typedef CharT char_type;
 private:
-    const char_type* p_;
-    const char_type* endp_; 
+    const char* p_;
+    const char* endp_; 
     size_t line_;
     size_t column_;
 
     struct state_item
     {
         cddl_state state;
-        char_type delimiter;
+        char delimiter;
 
         explicit state_item(cddl_state state)
             : state(state), delimiter(0)
         {
         }
 
-        state_item(cddl_state state, char_type delimiter)
+        state_item(cddl_state state, char delimiter)
             : state(state), delimiter(delimiter)
         {
         }
@@ -94,17 +120,20 @@ private:
         }
     };
 public:
-    basic_cddl_parser()
+    cddl_parser()
         : line_(1), column_(1)
     {
     }
-    basic_cddl_specification<char_type> parse(const std::basic_string<char_type>& s)
+
+    std::unique_ptr<cddl_specification> parse(const std::string& s)
     {
+        std::vector<std::unique_ptr<cddl_specification>> rule_stack;
+
         std::vector<state_item> state_stack;
 
         state_stack.emplace_back(cddl_state::expect_rule);
 
-        std::basic_string<char_type> buffer;
+        std::string buffer;
 
         p_ = s.data();
         endp_ = s.data() + s.length(); 
@@ -377,9 +406,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ']':
-                            ++p_;
-                            ++column_;
-                            state_stack.pop_back();
+                            state_stack.back().state = cddl_state::array_definition2;
                             break;
                         case '(':
                             ++p_;
@@ -404,6 +431,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ']':
+                            rule_stack.emplace_back(new array_rule());
                             state_stack.pop_back();
                             ++p_;
                             ++column_;
@@ -926,7 +954,8 @@ public:
             std::cout << (int)item.state << "\n";
         }
 
-        return basic_cddl_specification<CharT>();
+        JSONCONS_ASSERT(rule_stack.size() != 0);
+        return std::move(rule_stack.front());
     }
 private:
 
@@ -955,22 +984,22 @@ private:
         }
     }
 
-    bool is_hyphen_or_dot(char_type c)
+    bool is_hyphen_or_dot(char c)
     {
         return c == '-' || c == '.';
     }
 
-    bool is_digit(char_type c)
+    bool is_digit(char c)
     {
         return (c >= 0x30 && c <= 0x39);
     }
 
-    bool is_alpha(char_type c)
+    bool is_alpha(char c)
     {
         return (c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A);
     }
 
-    bool is_ealpha(char_type c)
+    bool is_ealpha(char c)
     {
         switch (c)
         {
@@ -1002,14 +1031,11 @@ private:
     }
 };
 
-template <class CharT>
-basic_cddl_specification<CharT> basic_cddl_specification<CharT>::parse(const std::basic_string<CharT>& s)
+std::unique_ptr<cddl_specification> cddl_specification::parse(const std::string& s)
 {
-    basic_cddl_parser<CharT> parser;
+    cddl_parser parser;
     return parser.parse(s);
 }
-
-typedef basic_cddl_specification<char> cddl_specification;
 
 }}
 

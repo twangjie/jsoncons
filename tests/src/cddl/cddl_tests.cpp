@@ -34,18 +34,18 @@ TEST_CASE("cddl tests")
     SECTION("test 1")
     {
         std::string s = R"( 
-        Geography = [
+         Geography = [
          city           : tstr,
          gpsCoordinates : GpsCoordinates,
-       ]
+        ]
 
-       GpsCoordinates = {
+        GpsCoordinates = {
          longitude      : uint,            ; degrees, scaled by 10^7
          latitude       : uint,            ; degreed, scaled by 10^7
-       }
-       )";
+        }
+        )";
 
-        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+        std::unique_ptr<cddl::cddl_specification> spec = cddl::cddl_specification::parse(s);
 
         cddl::cddl_validator validator(std::move(spec)); 
 

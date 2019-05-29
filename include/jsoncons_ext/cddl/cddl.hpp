@@ -12,36 +12,31 @@
 
 namespace jsoncons { namespace cddl {
 
-template <class CharT>
-class basic_cddl_validator
+class cddl_validator
 {
-    basic_cddl_specification<CharT> spec_;
+    std::unique_ptr<cddl_specification> spec_;
 public:
-    typedef CharT char_type;
-    typedef typename basic_json_content_handler<char_type>::string_view_type string_view_type;
+    typedef json_content_handler::string_view_type string_view_type;
 
-    basic_cddl_validator(const basic_cddl_specification<CharT>& schema)
-        : spec_(schema)
+    cddl_validator(std::unique_ptr<cddl_specification>&& spec)
+        : spec_(std::move(spec))
     {
     }
-    basic_cddl_validator(basic_cddl_specification<CharT>&& schema)
-        : spec_(std::move(schema))
-    {
-    }
-    basic_cddl_validator(const basic_cddl_validator&) = default;
-    basic_cddl_validator(basic_cddl_validator&&) = default;
+    cddl_validator(const cddl_validator&) = default;
+    cddl_validator(cddl_validator&&) = default;
 
-    basic_cddl_validator& operator=(const basic_cddl_validator&) = default;
-    basic_cddl_validator& operator=(basic_cddl_validator&&) = default;
+    cddl_validator& operator=(const cddl_validator&) = default;
+    cddl_validator& operator=(cddl_validator&&) = default;
 
     bool is_valid() const
     {
         return true;
     }
 
-    void validate(basic_staj_reader<CharT>& reader)
+    void validate(staj_reader& reader)
     {
-        const basic_staj_event<CharT>& event = reader.current();
+        spec_->validate(reader);
+        const staj_event& event = reader.current();
          
         switch (event.event_type())
         {
@@ -89,8 +84,6 @@ public:
         }
     }
 };
-
-typedef basic_cddl_validator<char> cddl_validator;
 
 }}
 
