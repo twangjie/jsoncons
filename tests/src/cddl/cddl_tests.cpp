@@ -13,7 +13,7 @@
 #include <ctime>
 #include <new>
 #include <jsoncons/json.hpp>
-#include <jsoncons/json_pull_reader.hpp>
+#include <jsoncons/json_cursor.hpp>
 #include <jsoncons_ext/cddl/cddl.hpp>
 
 using namespace jsoncons;
@@ -49,7 +49,7 @@ TEST_CASE("cddl tests")
 
         cddl::cddl_validator validator(std::move(spec)); 
 
-        json_pull_reader reader(root);
+        json_cursor reader(root);
         validator.validate(reader);
     }
 }

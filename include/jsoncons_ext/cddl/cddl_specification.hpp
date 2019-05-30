@@ -32,8 +32,22 @@ public:
     static std::unique_ptr<cddl_specification> parse(const std::string& s);
 };
 
+class memberkey_rule
+{
+public:
+    memberkey_rule() = default;
+    memberkey_rule(const memberkey_rule&) = default;
+    memberkey_rule(memberkey_rule&&) = default;
+    memberkey_rule& operator=(const memberkey_rule&) = default;
+    memberkey_rule& operator=(memberkey_rule&&) = default;
+
+    std::string name_;
+    std::unique_ptr<cddl_specification> rule_; 
+};
+
 class array_rule : public cddl_specification
 {
+    std::vector<memberkey_rule> memberkey_rules_;
 public:
     array_rule() = default;
     array_rule(const array_rule&) = default;
@@ -48,7 +62,6 @@ public:
         switch (event.event_type())
         {
             case staj_event_type::begin_array:
-                std::cout << "OK\n";
                 break;
             default:
                 throw std::runtime_error("Expected array");
