@@ -81,17 +81,18 @@ struct parse_state
     parse_state(parse_state&&) = default;
 };
 
-template <class Source>
+template <class Src>
 class basic_cbor_reader : public ser_context
 {
-    Source source_;
+    Src source_;
     json_content_handler& handler_;
     std::string buffer_;
     std::vector<uint64_t> tags_; 
     std::vector<parse_state> state_stack_;
 public:
-    basic_cbor_reader(Source source, json_content_handler& handler)
-       : source_(std::move(source)),
+    template <class Source>
+    basic_cbor_reader(Source&& source, json_content_handler& handler)
+       : source_(std::forward<Source>(source)),
          handler_(handler)
     {
     }
@@ -167,7 +168,7 @@ private:
                     int c = source_.peek();
                     switch (c)
                     {
-                        case Source::traits_type::eof():
+                        case Src::traits_type::eof():
                             ec = cbor_errc::unexpected_eof;
                             return;
                         case 0xff:
@@ -214,7 +215,7 @@ private:
                     int c = source_.peek();
                     switch (c)
                     {
-                        case Source::traits_type::eof():
+                        case Src::traits_type::eof():
                             ec = cbor_errc::unexpected_eof;
                             return;
                         case 0xff:
@@ -267,7 +268,7 @@ private:
             return;
         }
         int c = source_.peek();
-        if (c == Source::traits_type::eof())
+        if (c == Src::traits_type::eof())
         {
             ec = cbor_errc::unexpected_eof;
             return;
@@ -597,7 +598,7 @@ private:
         int c = source_.peek();
         switch (c)
         {
-            case Source::traits_type::eof():
+            case Src::traits_type::eof():
                 ec = cbor_errc::unexpected_eof;
                 return;
             default:
@@ -683,7 +684,7 @@ private:
             {
                 std::string s;
                 json_string_encoder encoder(s);
-                basic_cbor_reader<Source> reader(std::move(source_), encoder);
+                basic_cbor_reader<Src> reader(std::move(source_), encoder);
                 reader.read(ec);
                 source_ = std::move(reader.source_);
                 auto result = unicons::validate(s.begin(),s.end());
@@ -706,7 +707,7 @@ private:
         int c = source_.peek();
         switch (c)
         {
-            case Source::traits_type::eof():
+            case Src::traits_type::eof():
                 ec = cbor_errc::unexpected_eof;
                 return s;
             default:
@@ -715,7 +716,7 @@ private:
                 break;
         }
         JSONCONS_ASSERT(major_type == jsoncons::cbor::detail::cbor_major_type::text_string);
-        auto func = [&s](Source& source_, size_t length, std::error_code& ec)
+        auto func = [&s](Src& source_, size_t length, std::error_code& ec)
         {
             s.reserve(s.size()+length);
             source_.read(std::back_inserter(s), length);
@@ -736,7 +737,7 @@ private:
         return s;
     }
 
-    static size_t get_definite_length(Source& source, std::error_code& ec)
+    static size_t get_definite_length(Src& source, std::error_code& ec)
     {
         if (JSONCONS_UNLIKELY(source.eof()))
         {
@@ -772,7 +773,7 @@ private:
         int c = source_.peek();
         switch (c)
         {
-            case Source::traits_type::eof():
+            case Src::traits_type::eof():
                 ec = cbor_errc::unexpected_eof;
                 return v;
             default:
@@ -781,7 +782,7 @@ private:
                 break;
         }
         JSONCONS_ASSERT(major_type == jsoncons::cbor::detail::cbor_major_type::byte_string);
-        auto func = [&v](Source& source_, size_t length, std::error_code& ec)
+        auto func = [&v](Src& source_, size_t length, std::error_code& ec)
         {
             v.reserve(v.size()+length);
             source_.read(std::back_inserter(v), length);
@@ -802,12 +803,12 @@ private:
     }
 
     template <class Function>
-    static void iterate_string_chunks(Source& source,
+    static void iterate_string_chunks(Src& source,
                                       Function func, 
                                       std::error_code& ec)
     {
         int c = source.peek();
-        if (c == Source::traits_type::eof())
+        if (c == Src::traits_type::eof())
         {
             ec = cbor_errc::unexpected_eof;
             return;
@@ -828,7 +829,7 @@ private:
                     int test = source.peek();
                     switch (test)
                     {
-                        case Source::traits_type::eof():
+                        case Src::traits_type::eof():
                             ec = cbor_errc::unexpected_eof;
                             return;
                         case 0xff:
@@ -863,7 +864,7 @@ private:
         }
     }
 
-    static uint64_t get_uint64_value(Source& source, std::error_code& ec)
+    static uint64_t get_uint64_value(Src& source, std::error_code& ec)
     {
         uint64_t val = 0;
         if (JSONCONS_UNLIKELY(source.eof()))
@@ -930,7 +931,7 @@ private:
         return val;
     }
 
-    static int64_t get_int64_value(Source& source, std::error_code& ec)
+    static int64_t get_int64_value(Src& source, std::error_code& ec)
     {
         int64_t val = 0;
         if (JSONCONS_UNLIKELY(source.eof()))
@@ -1029,7 +1030,7 @@ private:
         return val;
     }
 
-    static double get_double(Source& source, std::error_code& ec)
+    static double get_double(Src& source, std::error_code& ec)
     {
         double val = 0;
         if (JSONCONS_UNLIKELY(source.eof()))
@@ -1100,7 +1101,7 @@ private:
         std::string s;
 
         int c;
-        if ((c=source_.get()) == Source::traits_type::eof())
+        if ((c=source_.get()) == Src::traits_type::eof())
         {
             ec = cbor_errc::unexpected_eof;
             return s;
@@ -1110,7 +1111,7 @@ private:
         JSONCONS_ASSERT(major_type == jsoncons::cbor::detail::cbor_major_type::array);
         JSONCONS_ASSERT(info == 2);
 
-        if ((c=source_.peek()) == Source::traits_type::eof())
+        if ((c=source_.peek()) == Src::traits_type::eof())
         {
             ec = cbor_errc::unexpected_eof;
             return s;
@@ -1167,13 +1168,13 @@ private:
             }
             case jsoncons::cbor::detail::cbor_major_type::semantic_tag:
             {
-                if ((c=source_.get()) == Source::traits_type::eof())
+                if ((c=source_.get()) == Src::traits_type::eof())
                 {
                     ec = cbor_errc::unexpected_eof;
                     return s;
                 }
                 uint8_t tag = get_additional_information_value((uint8_t)c);
-                if ((c=source_.peek()) == Source::traits_type::eof())
+                if ((c=source_.peek()) == Src::traits_type::eof())
                 {
                     ec = cbor_errc::unexpected_eof;
                     return s;
@@ -1228,7 +1229,7 @@ private:
         std::string s;
 
         int c;
-        if ((c=source_.get()) == Source::traits_type::eof())
+        if ((c=source_.get()) == Src::traits_type::eof())
         {
             ec = cbor_errc::unexpected_eof;
             return s;
@@ -1238,7 +1239,7 @@ private:
         JSONCONS_ASSERT(major_type == jsoncons::cbor::detail::cbor_major_type::array);
         JSONCONS_ASSERT(info == 2);
 
-        if ((c=source_.peek()) == Source::traits_type::eof())
+        if ((c=source_.peek()) == Src::traits_type::eof())
         {
             ec = cbor_errc::unexpected_eof;
             return s;
@@ -1300,13 +1301,13 @@ private:
             }
             case jsoncons::cbor::detail::cbor_major_type::semantic_tag:
             {
-                if ((c=source_.get()) == Source::traits_type::eof())
+                if ((c=source_.get()) == Src::traits_type::eof())
                 {
                     ec = cbor_errc::unexpected_eof;
                     return s;
                 }
                 uint8_t tag = get_additional_information_value((uint8_t)c);
-                if ((c=source_.peek()) == Source::traits_type::eof())
+                if ((c=source_.peek()) == Src::traits_type::eof())
                 {
                     ec = cbor_errc::unexpected_eof;
                     return s;
@@ -1375,7 +1376,7 @@ private:
     void read_tags(std::error_code& ec)
     {
         int c = source_.peek();
-        if (c == Source::traits_type::eof())
+        if (c == Src::traits_type::eof())
         {
             ec = cbor_errc::unexpected_eof;
             return;
@@ -1390,7 +1391,7 @@ private:
             } 
             tags_.push_back(val);
             c = source_.peek();
-            if (c == Source::traits_type::eof())
+            if (c == Src::traits_type::eof())
             {
                 ec = cbor_errc::unexpected_eof;
                 return;
