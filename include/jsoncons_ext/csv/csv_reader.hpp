@@ -26,7 +26,7 @@
 
 namespace jsoncons { namespace csv {
 
-template<class CharT,class Src,class Allocator=std::allocator<char>>
+template<class CharT,class Src=jsoncons::stream_source<CharT>,class Allocator=std::allocator<char>>
 class basic_csv_reader 
 {
     struct stack_item
@@ -51,7 +51,6 @@ class basic_csv_reader
     Src source_;
     std::vector<CharT,char_allocator_type> buffer_;
     size_t buffer_length_;
-    size_t buffer_position_;
     bool eof_;
     bool begin_;
 public:
@@ -100,16 +99,38 @@ public:
     basic_csv_reader(Source&& source,
                      basic_json_content_handler<CharT>& handler,
                      const basic_csv_decode_options<CharT>& options,
-                     parse_error_handler& err_handler)
+                     parse_error_handler& err_handler,
+                     typename std::enable_if<!std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
        :
          parser_(handler, options, err_handler),
          source_(std::forward<Source>(source)),
          buffer_length_(default_max_buffer_length),
-         buffer_position_(0),
          eof_(false),
          begin_(true)
     {
         buffer_.reserve(buffer_length_);
+    }
+
+    template <class Source>
+    basic_csv_reader(Source&& source,
+                     basic_json_content_handler<CharT>& handler,
+                     const basic_csv_decode_options<CharT>& options,
+                     parse_error_handler& err_handler,
+                     typename std::enable_if<std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
+       :
+         parser_(handler, options, err_handler),
+         buffer_length_(0),
+         eof_(false),
+         begin_(false)
+    {
+        basic_string_view<CharT> sv(std::forward<Source>(source));
+        auto result = unicons::skip_bom(sv.begin(), sv.end());
+        if (result.ec != unicons::encoding_errc())
+        {
+            throw ser_error(result.ec,parser_.line(),parser_.column());
+        }
+        size_t offset = result.it - sv.begin();
+        parser_.update(sv.data()+offset,sv.size()-offset);
     }
 
     ~basic_csv_reader()
@@ -294,10 +315,13 @@ decode_csv(std::basic_istream<CharT>& is, const basic_csv_options<CharT>& option
     return decoder.get_result().template as<T>();
 }
 
-typedef basic_csv_reader<char,jsoncons::stream_source<char>> csv_reader;
+typedef basic_csv_reader<char> csv_reader;
+typedef basic_csv_reader<wchar_t> wcsv_reader;
+
+#if !defined(JSONCONS_NO_DEPRECATED)
 typedef basic_csv_reader<char,jsoncons::string_source<char>> csv_string_reader;
-typedef basic_csv_reader<wchar_t,jsoncons::stream_source<wchar_t>> wcsv_reader;
 typedef basic_csv_reader<wchar_t,jsoncons::string_source<wchar_t>> wcsv_string_reader;
+#endif
 
 }}
 

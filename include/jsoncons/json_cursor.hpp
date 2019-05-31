@@ -133,9 +133,14 @@ private:
     }
 };
 
-template<class CharT,class Allocator=std::allocator<CharT>>
+template<class CharT,class Src=jsoncons::stream_source<CharT>,class Allocator=std::allocator<char>>
 class basic_json_cursor : public basic_staj_reader<CharT>, private virtual ser_context
 {
+public:
+    typedef Src source_type;
+    typedef CharT char_type;
+    typedef Allocator allocator_type;
+private:
     static const size_t default_max_buffer_length = 16384;
 
     basic_staj_event_handler<CharT> event_handler_;
@@ -143,17 +148,14 @@ class basic_json_cursor : public basic_staj_reader<CharT>, private virtual ser_c
 
     default_basic_staj_filter<CharT> default_filter_;
 
-    typedef CharT char_type;
-    typedef Allocator allocator_type;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<CharT> char_allocator_type;
 
     basic_json_parser<CharT,Allocator> parser_;
-    basic_null_istream<CharT> null_is_;
-    std::basic_istream<CharT>& is_;
     basic_staj_filter<CharT>& filter_;
-    bool eof_;
+    source_type source_;
     std::vector<CharT,char_allocator_type> buffer_;
     size_t buffer_length_;
+    bool eof_;
     bool begin_;
 
     // Noncopyable and nonmoveable
@@ -224,15 +226,17 @@ public:
     {
     }
 
-    basic_json_cursor(std::basic_istream<CharT>& is, 
+    template <class Source>
+    basic_json_cursor(Source&& source, 
                       basic_staj_filter<CharT>& filter,
                       const basic_json_decode_options<CharT>& options,
-                      parse_error_handler& err_handler)
+                      parse_error_handler& err_handler,
+                      typename std::enable_if<!std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
        : parser_(options,err_handler),
-         is_(is),
          filter_(filter),
-         eof_(false),
+         source_(source),
          buffer_length_(default_max_buffer_length),
+         eof_(false),
          begin_(true)
     {
         buffer_.reserve(buffer_length_);
@@ -242,19 +246,26 @@ public:
         }
     }
 
-    basic_json_cursor(const string_view_type& s, 
+    template <class Source>
+    basic_json_cursor(Source&& source, 
                       basic_staj_filter<CharT>& filter,
                       const basic_json_decode_options<CharT>& options,
-                      parse_error_handler& err_handler)
+                      parse_error_handler& err_handler,
+                      typename std::enable_if<std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
        : parser_(options,err_handler),
-         is_(null_is_),
          filter_(filter),
+         buffer_length_(0),
          eof_(false),
-         buffer_(s.begin(), s.end()),
-         buffer_length_(s.length()),
-         begin_(true)
+         begin_(false)
     {
-        parser_.update(buffer_.data(),buffer_.size());
+        basic_string_view<CharT> sv(std::forward<Source>(source));
+        auto result = unicons::skip_bom(sv.begin(), sv.end());
+        if (result.ec != unicons::encoding_errc())
+        {
+            throw ser_error(result.ec,parser_.line(),parser_.column());
+        }
+        size_t offset = result.it - sv.begin();
+        parser_.update(sv.data()+offset,sv.size()-offset);
         if (!done())
         {
             next();
@@ -330,14 +341,16 @@ public:
     {
     }
 
-    basic_json_cursor(std::basic_istream<CharT>& is, 
+    template <class Source>
+    basic_json_cursor(Source&& source, 
                       basic_staj_filter<CharT>& filter,
                       const basic_json_decode_options<CharT>& options,
                       parse_error_handler& err_handler,
-                      std::error_code& ec)
+                      std::error_code& ec,
+                      typename std::enable_if<!std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
        : parser_(options,err_handler),
-         is_(is),
          filter_(filter),
+         source_(source),
          eof_(false),
          buffer_length_(default_max_buffer_length),
          begin_(true)
@@ -349,20 +362,28 @@ public:
         }
     }
 
-    basic_json_cursor(const string_view_type& s, 
+    template <class Source>
+    basic_json_cursor(Source&& source, 
                       basic_staj_filter<CharT>& filter,
                       const basic_json_decode_options<CharT>& options,
                       parse_error_handler& err_handler,
-                      std::error_code& ec)
+                      std::error_code& ec,
+                      typename std::enable_if<std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
        : parser_(options,err_handler),
-         is_(null_is_),
          filter_(filter),
          eof_(false),
-         buffer_(s.begin(), s.end()),
-         buffer_length_(s.length()),
-         begin_(true)
+         buffer_length_(0),
+         begin_(false)
     {
-        parser_.update(buffer_.data(),buffer_.size());
+        basic_string_view<CharT> sv(std::forward<Source>(source));
+        auto result = unicons::skip_bom(sv.begin(), sv.end());
+        if (result.ec != unicons::encoding_errc())
+        {
+            ec = result.ec;
+            return;
+        }
+        size_t offset = result.it - sv.begin();
+        parser_.update(sv.data()+offset,sv.size()-offset);
         if (!done())
         {
             next(ec);
@@ -504,8 +525,8 @@ public:
     {
         buffer_.clear();
         buffer_.resize(buffer_length_);
-        is_.read(buffer_.data(), buffer_length_);
-        buffer_.resize(static_cast<size_t>(is_.gcount()));
+        size_t count = source_.read(buffer_.data(), buffer_length_);
+        buffer_.resize(static_cast<size_t>(count));
         if (buffer_.size() == 0)
         {
             eof_ = true;
@@ -540,19 +561,13 @@ public:
         {
             if (parser_.source_exhausted())
             {
-                if (!is_.eof())
+                if (!source_.eof())
                 {
-                    if (is_.fail())
-                    {
-                        ec = json_errc::source_error;
-                        return;
-                    }        
                     read_buffer(ec);
                     if (ec) return;
                 }
                 else
                 {
-                    parser_.update(buffer_.data(),0);
                     eof_ = true;
                 }
             }
@@ -578,38 +593,45 @@ public:
 
     void check_done(std::error_code& ec)
     {
-        if (eof_)
+        try
         {
-            parser_.check_done(ec);
-            if (ec) return;
-        }
-        else
-        {
-            while (!eof_)
+            if (source_.is_error())
             {
-                if (parser_.source_exhausted())
+                ec = json_errc::source_error;
+                return;
+            }   
+            if (eof_)
+            {
+                parser_.check_done(ec);
+                if (ec) return;
+            }
+            else
+            {
+                while (!eof_)
                 {
-                    if (!is_.eof())
+                    if (parser_.source_exhausted())
                     {
-                        if (is_.fail())
+                        if (!source_.eof())
                         {
-                            ec = json_errc::source_error;
-                            return;
-                        }   
-                        read_buffer(ec);     
+                            read_buffer(ec);     
+                            if (ec) return;
+                        }
+                        else
+                        {
+                            eof_ = true;
+                        }
+                    }
+                    if (!eof_)
+                    {
+                        parser_.check_done(ec);
                         if (ec) return;
                     }
-                    else
-                    {
-                        eof_ = true;
-                    }
-                }
-                if (!eof_)
-                {
-                    parser_.check_done(ec);
-                    if (ec) return;
                 }
             }
+        }
+        catch (const ser_error& e)
+        {
+            ec = e.code();
         }
     }
 
@@ -630,26 +652,26 @@ public:
 private:
 };
 
-typedef basic_json_cursor<char,std::allocator<char>> json_cursor;
-typedef basic_json_cursor<wchar_t, std::allocator<wchar_t>> wjson_cursor;
+typedef basic_json_cursor<char> json_cursor;
+typedef basic_json_cursor<wchar_t> wjson_cursor;
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-template<class CharT,class Allocator=std::allocator<CharT>>
-using basic_json_pull_reader = basic_json_cursor<CharT,Allocator>;
-typedef basic_json_cursor<char,std::allocator<char>> json_pull_reader;
-typedef basic_json_cursor<wchar_t, std::allocator<wchar_t>> wjson_pull_reader;
+template<class CharT,class Src,class Allocator=std::allocator<CharT>>
+using basic_json_pull_reader = basic_json_cursor<CharT,Src,Allocator>;
+typedef basic_json_cursor<char> json_pull_reader;
+typedef basic_json_cursor<wchar_t> wjson_pull_reader;
 
-template<class CharT,class Allocator=std::allocator<CharT>>
-using basic_json_stream_reader = basic_json_cursor<CharT,Allocator>;
+template<class CharT,class Src,class Allocator=std::allocator<CharT>>
+using basic_json_stream_reader = basic_json_cursor<CharT,Src,Allocator>;
 
-template<class CharT,class Allocator=std::allocator<CharT>>
-using basic_json_staj_reader = basic_json_cursor<CharT,Allocator>;
+template<class CharT,class Src,class Allocator=std::allocator<CharT>>
+using basic_json_staj_reader = basic_json_cursor<CharT,Src,Allocator>;
 
-typedef basic_json_cursor<char,std::allocator<char>> json_stream_reader;
-typedef basic_json_cursor<wchar_t, std::allocator<wchar_t>> wjson_stream_reader;
+typedef basic_json_cursor<char> json_stream_reader;
+typedef basic_json_cursor<wchar_t> wjson_stream_reader;
 
-typedef basic_json_cursor<char,std::allocator<char>> json_staj_reader;
-typedef basic_json_cursor<wchar_t, std::allocator<wchar_t>> wjson_staj_reader;
+typedef basic_json_cursor<char> json_staj_reader;
+typedef basic_json_cursor<wchar_t> wjson_staj_reader;
 #endif
 
 }
