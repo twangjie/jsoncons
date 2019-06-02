@@ -7,67 +7,33 @@
 #ifndef JSONCONS_CDDL_CDDL_SPECIFICATION_HPP
 #define JSONCONS_CDDL_CDDL_SPECIFICATION_HPP
 
-#include <jsoncons/json.hpp>
+#include <jsoncons/json_cursor.hpp>
 #include <jsoncons_ext/cddl/cddl_error.hpp>
+#include <jsoncons_ext/cddl/cddl_rule.hpp>
 #include <memory>
 
 namespace jsoncons { namespace cddl {
 
 class cddl_specification
 {
+    rule_dictionary dictionary_;
+    rule_base::unique_ptr root_;
 public:
-    cddl_specification() = default;
-    cddl_specification(const cddl_specification&) = default;
+    cddl_specification(rule_dictionary&& dictionary, rule_base::unique_ptr&& root)
+        : dictionary_(std::move(dictionary)), root_(std::move(root))
+    {
+    }
+    cddl_specification(const cddl_specification&) = delete;
     cddl_specification(cddl_specification&&) = default;
-    cddl_specification& operator=(const cddl_specification&) = default;
+    cddl_specification& operator=(const cddl_specification&) = delete;
     cddl_specification& operator=(cddl_specification&&) = default;
 
-    virtual ~cddl_specification() = default;
-
-    virtual void validate(staj_reader&)
+    void validate(staj_reader& reader)
     {
-        throw std::runtime_error("Invalid specification");
+        root_->validate(dictionary_, reader);
     }
 
-    static std::unique_ptr<cddl_specification> parse(const std::string& s);
-};
-
-class memberkey_rule
-{
-public:
-    memberkey_rule() = default;
-    memberkey_rule(const memberkey_rule&) = default;
-    memberkey_rule(memberkey_rule&&) = default;
-    memberkey_rule& operator=(const memberkey_rule&) = default;
-    memberkey_rule& operator=(memberkey_rule&&) = default;
-
-    std::string name_;
-    std::unique_ptr<cddl_specification> rule_; 
-};
-
-class array_rule : public cddl_specification
-{
-    std::vector<memberkey_rule> memberkey_rules_;
-public:
-    array_rule() = default;
-    array_rule(const array_rule&) = default;
-    array_rule(array_rule&&) = default;
-    array_rule& operator=(const array_rule&) = default;
-    array_rule& operator=(array_rule&&) = default;
-
-    virtual void validate(staj_reader& reader)
-    {
-        const staj_event& event = reader.current();
-
-        switch (event.event_type())
-        {
-            case staj_event_type::begin_array:
-                break;
-            default:
-                throw std::runtime_error("Expected array");
-                break;
-        }
-    }
+    static cddl_specification parse(const std::string& s);
 };
 
 enum class cddl_state : uint8_t
@@ -138,9 +104,10 @@ public:
     {
     }
 
-    std::unique_ptr<cddl_specification> parse(const std::string& s)
+    cddl_specification parse(const std::string& s)
     {
-        std::vector<std::unique_ptr<cddl_specification>> rule_stack;
+        rule_dictionary dictionary;
+        std::vector<std::unique_ptr<rule_base>> rule_stack;
 
         std::vector<state_item> state_stack;
 
@@ -968,7 +935,7 @@ public:
         }
 
         JSONCONS_ASSERT(rule_stack.size() != 0);
-        return std::move(rule_stack.front());
+        return cddl_specification(std::move(dictionary), std::move(rule_stack.front()));
     }
 private:
 
@@ -1044,10 +1011,10 @@ private:
     }
 };
 
-std::unique_ptr<cddl_specification> cddl_specification::parse(const std::string& s)
+cddl_specification cddl_specification::parse(const std::string& s)
 {
     cddl_parser parser;
-    return parser.parse(s);
+    return std::move(parser.parse(s));
 }
 
 }}

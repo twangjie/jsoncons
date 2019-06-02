@@ -14,7 +14,7 @@
 #include <new>
 #include <jsoncons/json.hpp>
 #include <jsoncons/json_cursor.hpp>
-#include <jsoncons_ext/cddl/cddl.hpp>
+#include <jsoncons_ext/cddl/cddl_specification.hpp>
 
 using namespace jsoncons;
 
@@ -45,12 +45,10 @@ TEST_CASE("cddl tests")
         }
         )";
 
-        std::unique_ptr<cddl::cddl_specification> spec = cddl::cddl_specification::parse(s);
-
-        cddl::cddl_validator validator(std::move(spec)); 
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
         json_cursor reader(root);
-        validator.validate(reader);
+        spec.validate(reader);
     }
 }
 #if 0
