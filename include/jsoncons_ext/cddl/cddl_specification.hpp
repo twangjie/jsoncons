@@ -71,6 +71,7 @@ enum class cddl_state : uint8_t
     group2,
     after_value
 };
+
 struct stack_item
 {
     std::string key;
@@ -95,10 +96,27 @@ struct stack_item
 
 enum class structure_type {root_t, array_t, map_t, group_t};
 
-struct structure_offset
+struct structure
 {
-    size_t offset_;
-    structure_type type_;
+    std::string id;
+    size_t offset;
+    structure_type type;
+    rule_base* rule;
+
+    structure(const std::string& id, size_t offset)
+        : id(id), offset(offset), rule(nullptr)
+    {
+    }
+
+    structure(std::string&& id, size_t offset)
+        : id(std::move(id)), offset(offset), rule(nullptr)
+    {
+    }
+    structure(const structure&) = default;
+    structure(structure&&) = default;
+
+    structure& operator=(const structure&) = default;
+    structure& operator=(structure&&) = default;
 };
 
 class cddl_parser
@@ -106,7 +124,7 @@ class cddl_parser
 
     std::vector<rule_base::unique_ptr> rule_owner_;
     std::vector<stack_item> stack_;
-    std::vector<structure_offset> stack_offsets_;
+    std::vector<structure> structure_stack_;
 
     const char* p_;
     const char* endp_; 
@@ -141,8 +159,6 @@ public:
 
     cddl_specification parse(const std::string& s)
     {
-        stack_offsets_.push_back({0,structure_type::root_t});
-
         rule_dictionary dictionary;
         std::vector<rule_base*> rule_stack;
 
@@ -199,7 +215,7 @@ public:
                             break;
                         case '=':
                             std::cout << "id: " << buffer << "\n";
-                            stack_.emplace_back(std::move(buffer));
+                            structure_stack_.emplace_back(std::move(buffer), stack_.size());
 
                             state_stack.back().state = cddl_state::expect_groupent;
                             ++p_;
@@ -590,19 +606,18 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '[':
-                            stack_offsets_.push_back({stack_.size()-1,structure_type::array_t});
+                            rule_owner_.emplace_back(new array_rule());
+                            structure_stack_.back().rule = rule_owner_.back().get();
                             state_stack.back().state = cddl_state::array_definition;
                             ++p_;
                             ++column_;
                             break;
                         case '{':
-                            stack_offsets_.push_back({stack_.size()-1,structure_type::map_t});
                             state_stack.back().state = cddl_state::map_definition;
                             ++p_;
                             ++column_;
                             break;
                         case '(':
-                            stack_offsets_.push_back({stack_.size()-1,structure_type::group_t});
                             state_stack.back().state = cddl_state::group;
                             ++p_;
                             ++column_;
