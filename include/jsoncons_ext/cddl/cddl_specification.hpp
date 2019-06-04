@@ -77,12 +77,12 @@ struct stack_item
     rule_base* rule;
 
     stack_item(const std::string& key)
-        : key(key)
+        : key(key), rule(nullptr)
     {
     }
 
     stack_item(std::string&& key)
-        : key(std::move(key))
+        : key(std::move(key)), rule(nullptr)
     {
     }
 
@@ -199,6 +199,8 @@ public:
                             break;
                         case '=':
                             std::cout << "id: " << buffer << "\n";
+                            stack_.emplace_back(std::move(buffer));
+
                             state_stack.back().state = cddl_state::expect_groupent;
                             ++p_;
                             ++column_;
@@ -588,19 +590,22 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '[':
+                            stack_offsets_.push_back({stack_.size()-1,structure_type::array_t});
+                            state_stack.back().state = cddl_state::array_definition;
                             ++p_;
                             ++column_;
-                            state_stack.back().state = cddl_state::array_definition;
                             break;
                         case '{':
+                            stack_offsets_.push_back({stack_.size()-1,structure_type::map_t});
+                            state_stack.back().state = cddl_state::map_definition;
                             ++p_;
                             ++column_;
-                            state_stack.back().state = cddl_state::map_definition;
                             break;
                         case '(':
+                            stack_offsets_.push_back({stack_.size()-1,structure_type::group_t});
+                            state_stack.back().state = cddl_state::group;
                             ++p_;
                             ++column_;
-                            state_stack.back().state = cddl_state::group;
                             break;
                         default:
                             buffer.clear();
