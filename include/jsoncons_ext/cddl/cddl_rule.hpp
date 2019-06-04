@@ -16,7 +16,7 @@ namespace jsoncons { namespace cddl {
 
 class rule_base;
 
-typedef std::unordered_map<std::string,std::unique_ptr<rule_base>> rule_dictionary;
+typedef std::unordered_map<std::string,rule_base*> rule_dictionary;
 
 class rule_base
 {
@@ -44,7 +44,7 @@ public:
     memberkey_rule& operator=(memberkey_rule&&) = default;
 
     std::string name;
-    rule_base::unique_ptr rule; 
+    rule_base* rule; 
 };
 
 class array_rule : public rule_base

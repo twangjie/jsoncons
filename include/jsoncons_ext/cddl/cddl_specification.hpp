@@ -16,11 +16,14 @@ namespace jsoncons { namespace cddl {
 
 class cddl_specification
 {
+    std::vector<rule_base::unique_ptr> rule_owner_;
     rule_dictionary dictionary_;
-    rule_base::unique_ptr root_;
+    rule_base* root_;
 public:
-    cddl_specification(rule_dictionary&& dictionary, rule_base::unique_ptr&& root)
-        : dictionary_(std::move(dictionary)), root_(std::move(root))
+    cddl_specification(std::vector<rule_base::unique_ptr>&& rule_owner,
+                       rule_dictionary&& dictionary, 
+                       rule_base* root)
+        : rule_owner_(std::move(rule_owner)), dictionary_(std::move(dictionary)), root_(root)
     {
     }
     cddl_specification(const cddl_specification&) = delete;
@@ -68,11 +71,43 @@ enum class cddl_state : uint8_t
     group2,
     after_value
 };
+struct stack_item
+{
+    std::string key;
+    rule_base* rule;
+
+    stack_item(const std::string& key)
+        : key(key)
+    {
+    }
+
+    stack_item(std::string&& key)
+        : key(std::move(key))
+    {
+    }
+
+    stack_item() = default;
+    stack_item(const stack_item&) = default;
+    stack_item(stack_item&&) = default;
+    stack_item& operator=(const stack_item&) = default;
+    stack_item& operator=(stack_item&&) = default;
+};
+
+enum class structure_type {root_t, array_t, map_t, group_t};
+
+struct structure_offset
+{
+    size_t offset_;
+    structure_type type_;
+};
 
 class cddl_parser
 {
-public:
-private:
+
+    std::vector<rule_base::unique_ptr> rule_owner_;
+    std::vector<stack_item> stack_;
+    std::vector<structure_offset> stack_offsets_;
+
     const char* p_;
     const char* endp_; 
     size_t line_;
@@ -107,7 +142,7 @@ public:
     cddl_specification parse(const std::string& s)
     {
         rule_dictionary dictionary;
-        std::vector<std::unique_ptr<rule_base>> rule_stack;
+        std::vector<rule_base*> rule_stack;
 
         std::vector<state_item> state_stack;
 
@@ -411,7 +446,8 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ']':
-                            rule_stack.emplace_back(new array_rule());
+                            rule_owner_.emplace_back(new array_rule());
+                            rule_stack.push_back(rule_owner_.back().get());
                             state_stack.pop_back();
                             ++p_;
                             ++column_;
@@ -935,7 +971,9 @@ public:
         }
 
         JSONCONS_ASSERT(rule_stack.size() != 0);
-        return cddl_specification(std::move(dictionary), std::move(rule_stack.front()));
+        return cddl_specification(std::move(rule_owner_), 
+                                  std::move(dictionary), 
+                                  rule_stack.front());
     }
 private:
 

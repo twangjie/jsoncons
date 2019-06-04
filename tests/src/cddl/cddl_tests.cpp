@@ -26,7 +26,7 @@ TEST_CASE("cddl tests")
 {
     std::string root = R"(
     [
-        "city" : "Toronto",
+        "Toronto",
         {"longitude" : 100, "latitude" : 100}
     ]
     )";
