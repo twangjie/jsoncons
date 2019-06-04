@@ -47,9 +47,20 @@ public:
     rule_base* rule; 
 };
 
-class array_rule : public rule_base
+class structure_rule : public rule_base
 {
+public:
+    structure_rule() = default;
+    structure_rule(const structure_rule&) = default;
+    structure_rule(structure_rule&&) = default;
+    structure_rule& operator=(const structure_rule&) = default;
+    structure_rule& operator=(structure_rule&&) = default;
+
     std::vector<memberkey_rule> memberkey_rules_;
+};
+
+class array_rule : public structure_rule
+{
 public:
     array_rule() = default;
     array_rule(const array_rule&) = default;
@@ -76,9 +87,8 @@ public:
     }
 };
 
-class map_rule : public rule_base
+class map_rule : public structure_rule
 {
-    std::vector<memberkey_rule> memberkey_rules_;
 public:
     map_rule() = default;
     map_rule(const map_rule&) = default;
@@ -105,9 +115,8 @@ public:
     }
 };
 
-class group_rule : public rule_base
+class group_rule : public structure_rule
 {
-    std::vector<memberkey_rule> memberkey_rules_;
 public:
     group_rule() = default;
     group_rule(const group_rule&) = default;

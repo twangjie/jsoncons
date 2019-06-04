@@ -98,7 +98,7 @@ struct structure
 {
     std::string id;
     size_t offset;
-    rule_base* rule;
+    structure_rule* rule;
 
     structure(const std::string& id, size_t offset)
         : id(id), offset(offset), rule(nullptr)
@@ -601,26 +601,35 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '[':
-                            rule_owner_.emplace_back(new array_rule());
-                            structure_stack_.back().rule = rule_owner_.back().get();
+                        {
+                            auto* p = new array_rule();
+                            rule_owner_.emplace_back(p);
+                            structure_stack_.back().rule = p;
                             state_stack.back().state = cddl_state::array_definition;
                             ++p_;
                             ++column_;
                             break;
+                        }
                         case '{':
-                            rule_owner_.emplace_back(new map_rule());
-                            structure_stack_.back().rule = rule_owner_.back().get();
+                        {
+                            auto* p = new map_rule();
+                            rule_owner_.emplace_back(p);
+                            structure_stack_.back().rule = p;
                             state_stack.back().state = cddl_state::map_definition;
                             ++p_;
                             ++column_;
                             break;
+                        }
                         case '(':
-                            rule_owner_.emplace_back(new group_rule());
-                            structure_stack_.back().rule = rule_owner_.back().get();
+                        {
+                            auto* p = new group_rule();
+                            rule_owner_.emplace_back(p);
+                            structure_stack_.back().rule = p;
                             state_stack.back().state = cddl_state::group;
                             ++p_;
                             ++column_;
                             break;
+                        }
                         default:
                             buffer.clear();
                             state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter;
