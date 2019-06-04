@@ -141,6 +141,8 @@ public:
 
     cddl_specification parse(const std::string& s)
     {
+        stack_offsets_.push_back({0,structure_type::root_t});
+
         rule_dictionary dictionary;
         std::vector<rule_base*> rule_stack;
 
@@ -196,6 +198,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '=':
+                            std::cout << "id: " << buffer << "\n";
                             state_stack.back().state = cddl_state::expect_groupent;
                             ++p_;
                             ++column_;
@@ -618,7 +621,6 @@ public:
                                 throw ser_error(cddl_errc::invalid_id,line_,column_);
                             }
                             state_stack.pop_back();
-                            std::cout << "id: " << buffer << "\n";
                             break;
                         default:
                             if (*p_ == state_stack.back().delimiter)
@@ -628,7 +630,6 @@ public:
                                     throw ser_error(cddl_errc::invalid_id,line_,column_);
                                 }
                                 state_stack.pop_back();
-                                std::cout << "id: " << buffer << "\n";
                             }
                             else if (is_ealpha(*p_) || is_digit(*p_) || is_hyphen_or_dot(*p_))
                             {
