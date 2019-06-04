@@ -76,6 +76,54 @@ public:
     }
 };
 
+class map_rule : public rule_base
+{
+    std::vector<memberkey_rule> memberkey_rules_;
+public:
+    map_rule() = default;
+    map_rule(const map_rule&) = default;
+    map_rule(map_rule&&) = default;
+    map_rule& operator=(const map_rule&) = default;
+    map_rule& operator=(map_rule&&) = default;
+
+    virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
+    {
+        const staj_event& event = reader.current();
+
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_object:
+                break;
+            default:
+                throw std::runtime_error("Expected object");
+                break;
+        }
+        for (size_t i = 0; i < memberkey_rules_.size(); ++i)
+        {
+            memberkey_rules_[i].rule->validate(dictionary, reader);
+        }
+    }
+};
+
+class group_rule : public rule_base
+{
+    std::vector<memberkey_rule> memberkey_rules_;
+public:
+    group_rule() = default;
+    group_rule(const group_rule&) = default;
+    group_rule(group_rule&&) = default;
+    group_rule& operator=(const group_rule&) = default;
+    group_rule& operator=(group_rule&&) = default;
+
+    virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
+    {
+        for (size_t i = 0; i < memberkey_rules_.size(); ++i)
+        {
+            memberkey_rules_[i].rule->validate(dictionary, reader);
+        }
+    }
+};
+
 }}
 
 #endif

@@ -94,13 +94,10 @@ struct stack_item
     stack_item& operator=(stack_item&&) = default;
 };
 
-enum class structure_type {root_t, array_t, map_t, group_t};
-
 struct structure
 {
     std::string id;
     size_t offset;
-    structure_type type;
     rule_base* rule;
 
     structure(const std::string& id, size_t offset)
@@ -160,7 +157,6 @@ public:
     cddl_specification parse(const std::string& s)
     {
         rule_dictionary dictionary;
-        std::vector<rule_base*> rule_stack;
 
         std::vector<state_item> state_stack;
 
@@ -468,7 +464,6 @@ public:
                             break;
                         case ']':
                             rule_owner_.emplace_back(new array_rule());
-                            rule_stack.push_back(rule_owner_.back().get());
                             state_stack.pop_back();
                             ++p_;
                             ++column_;
@@ -613,11 +608,15 @@ public:
                             ++column_;
                             break;
                         case '{':
+                            rule_owner_.emplace_back(new map_rule());
+                            structure_stack_.back().rule = rule_owner_.back().get();
                             state_stack.back().state = cddl_state::map_definition;
                             ++p_;
                             ++column_;
                             break;
                         case '(':
+                            rule_owner_.emplace_back(new group_rule());
+                            structure_stack_.back().rule = rule_owner_.back().get();
                             state_stack.back().state = cddl_state::group;
                             ++p_;
                             ++column_;
@@ -991,10 +990,10 @@ public:
             std::cout << (int)item.state << "\n";
         }
 
-        JSONCONS_ASSERT(rule_stack.size() != 0);
+        JSONCONS_ASSERT(structure_stack_.size() != 0);
         return cddl_specification(std::move(rule_owner_), 
                                   std::move(dictionary), 
-                                  rule_stack.front());
+                                  structure_stack_.front().rule);
     }
 private:
 
