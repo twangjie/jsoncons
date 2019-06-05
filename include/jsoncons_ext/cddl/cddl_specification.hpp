@@ -44,6 +44,7 @@ enum class cddl_state : uint8_t
     expect_rule,
     id,
     expect_assign,
+    after_memberkey,
     expect_colon_or_comma_or_delimiter,
     expect_groupent,
     expect_value,
@@ -338,7 +339,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
+                            state_stack.back().state = cddl_state::after_memberkey;
                             state_stack.emplace_back(cddl_state::digit1, state_stack.back());
                             break;
                     }
@@ -381,7 +382,7 @@ public:
                             else
                             {
                                 buffer.clear();
-                                state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
+                                state_stack.back().state = cddl_state::after_memberkey;
                                 if (is_ealpha(*p_))
                                 {
                                     state_stack.emplace_back(cddl_state::id, state_stack.back());
@@ -425,6 +426,13 @@ public:
                             }
                             break;
                     }
+                    break;
+                }
+                case cddl_state::after_memberkey:
+                {
+                    std::cout << "key: " << buffer << "\n";
+                    structure_stack_.back().rule->memberkey_rules_.emplace_back(std::move(buffer));
+                    state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
                     break;
                 }
                 case cddl_state::array_definition: 

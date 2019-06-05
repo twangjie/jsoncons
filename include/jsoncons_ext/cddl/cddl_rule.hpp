@@ -34,17 +34,50 @@ public:
     virtual void validate(const rule_dictionary&, staj_reader&) = 0;
 };
 
-class memberkey_rule
+class default_rule : public rule_base
 {
 public:
-    memberkey_rule() = default;
+    default_rule() = default;
+    default_rule(const default_rule&) = default;
+    default_rule(default_rule&&) = default;
+    default_rule& operator=(const default_rule&) = default;
+    default_rule& operator=(default_rule&&) = default;
+
+    virtual ~default_rule() = default;
+
+    virtual void validate(const rule_dictionary&, staj_reader&)
+    {
+        std::cout << "default validate \n";
+    }
+};
+
+class memberkey_rule
+{
+    static default_rule* def_rule()
+    {
+        static default_rule adefault;
+        return &adefault;
+    }
+public:
+    std::string key;
+    rule_base* rule; 
+
+    memberkey_rule() 
+    {
+        rule = def_rule();
+    }
+    memberkey_rule(const std::string& key) 
+        : key(key), rule(def_rule())
+    {
+    }
+    memberkey_rule(std::string&& key) 
+        : key(std::move(key)), rule(def_rule())
+    {
+    }
     memberkey_rule(const memberkey_rule&) = default;
     memberkey_rule(memberkey_rule&&) = default;
     memberkey_rule& operator=(const memberkey_rule&) = default;
     memberkey_rule& operator=(memberkey_rule&&) = default;
-
-    std::string name;
-    rule_base* rule; 
 };
 
 class structure_rule : public rule_base
