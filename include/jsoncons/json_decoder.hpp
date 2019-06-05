@@ -44,6 +44,9 @@ private:
 
     struct stack_item
     {
+        string_type name_;
+        Json value_;
+
         template <class... Args>
         stack_item(std::true_type, Args&& ... args)
             : name_(std::forward<Args>(args)...)
@@ -60,9 +63,6 @@ private:
         stack_item(stack_item&&) = default;
         stack_item& operator=(const stack_item&) = default;
         stack_item& operator=(stack_item&&) = default;
-
-        string_type name_;
-        Json value_;
     };
 
     enum class container_type {root_t, array_t, object_t};
@@ -75,11 +75,11 @@ private:
 
     typedef Allocator allocator_type;
     typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<stack_item> stack_item_allocator_type;
-    typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<structure_offset> size_t_allocator_type;
+    typedef typename std::allocator_traits<allocator_type>:: template rebind_alloc<structure_offset> structure_offset_allocator_type;
 
 
     std::vector<stack_item,stack_item_allocator_type> stack_;
-    std::vector<structure_offset,size_t_allocator_type> stack_offsets_;
+    std::vector<structure_offset,structure_offset_allocator_type> stack_offsets_;
     bool is_valid_;
 
 public:
