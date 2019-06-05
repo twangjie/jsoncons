@@ -62,15 +62,11 @@ public:
     std::string key;
     rule_base* rule; 
 
-    memberkey_rule() 
-    {
-        rule = def_rule();
-    }
-    memberkey_rule(const std::string& key) 
+    explicit memberkey_rule(const std::string& key) 
         : key(key), rule(def_rule())
     {
     }
-    memberkey_rule(std::string&& key) 
+    explicit memberkey_rule(std::string&& key) 
         : key(std::move(key)), rule(def_rule())
     {
     }
@@ -78,6 +74,67 @@ public:
     memberkey_rule(memberkey_rule&&) = default;
     memberkey_rule& operator=(const memberkey_rule&) = default;
     memberkey_rule& operator=(memberkey_rule&&) = default;
+};
+
+class tstr_rule : public rule_base
+{
+public:
+    tstr_rule() = default;
+    tstr_rule(const tstr_rule&) = default;
+    tstr_rule(tstr_rule&&) = default;
+    tstr_rule& operator=(const tstr_rule&) = default;
+    tstr_rule& operator=(tstr_rule&&) = default;
+
+    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    {
+        const staj_event& event = reader.current();
+
+        switch (event.event_type())
+        {
+            case staj_event_type::string_value:
+                std::cout << "tstr\n";
+                break;
+            default:
+                throw std::runtime_error("Expected text string");
+                break;
+        }
+    }
+};
+
+class tstr_value_rule : public rule_base
+{
+    std::string value_;
+public:
+    tstr_value_rule(const std::string& value) 
+        : value_(value)
+    {
+    }
+    tstr_value_rule(std::string&& value) 
+        : value_(std::move(value))
+    {
+    }
+    tstr_value_rule(const tstr_value_rule&) = default;
+    tstr_value_rule(tstr_value_rule&&) = default;
+    tstr_value_rule& operator=(const tstr_value_rule&) = default;
+    tstr_value_rule& operator=(tstr_value_rule&&) = default;
+
+    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    {
+        const staj_event& event = reader.current();
+
+        switch (event.event_type())
+        {
+            case staj_event_type::string_value:
+                if (reader.current().as<std::string>() != value_)
+                {
+                    throw std::runtime_error("Expected text string value");
+                }
+                break;
+            default:
+                throw std::runtime_error("Expected text string");
+                break;
+        }
+    }
 };
 
 class structure_rule : public rule_base

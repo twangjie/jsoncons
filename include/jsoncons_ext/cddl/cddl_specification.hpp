@@ -158,6 +158,8 @@ public:
     cddl_specification parse(const std::string& s)
     {
         rule_dictionary dictionary;
+        rule_owner_.emplace_back(new tstr_rule());
+        dictionary.try_emplace("tstr", rule_owner_.back().get());
 
         std::vector<state_item> state_stack;
 
@@ -1008,6 +1010,11 @@ public:
         }
 
         JSONCONS_ASSERT(structure_stack_.size() != 0);
+
+        for (const auto& item : structure_stack_)
+        {
+            dictionary.try_emplace(std::move(item.id),item.rule);
+        }
         return cddl_specification(std::move(rule_owner_), 
                                   std::move(dictionary), 
                                   structure_stack_.front().rule);
