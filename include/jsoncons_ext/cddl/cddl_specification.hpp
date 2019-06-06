@@ -52,7 +52,8 @@ enum class cddl_state : uint8_t
     expect_occur_or_value,
     occur,
     expect_memberkey,
-    value,
+    ref,
+    after_ref,
     minus,
     digit1,
     hex_number_value,
@@ -160,6 +161,8 @@ public:
         rule_dictionary dictionary;
         rule_owner_.emplace_back(new tstr_rule());
         dictionary.try_emplace("tstr", rule_owner_.back().get());
+        rule_owner_.emplace_back(new uint_rule());
+        dictionary.try_emplace("uint", rule_owner_.back().get());
 
         std::vector<state_item> state_stack;
 
@@ -265,7 +268,8 @@ public:
                             break;
                         default:
                             buffer.clear();
-                            state_stack.back().state = cddl_state::value;
+                            state_stack.back().state = cddl_state::after_ref;
+                            state_stack.emplace_back(cddl_state::ref);
                             break;
                     }
                     break;
@@ -375,6 +379,37 @@ public:
                             break;
                         case ';':
                             skip_to_end_of_line();
+                            break;
+                        case '\"':
+                            buffer.clear();
+                            state_stack.back().state = cddl_state::after_memberkey;
+                            state_stack.emplace_back(cddl_state::quoted_value);
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '-':
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::after_memberkey;
+                            state_stack.emplace_back(cddl_state::minus);
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::after_memberkey;
+                            state_stack.emplace_back(cddl_state::digit1);
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '0': 
+                            buffer.clear();
+                            buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::after_memberkey;
+                            state_stack.emplace_back(cddl_state::zero_digit);
+                            ++p_;
+                            ++column_;
                             break;
                         default:
                             if (*p_ == state_stack.back().delimiter)
@@ -687,7 +722,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::value: 
+                case cddl_state::ref: 
                 {
                     switch (*p_)
                     {
@@ -714,6 +749,23 @@ public:
                             }
                             break;
                     }
+                    break;
+                }
+                case cddl_state::after_ref: 
+                {
+                    std::cout << "ref: " << buffer << "\n";
+                    auto it = dictionary.find(buffer);
+                    if (it != dictionary.end())
+                    {
+                        structure_stack_.back().rule->memberkey_rules_.back().rule = it->second;
+                    }
+                    else
+                    {
+                        rule_owner_.emplace_back(new lookup_rule(std::move(buffer)));
+                        structure_stack_.back().rule->memberkey_rules_.back().rule = rule_owner_.back().get();
+                    }
+
+                    state_stack.pop_back();
                     break;
                 }
                 case cddl_state::digit1: 
@@ -984,6 +1036,8 @@ public:
                     {
                         case '\"':
                             std::cout << "value: " << buffer << "\n";
+                            rule_owner_.emplace_back(new tstr_value_rule(std::move(buffer)));
+                            structure_stack_.back().rule->memberkey_rules_.back().rule = rule_owner_.back().get();
                             state_stack.pop_back();
                             ++p_;
                             ++column_;
@@ -1013,6 +1067,7 @@ public:
 
         for (const auto& item : structure_stack_)
         {
+            std::cout << "rule: " << item.id << "\n";
             dictionary.try_emplace(std::move(item.id),item.rule);
         }
         return cddl_specification(std::move(rule_owner_), 

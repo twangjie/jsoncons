@@ -93,9 +93,39 @@ public:
         {
             case staj_event_type::string_value:
                 std::cout << "tstr\n";
+                reader.next();
                 break;
             default:
                 throw std::runtime_error("Expected text string");
+                break;
+        }
+    }
+};
+
+class uint_rule : public rule_base
+{
+public:
+    uint_rule() = default;
+    uint_rule(const uint_rule&) = default;
+    uint_rule(uint_rule&&) = default;
+    uint_rule& operator=(const uint_rule&) = default;
+    uint_rule& operator=(uint_rule&&) = default;
+
+    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    {
+        std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
+        switch (reader.current().event_type())
+        {
+            case staj_event_type::uint64_value:
+                std::cout << "validate uint\n";
+                reader.next();
+                break;
+            case staj_event_type::int64_value:
+                std::cout << "validate int\n";
+                reader.next();
+                break;
+            default:
+                throw std::runtime_error("Expected unsigned integer");
                 break;
         }
     }
@@ -125,15 +155,46 @@ public:
         switch (event.event_type())
         {
             case staj_event_type::string_value:
+                std::cout << "tstr_value_rule\n";
                 if (reader.current().as<std::string>() != value_)
                 {
                     throw std::runtime_error("Expected text string value");
                 }
+                reader.next();
                 break;
             default:
                 throw std::runtime_error("Expected text string");
                 break;
         }
+    }
+};
+
+class lookup_rule : public rule_base
+{
+    std::string value_;
+public:
+    lookup_rule(const std::string& value) 
+        : value_(value)
+    {
+    }
+    lookup_rule(std::string&& value) 
+        : value_(std::move(value))
+    {
+    }
+    lookup_rule(const lookup_rule&) = default;
+    lookup_rule(lookup_rule&&) = default;
+    lookup_rule& operator=(const lookup_rule&) = default;
+    lookup_rule& operator=(lookup_rule&&) = default;
+
+    virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
+    {
+        auto it = dictionary.find(value_);
+        if (it == dictionary.end())
+        {
+            std::cout << value_ << " NOT FOUND\n";
+            throw std::runtime_error("Rule not found");
+        }
+        (it->second)->validate(dictionary, reader);
     }
 };
 
@@ -160,11 +221,10 @@ public:
 
     virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
-        const staj_event& event = reader.current();
-
-        switch (event.event_type())
+        switch (reader.current().event_type())
         {
             case staj_event_type::begin_array:
+                reader.next();
                 break;
             default:
                 throw std::runtime_error("Expected array");
@@ -172,7 +232,16 @@ public:
         }
         for (size_t i = 0; i < memberkey_rules_.size(); ++i)
         {
+            if (reader.current().event_type() == staj_event_type::end_array)
+            {
+                break;
+            }
+            std::cout << "event_type: " << (int)reader.current().event_type() << "\n";
             memberkey_rules_[i].rule->validate(dictionary, reader);
+        }
+        while (reader.current().event_type() != staj_event_type::end_array)
+        {
+            reader.next();
         }
     }
 };
@@ -193,6 +262,7 @@ public:
         switch (event.event_type())
         {
             case staj_event_type::begin_object:
+                reader.next();
                 break;
             default:
                 throw std::runtime_error("Expected object");
@@ -200,7 +270,15 @@ public:
         }
         for (size_t i = 0; i < memberkey_rules_.size(); ++i)
         {
+            if (reader.current().event_type() == staj_event_type::end_object)
+            {
+                break;
+            }
             memberkey_rules_[i].rule->validate(dictionary, reader);
+        }
+        while (reader.current().event_type() != staj_event_type::end_object)
+        {
+            reader.next();
         }
     }
 };
