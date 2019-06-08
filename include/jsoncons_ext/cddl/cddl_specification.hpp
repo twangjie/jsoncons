@@ -44,14 +44,13 @@ enum class cddl_state : uint8_t
     expect_rule,
     id,
     expect_assign,
-    after_memberkey,
     expect_colon_or_comma_or_delimiter,
-    expect_groupent,
+    expect_structure,
     expect_value,
     expect_occur_or_memberkey,
     expect_occur_or_value,
     occur,
-    expect_memberkey,
+    expect_grpent,
     ref,
     after_ref,
     minus,
@@ -99,16 +98,15 @@ struct stack_item
 struct structure
 {
     std::string id;
-    size_t offset;
     structure_rule* rule;
 
-    structure(const std::string& id, size_t offset)
-        : id(id), offset(offset), rule(nullptr)
+    structure(const std::string& id)
+        : id(id), rule(nullptr)
     {
     }
 
-    structure(std::string&& id, size_t offset)
-        : id(std::move(id)), offset(offset), rule(nullptr)
+    structure(std::string&& id)
+        : id(std::move(id)), rule(nullptr)
     {
     }
     structure(const structure&) = default;
@@ -217,9 +215,9 @@ public:
                             break;
                         case '=':
                             std::cout << "id: " << buffer << "\n";
-                            structure_stack_.emplace_back(std::move(buffer), stack_.size());
+                            structure_stack_.emplace_back(std::move(buffer));
 
-                            state_stack.back().state = cddl_state::expect_groupent;
+                            state_stack.back().state = cddl_state::expect_structure;
                             ++p_;
                             ++column_;
                             break;
@@ -321,7 +319,7 @@ public:
                             state_stack.back().state = cddl_state::expect_occur_or_value;
                             break;
                         default:
-                            state_stack.back().state = cddl_state::expect_memberkey;
+                            state_stack.back().state = cddl_state::expect_grpent;
                             break;
                     }
                     break;
@@ -345,7 +343,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            state_stack.back().state = cddl_state::after_memberkey;
+                            state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
                             state_stack.emplace_back(cddl_state::digit1, state_stack.back());
                             break;
                     }
@@ -357,7 +355,7 @@ public:
                     {
                         case ' ': case '\t': case '\r': case '\n':
                             advance_past_space_character();
-                            state_stack.back().state = cddl_state::expect_memberkey;
+                            state_stack.back().state = cddl_state::expect_grpent;
                             break;
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
@@ -370,7 +368,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::expect_memberkey:
+                case cddl_state::expect_grpent:
                 {
                     switch (*p_)
                     {
@@ -380,37 +378,6 @@ public:
                         case ';':
                             skip_to_end_of_line();
                             break;
-                        case '\"':
-                            buffer.clear();
-                            state_stack.back().state = cddl_state::after_memberkey;
-                            state_stack.emplace_back(cddl_state::quoted_value);
-                            ++p_;
-                            ++column_;
-                            break;
-                        case '-':
-                            buffer.clear();
-                            buffer.push_back(*p_);
-                            state_stack.back().state = cddl_state::after_memberkey;
-                            state_stack.emplace_back(cddl_state::minus);
-                            ++p_;
-                            ++column_;
-                            break;
-                        case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
-                            buffer.clear();
-                            buffer.push_back(*p_);
-                            state_stack.back().state = cddl_state::after_memberkey;
-                            state_stack.emplace_back(cddl_state::digit1);
-                            ++p_;
-                            ++column_;
-                            break;
-                        case '0': 
-                            buffer.clear();
-                            buffer.push_back(*p_);
-                            state_stack.back().state = cddl_state::after_memberkey;
-                            state_stack.emplace_back(cddl_state::zero_digit);
-                            ++p_;
-                            ++column_;
-                            break;
                         default:
                             if (*p_ == state_stack.back().delimiter)
                             {
@@ -418,8 +385,9 @@ public:
                             }
                             else
                             {
+                                structure_stack_.back().rule->memberkey_rules_.emplace_back();
                                 buffer.clear();
-                                state_stack.back().state = cddl_state::after_memberkey;
+                                state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
                                 if (is_ealpha(*p_))
                                 {
                                     state_stack.emplace_back(cddl_state::id, state_stack.back());
@@ -444,6 +412,8 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ':':
+                            std::cout << "key: " << buffer << "\n";
+                            structure_stack_.back().rule->memberkey_rules_.back().key = std::move(buffer);
                             state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
@@ -463,13 +433,6 @@ public:
                             }
                             break;
                     }
-                    break;
-                }
-                case cddl_state::after_memberkey:
-                {
-                    std::cout << "key: " << buffer << "\n";
-                    structure_stack_.back().rule->memberkey_rules_.emplace_back(std::move(buffer));
-                    state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
                     break;
                 }
                 case cddl_state::array_definition: 
@@ -635,7 +598,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::expect_groupent: 
+                case cddl_state::expect_structure: 
                 {
                     switch (*p_)
                     {

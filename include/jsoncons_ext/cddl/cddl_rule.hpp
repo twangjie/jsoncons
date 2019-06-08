@@ -62,6 +62,10 @@ public:
     std::string key;
     rule_base* rule; 
 
+    memberkey_rule() 
+        : rule(def_rule())
+    {
+    }
     explicit memberkey_rule(const std::string& key) 
         : key(key), rule(def_rule())
     {
@@ -257,9 +261,13 @@ public:
 
     virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
-        const staj_event& event = reader.current();
+        std::unordered_map<std::string,rule_base*> rules;
+        for (auto& item : memberkey_rules_)
+        {
+            rules.try_emplace(item.key,item.rule);
+        }
 
-        switch (event.event_type())
+        switch (reader.current().event_type())
         {
             case staj_event_type::begin_object:
                 reader.next();
@@ -274,7 +282,18 @@ public:
             {
                 break;
             }
-            memberkey_rules_[i].rule->validate(dictionary, reader);
+            std::cout << "Expect name: " << (int)reader.current().event_type() << "\n";
+            if (reader.current().event_type() != staj_event_type::name)
+            {
+                throw std::runtime_error("Expected name");
+            }
+            auto it = rules.find(reader.current().as<std::string>());
+            if (it != rules.end())
+            {
+                reader.next();
+                it->second->validate(dictionary, reader);
+            }
+
         }
         while (reader.current().event_type() != staj_event_type::end_object)
         {

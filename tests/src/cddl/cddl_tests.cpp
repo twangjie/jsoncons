@@ -18,10 +18,7 @@
 
 using namespace jsoncons;
 
-namespace jsoncons { namespace cddl {
-
-}}
-
+//#if 0
 TEST_CASE("cddl tests")
 {
     std::string root = R"(
@@ -51,7 +48,32 @@ TEST_CASE("cddl tests")
         spec.validate(reader);
     }
 }
+//#endif
 #if 0
+TEST_CASE("cddl map tests")
+{
+    std::string root = R"(
+    {
+        "sample-point" : 100,
+        "samples" : [1.4,1.3]
+    }
+    )";
+
+    SECTION("test 1")
+    {
+        std::string s = R"( 
+            located-samples = {
+                             sample-point: int,
+                             samples: [+ float],
+                           }        
+        )";
+
+        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+
+        json_cursor reader(root);
+        spec.validate(reader);
+    }
+}
 TEST_CASE("cddl tests 2")
 {
     SECTION("test 2")
