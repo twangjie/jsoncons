@@ -204,6 +204,7 @@ public:
 
 class structure_rule : public rule_base
 {
+
 public:
     structure_rule() = default;
     structure_rule(const structure_rule&) = default;
@@ -212,6 +213,19 @@ public:
     structure_rule& operator=(structure_rule&&) = default;
 
     std::vector<memberkey_rule> memberkey_rules_;
+
+    virtual bool is_array() const
+    {
+        return false;
+    }
+    virtual bool is_map() const
+    {
+        return false;
+    }
+    virtual bool is_group() const
+    {
+        return false;
+    }
 };
 
 class array_rule : public structure_rule
@@ -247,6 +261,11 @@ public:
         {
             reader.next();
         }
+    }
+
+    bool is_array() const override
+    {
+        return true;
     }
 };
 
@@ -300,6 +319,11 @@ public:
             reader.next();
         }
     }
+
+    bool is_map() const override
+    {
+        return true;
+    }
 };
 
 class group_rule : public structure_rule
@@ -317,6 +341,11 @@ public:
         {
             memberkey_rules_[i].rule->validate(dictionary, reader);
         }
+    }
+
+    bool is_group() const override
+    {
+        return true;
     }
 };
 
