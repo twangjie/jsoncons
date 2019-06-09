@@ -449,11 +449,6 @@ public:
                         case ']':
                             state_stack.back().state = cddl_state::array_definition2;
                             break;
-                        case '(':
-                            ++p_;
-                            ++column_;
-                            state_stack.emplace_back(cddl_state::group, ')');
-                            break;
                         default:
                             state_stack.back().state = cddl_state::array_definition2;
                             state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, ']');
@@ -472,6 +467,9 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ']':
+                            JSONCONS_ASSERT(!structure_stack_.empty());
+                            JSONCONS_ASSERT(structure_stack_.back()->is_array());
+                            structure_stack_.pop_back();
                             state_stack.pop_back();
                             ++p_;
                             ++column_;
@@ -503,14 +501,12 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '}':
-                            ++p_;
-                            ++column_;
+                            JSONCONS_ASSERT(!structure_stack_.empty());
+                            JSONCONS_ASSERT(structure_stack_.back()->is_map());
+                            structure_stack_.pop_back();
                             state_stack.pop_back();
-                            break;
-                        case '(':
                             ++p_;
                             ++column_;
-                            state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
                             state_stack.back().state = cddl_state::map_definition2;
@@ -535,14 +531,14 @@ public:
                             ++column_;
                             break;
                         case '}':
+                            state_stack.pop_back();
                             ++p_;
                             ++column_;
-                            state_stack.pop_back();
                             break;
                         case '(':
+                            state_stack.emplace_back(cddl_state::group, ')');
                             ++p_;
                             ++column_;
-                            state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
                             throw ser_error(cddl_errc::expected_comma_or_left_par_or_right_curbracket,line_,column_);
@@ -561,9 +557,12 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ')':
+                            JSONCONS_ASSERT(!structure_stack_.empty());
+                            JSONCONS_ASSERT(structure_stack_.back()->is_group());
+                            structure_stack_.pop_back();
+                            state_stack.pop_back();
                             ++p_;
                             ++column_;
-                            state_stack.pop_back();
                             break;
                         default:
                             state_stack.back().state = cddl_state::group2;
@@ -588,9 +587,9 @@ public:
                             ++column_;
                             break;
                         case ')':
+                            state_stack.pop_back();
                             ++p_;
                             ++column_;
-                            state_stack.pop_back();
                             break;
                         default:
                             throw ser_error(cddl_errc::expected_comma_or_right_par,line_,column_);
@@ -786,9 +785,9 @@ public:
                         case '-':
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
                             buffer.push_back(*p_);
+                            state_stack.back().state = cddl_state::exponent;
                             ++p_;
                             ++column_;
-                            state_stack.back().state = cddl_state::exponent;
                             break;
                         default:
                             if (*p_ == state_stack.back().delimiter)
