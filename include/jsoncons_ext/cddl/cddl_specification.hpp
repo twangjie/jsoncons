@@ -162,6 +162,10 @@ public:
         dictionary.try_emplace("tstr", rule_owner_.back().get());
         rule_owner_.emplace_back(new uint_rule());
         dictionary.try_emplace("uint", rule_owner_.back().get());
+        rule_owner_.emplace_back(new int_rule());
+        dictionary.try_emplace("int", rule_owner_.back().get());
+        rule_owner_.emplace_back(new float_rule());
+        dictionary.try_emplace("float", rule_owner_.back().get());
 
         std::vector<state_item> state_stack;
 
@@ -265,6 +269,16 @@ public:
                             ++p_;
                             ++column_;
                             break;
+                        case '[':
+                        {
+                            auto* p = new array_rule();
+                            rule_owner_.emplace_back(p);
+                            structure_stack_.push_back(p);
+                            state_stack.back().state = cddl_state::array_definition;
+                            ++p_;
+                            ++column_;
+                            break;
+                        }
                         default:
                             buffer.clear();
                             state_stack.back().state = cddl_state::after_ref;

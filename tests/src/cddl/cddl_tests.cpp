@@ -18,7 +18,6 @@
 
 using namespace jsoncons;
 
-//#if 0
 TEST_CASE("cddl tests")
 {
     std::string root = R"(
@@ -48,8 +47,7 @@ TEST_CASE("cddl tests")
         spec.validate(reader);
     }
 }
-//#endif
-#if 0
+
 TEST_CASE("cddl map tests")
 {
     std::string root = R"(
@@ -74,6 +72,7 @@ TEST_CASE("cddl map tests")
         spec.validate(reader);
     }
 }
+#if 0
 TEST_CASE("cddl tests 2")
 {
     SECTION("test 2")

@@ -135,6 +135,60 @@ public:
     }
 };
 
+class int_rule : public rule_base
+{
+public:
+    int_rule() = default;
+    int_rule(const int_rule&) = default;
+    int_rule(int_rule&&) = default;
+    int_rule& operator=(const int_rule&) = default;
+    int_rule& operator=(int_rule&&) = default;
+
+    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    {
+        std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
+        switch (reader.current().event_type())
+        {
+            case staj_event_type::uint64_value:
+                std::cout << "validate uint\n";
+                reader.next();
+                break;
+            case staj_event_type::int64_value:
+                std::cout << "validate int\n";
+                reader.next();
+                break;
+            default:
+                throw std::runtime_error("Expected integer");
+                break;
+        }
+    }
+};
+
+class float_rule : public rule_base
+{
+public:
+    float_rule() = default;
+    float_rule(const float_rule&) = default;
+    float_rule(float_rule&&) = default;
+    float_rule& operator=(const float_rule&) = default;
+    float_rule& operator=(float_rule&&) = default;
+
+    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    {
+        std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
+        switch (reader.current().event_type())
+        {
+            case staj_event_type::double_value:
+                std::cout << "validate double\n";
+                reader.next();
+                break;
+            default:
+                throw std::runtime_error("Expected double");
+                break;
+        }
+    }
+};
+
 class tstr_value_rule : public rule_base
 {
     std::string value_;
@@ -245,6 +299,7 @@ public:
                 reader.next();
                 break;
             default:
+                std::cout << "Expected array, found " << (int)reader.current().event_type() << "\n";  
                 throw std::runtime_error("Expected array");
                 break;
         }
