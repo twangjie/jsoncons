@@ -89,7 +89,10 @@ enum class cddl_errc
     expected_tstr = 1,
     expected_uint,
     expected_int,
-    expected_float
+    expected_float,
+    id_lookup_failed,
+    expected_array,
+    expected_map
 };
 
 class cddl_error_category_impl
@@ -112,6 +115,12 @@ public:
                 return "Expected int";
             case cddl_errc::expected_float:
                 return "Expected float";
+            case cddl_errc::id_lookup_failed:
+                return "Failed attempting to resolve id";
+            case cddl_errc::expected_array:
+                return "Expected array";
+            case cddl_errc::expected_map:
+                return "Expected map";
             default:
                 return "";
         }

@@ -95,8 +95,6 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
-        cddl_errc result{};
-
         const staj_event& event = reader.current();
 
         switch (event.event_type())
@@ -106,10 +104,9 @@ public:
                 reader.next();
                 break;
             default:
-                result = cddl_errc::expected_tstr;
-                break;
+                return cddl_errc::expected_tstr;
         }
-        return result;
+        return cddl_errc{};
     }
 };
 
@@ -124,7 +121,6 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
-        cddl_errc result{};
         std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
         switch (reader.current().event_type())
         {
@@ -137,10 +133,10 @@ public:
                 reader.next();
                 break;
             default:
-                result = cddl_errc::expected_uint;
+                return cddl_errc::expected_uint;
                 break;
         }
-        return result;
+        return cddl_errc{};
     }
 };
 
@@ -155,7 +151,6 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
-        cddl_errc result{};
         std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
         switch (reader.current().event_type())
         {
@@ -168,10 +163,10 @@ public:
                 reader.next();
                 break;
             default:
-                result = cddl_errc::expected_int;
+                return cddl_errc::expected_int;
                 break;
         }
-        return result;
+        return cddl_errc{};
     }
 };
 
@@ -186,7 +181,6 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
-        cddl_errc result{};
         std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
         switch (reader.current().event_type())
         {
@@ -195,10 +189,9 @@ public:
                 reader.next();
                 break;
             default:
-                result = cddl_errc::expected_float;
-                break;
+                return cddl_errc::expected_float;
         }
-        return result;
+        return cddl_errc{};
     }
 };
 
@@ -221,7 +214,6 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
-        cddl_errc result{};
         const staj_event& event = reader.current();
 
         switch (event.event_type())
@@ -230,15 +222,17 @@ public:
                 std::cout << "tstr_value_rule\n";
                 if (reader.current().as<std::string>() != value_)
                 {
-                    throw std::runtime_error("Expected text string value");
+                    return cddl_errc::expected_tstr;
                 }
-                reader.next();
+                else
+                {
+                    reader.next();
+                }
                 break;
             default:
-                throw std::runtime_error("Expected text string");
-                break;
+                return cddl_errc::expected_tstr;
         }
-        return result;
+        return cddl_errc{};
     }
 };
 
@@ -261,15 +255,14 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
-        cddl_errc result{};
         auto it = dictionary.find(value_);
         if (it == dictionary.end())
         {
             std::cout << value_ << " NOT FOUND\n";
-            throw std::runtime_error("Rule not found");
+            return cddl_errc::id_lookup_failed;
         }
         (it->second)->validate(dictionary, reader);
-        return result;
+        return cddl_errc{};
     }
 };
 
@@ -310,7 +303,6 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
-        cddl_errc result{};
         switch (reader.current().event_type())
         {
             case staj_event_type::begin_array:
@@ -318,8 +310,7 @@ public:
                 break;
             default:
                 std::cout << "Expected array, found " << (int)reader.current().event_type() << "\n";  
-                throw std::runtime_error("Expected array");
-                break;
+                return cddl_errc::expected_array;
         }
 
         size_t i = 0;
@@ -336,7 +327,7 @@ public:
         {
             reader.next();
         }
-        return result;
+        return cddl_errc{};
     }
 
     bool is_array() const override
@@ -356,7 +347,6 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
-        cddl_errc result{};
         std::unordered_map<std::string,rule_base*> rules;
         for (auto& item : memberkey_rules_)
         {
@@ -369,8 +359,7 @@ public:
                 reader.next();
                 break;
             default:
-                throw std::runtime_error("Expected object");
-                break;
+                return cddl_errc::expected_map;
         }
         for (size_t i = 0; i < memberkey_rules_.size(); ++i)
         {
@@ -395,7 +384,7 @@ public:
         {
             reader.next();
         }
-        return result;
+        return cddl_errc{};
     }
 
     bool is_map() const override
@@ -415,13 +404,15 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
-        cddl_errc result{};
-
         for (size_t i = 0; i < memberkey_rules_.size(); ++i)
         {
-            memberkey_rules_[i].rule->validate(dictionary, reader);
+            cddl_errc result = memberkey_rules_[i].rule->validate(dictionary, reader);
+            if (result != cddl_errc())
+            {
+                return result;
+            }
         }
-        return result;
+        return cddl_errc{};
     }
 
     bool is_group() const override
