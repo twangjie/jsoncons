@@ -202,7 +202,7 @@ public:
                             }
                             else
                             {
-                                throw ser_error(cddl_errc::expected_id,line_,column_);
+                                throw ser_error(cddl_spec_errc::expected_id,line_,column_);
                             }
                             break;
                     }
@@ -227,7 +227,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            throw ser_error(cddl_errc::expected_assign,line_,column_);
+                            throw ser_error(cddl_spec_errc::expected_assign,line_,column_);
                             break;
                     }
                     break;
@@ -279,6 +279,26 @@ public:
                             ++column_;
                             break;
                         }
+                        case '{':
+                        {
+                            auto* p = new map_rule();
+                            rule_owner_.emplace_back(p);
+                            structure_stack_.push_back(p);
+                            state_stack.back().state = cddl_state::map_definition;
+                            ++p_;
+                            ++column_;
+                            break;
+                        }
+                        case '(':
+                        {
+                            auto* p = new group_rule();
+                            rule_owner_.emplace_back(p);
+                            structure_stack_.push_back(p);
+                            state_stack.back().state = cddl_state::group;
+                            ++p_;
+                            ++column_;
+                            break;
+                        }
                         default:
                             buffer.clear();
                             state_stack.back().state = cddl_state::after_ref;
@@ -306,7 +326,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            throw ser_error(cddl_errc::invalid_number,line_,column_);
+                            throw ser_error(cddl_spec_errc::invalid_number,line_,column_);
                             break;
                     }
                     break;
@@ -321,11 +341,22 @@ public:
                         case ';':
                             skip_to_end_of_line();
                             break;
-                        case '?':
                         case '*':
-                        case '+':
                             buffer.clear();
                             state_stack.back().state = cddl_state::occur;
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '?':
+                            buffer.clear();
+                            state_stack.back().state = cddl_state::expect_grpent;
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '+':
+                            buffer.clear();
+                            //structure_stack_.back()->memberkey_rules_.back().occur = occurence_type::one_or_more;
+                            state_stack.back().state = cddl_state::expect_grpent;
                             ++p_;
                             ++column_;
                             break;
@@ -344,11 +375,23 @@ public:
                     switch (*p_)
                     {
                         case '?':
+                            std::cout << "x: " << buffer << "\n"; 
+                            buffer.clear();
+                            state_stack.back().state = cddl_state::expect_grpent;
+                            ++p_;
+                            ++column_;
+                            break;
                         case '*':
-                        case '+':
                             std::cout << "x: " << buffer << "\n"; 
                             buffer.clear();
                             state_stack.back().state = cddl_state::occur;
+                            ++p_;
+                            ++column_;
+                            break;
+                        case '+':
+                            std::cout << "x: " << buffer << "\n"; 
+                            buffer.clear();
+                            state_stack.back().state = cddl_state::expect_grpent;
                             ++p_;
                             ++column_;
                             break;
@@ -378,7 +421,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            throw ser_error(cddl_errc::expected_uint_or_space,line_,column_);
+                            throw ser_error(cddl_spec_errc::expected_uint_or_space,line_,column_);
                             break;
                     }
                     break;
@@ -444,7 +487,7 @@ public:
                             }
                             else
                             {
-                                throw ser_error(cddl_errc::expected_assign,line_,column_);
+                                throw ser_error(cddl_spec_errc::expected_assign,line_,column_);
                             }
                             break;
                     }
@@ -499,7 +542,7 @@ public:
                             state_stack.emplace_back(cddl_state::group, ')');
                             break;
                         default:
-                            throw ser_error(cddl_errc::expected_comma_or_left_par_or_right_sqbracket,line_,column_);
+                            throw ser_error(cddl_spec_errc::expected_comma_or_left_par_or_right_sqbracket,line_,column_);
                             break;
                     }
                     break;
@@ -555,7 +598,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            throw ser_error(cddl_errc::expected_comma_or_left_par_or_right_curbracket,line_,column_);
+                            throw ser_error(cddl_spec_errc::expected_comma_or_left_par_or_right_curbracket,line_,column_);
                             break;
                     }
                     break;
@@ -606,7 +649,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            throw ser_error(cddl_errc::expected_comma_or_right_par,line_,column_);
+                            throw ser_error(cddl_spec_errc::expected_comma_or_right_par,line_,column_);
                             break;
                     }
                     break;
@@ -670,7 +713,7 @@ public:
                         case ' ': case '\t': case '\r': case '\n':
                             if (is_hyphen_or_dot(buffer.back()))
                             {
-                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                throw ser_error(cddl_spec_errc::invalid_id,line_,column_);
                             }
                             state_stack.pop_back();
                             break;
@@ -679,7 +722,7 @@ public:
                             {
                                 if (is_hyphen_or_dot(buffer.back()))
                                 {
-                                    throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                    throw ser_error(cddl_spec_errc::invalid_id,line_,column_);
                                 }
                                 state_stack.pop_back();
                             }
@@ -693,7 +736,7 @@ public:
                             {
                                 if (is_hyphen_or_dot(buffer.back()))
                                 {
-                                    throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                    throw ser_error(cddl_spec_errc::invalid_id,line_,column_);
                                 }
                                 state_stack.pop_back();
                             }
@@ -785,7 +828,7 @@ public:
                             }
                             else
                             {
-                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                throw ser_error(cddl_spec_errc::invalid_id,line_,column_);
                             }
                             break;
                     }
@@ -811,7 +854,7 @@ public:
                             }
                             else
                             {
-                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                throw ser_error(cddl_spec_errc::invalid_id,line_,column_);
                             }
                             break;
                     }
@@ -839,7 +882,7 @@ public:
                             }
                             else
                             {
-                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                throw ser_error(cddl_spec_errc::invalid_id,line_,column_);
                             }
                             break;
                     }
@@ -873,7 +916,7 @@ public:
                             }
                             else
                             {
-                                throw ser_error(cddl_errc::invalid_id,line_,column_);
+                                throw ser_error(cddl_spec_errc::invalid_id,line_,column_);
                             }
                             break;
                     }
@@ -969,7 +1012,7 @@ public:
                                     }
                                     else
                                     {
-                                        throw ser_error(cddl_errc::expected_rangeop_or_slash_or_comma_or_right_bracket,line_,column_);
+                                        throw ser_error(cddl_spec_errc::expected_rangeop_or_slash_or_comma_or_right_bracket,line_,column_);
                                     }
                                     break;
                             }
@@ -987,7 +1030,7 @@ public:
                             ++column_;
                             break;
                         default:
-                            throw ser_error(cddl_errc::expected_rangeop_or_slash_or_comma_or_right_bracket,line_,column_);
+                            throw ser_error(cddl_spec_errc::expected_rangeop_or_slash_or_comma_or_right_bracket,line_,column_);
                             break;
                     }
                     break;

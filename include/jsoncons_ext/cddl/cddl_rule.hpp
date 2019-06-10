@@ -14,6 +14,8 @@
 
 namespace jsoncons { namespace cddl {
 
+enum class occurence_type {exactly_once,optional,zero_or_more,one_or_more};
+
 class rule_base;
 
 typedef std::unordered_map<std::string,rule_base*> rule_dictionary;
@@ -31,7 +33,7 @@ public:
 
     virtual ~rule_base() = default;
 
-    virtual void validate(const rule_dictionary&, staj_reader&) = 0;
+    virtual cddl_errc validate(const rule_dictionary&, staj_reader&) = 0;
 };
 
 class default_rule : public rule_base
@@ -45,9 +47,10 @@ public:
 
     virtual ~default_rule() = default;
 
-    virtual void validate(const rule_dictionary&, staj_reader&)
+    virtual cddl_errc validate(const rule_dictionary&, staj_reader&)
     {
         std::cout << "default validate \n";
+        return cddl_errc();
     }
 };
 
@@ -59,6 +62,7 @@ class memberkey_rule
         return &adefault;
     }
 public:
+    occurence_type occur;
     std::string key;
     rule_base* rule; 
 
@@ -67,11 +71,11 @@ public:
     {
     }
     explicit memberkey_rule(const std::string& key) 
-        : key(key), rule(def_rule())
+        : occur(occurence_type::exactly_once), key(key), rule(def_rule())
     {
     }
     explicit memberkey_rule(std::string&& key) 
-        : key(std::move(key)), rule(def_rule())
+        : occur(occurence_type::exactly_once), key(std::move(key)), rule(def_rule())
     {
     }
     memberkey_rule(const memberkey_rule&) = default;
@@ -89,8 +93,10 @@ public:
     tstr_rule& operator=(const tstr_rule&) = default;
     tstr_rule& operator=(tstr_rule&&) = default;
 
-    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
+        cddl_errc result{};
+
         const staj_event& event = reader.current();
 
         switch (event.event_type())
@@ -100,9 +106,10 @@ public:
                 reader.next();
                 break;
             default:
-                throw std::runtime_error("Expected text string");
+                result = cddl_errc::expected_tstr;
                 break;
         }
+        return result;
     }
 };
 
@@ -115,8 +122,9 @@ public:
     uint_rule& operator=(const uint_rule&) = default;
     uint_rule& operator=(uint_rule&&) = default;
 
-    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
+        cddl_errc result{};
         std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
         switch (reader.current().event_type())
         {
@@ -129,9 +137,10 @@ public:
                 reader.next();
                 break;
             default:
-                throw std::runtime_error("Expected unsigned integer");
+                result = cddl_errc::expected_uint;
                 break;
         }
+        return result;
     }
 };
 
@@ -144,8 +153,9 @@ public:
     int_rule& operator=(const int_rule&) = default;
     int_rule& operator=(int_rule&&) = default;
 
-    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
+        cddl_errc result{};
         std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
         switch (reader.current().event_type())
         {
@@ -158,9 +168,10 @@ public:
                 reader.next();
                 break;
             default:
-                throw std::runtime_error("Expected integer");
+                result = cddl_errc::expected_int;
                 break;
         }
+        return result;
     }
 };
 
@@ -173,8 +184,9 @@ public:
     float_rule& operator=(const float_rule&) = default;
     float_rule& operator=(float_rule&&) = default;
 
-    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
+        cddl_errc result{};
         std::cout << "Expect unsigned integer " << (int)reader.current().event_type() << "\n";
         switch (reader.current().event_type())
         {
@@ -183,9 +195,10 @@ public:
                 reader.next();
                 break;
             default:
-                throw std::runtime_error("Expected double");
+                result = cddl_errc::expected_float;
                 break;
         }
+        return result;
     }
 };
 
@@ -206,8 +219,9 @@ public:
     tstr_value_rule& operator=(const tstr_value_rule&) = default;
     tstr_value_rule& operator=(tstr_value_rule&&) = default;
 
-    virtual void validate(const rule_dictionary&, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
     {
+        cddl_errc result{};
         const staj_event& event = reader.current();
 
         switch (event.event_type())
@@ -224,6 +238,7 @@ public:
                 throw std::runtime_error("Expected text string");
                 break;
         }
+        return result;
     }
 };
 
@@ -244,8 +259,9 @@ public:
     lookup_rule& operator=(const lookup_rule&) = default;
     lookup_rule& operator=(lookup_rule&&) = default;
 
-    virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
+        cddl_errc result{};
         auto it = dictionary.find(value_);
         if (it == dictionary.end())
         {
@@ -253,6 +269,7 @@ public:
             throw std::runtime_error("Rule not found");
         }
         (it->second)->validate(dictionary, reader);
+        return result;
     }
 };
 
@@ -291,8 +308,9 @@ public:
     array_rule& operator=(const array_rule&) = default;
     array_rule& operator=(array_rule&&) = default;
 
-    virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
+        cddl_errc result{};
         switch (reader.current().event_type())
         {
             case staj_event_type::begin_array:
@@ -303,7 +321,9 @@ public:
                 throw std::runtime_error("Expected array");
                 break;
         }
-        for (size_t i = 0; i < memberkey_rules_.size(); ++i)
+
+        size_t i = 0;
+        for (;i < memberkey_rules_.size(); ++i)
         {
             if (reader.current().event_type() == staj_event_type::end_array)
             {
@@ -312,10 +332,11 @@ public:
             std::cout << "event_type: " << (int)reader.current().event_type() << "\n";
             memberkey_rules_[i].rule->validate(dictionary, reader);
         }
-        while (reader.current().event_type() != staj_event_type::end_array)
+        while (!reader.done() && reader.current().event_type() != staj_event_type::end_array)
         {
             reader.next();
         }
+        return result;
     }
 
     bool is_array() const override
@@ -333,8 +354,9 @@ public:
     map_rule& operator=(const map_rule&) = default;
     map_rule& operator=(map_rule&&) = default;
 
-    virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
+        cddl_errc result{};
         std::unordered_map<std::string,rule_base*> rules;
         for (auto& item : memberkey_rules_)
         {
@@ -373,6 +395,7 @@ public:
         {
             reader.next();
         }
+        return result;
     }
 
     bool is_map() const override
@@ -390,12 +413,15 @@ public:
     group_rule& operator=(const group_rule&) = default;
     group_rule& operator=(group_rule&&) = default;
 
-    virtual void validate(const rule_dictionary& dictionary, staj_reader& reader)
+    virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
+        cddl_errc result{};
+
         for (size_t i = 0; i < memberkey_rules_.size(); ++i)
         {
             memberkey_rules_[i].rule->validate(dictionary, reader);
         }
+        return result;
     }
 
     bool is_group() const override

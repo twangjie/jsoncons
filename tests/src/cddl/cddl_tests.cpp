@@ -20,28 +20,28 @@ using namespace jsoncons;
 
 TEST_CASE("cddl tests")
 {
-    std::string root = R"(
-    [
-        "Toronto",
-        {"longitude" : 100, "latitude" : 100}
+    std::string s = R"( 
+     Geography = [
+     city           : tstr,
+     gpsCoordinates : GpsCoordinates,
     ]
+
+    GpsCoordinates = {
+     longitude      : uint,            ; degrees, scaled by 10^7
+     latitude       : uint,            ; degreed, scaled by 10^7
+    }
     )";
+
+    cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
     SECTION("test 1")
     {
-        std::string s = R"( 
-         Geography = [
-         city           : tstr,
-         gpsCoordinates : GpsCoordinates,
+        std::string root = R"(
+        [
+            "Toronto",
+            {"longitude" : 100, "latitude" : 100}
         ]
-
-        GpsCoordinates = {
-         longitude      : uint,            ; degrees, scaled by 10^7
-         latitude       : uint,            ; degreed, scaled by 10^7
-        }
         )";
-
-        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
         json_cursor reader(root);
         spec.validate(reader);
@@ -50,23 +50,23 @@ TEST_CASE("cddl tests")
 
 TEST_CASE("cddl map tests")
 {
-    std::string root = R"(
-    {
-        "sample-point" : 100,
-        "samples" : [1.4,1.3]
-    }
+    std::string s = R"( 
+        located-samples = {
+                         sample-point: int,
+                         samples: [+ float],
+                       }        
     )";
+
+    cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
     SECTION("test 1")
     {
-        std::string s = R"( 
-            located-samples = {
-                             sample-point: int,
-                             samples: [+ float],
-                           }        
+        std::string root = R"(
+        {
+            "sample-point" : 100,
+            "samples" : [1.4,1.3]
+        }
         )";
-
-        cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
 
         json_cursor reader(root);
         spec.validate(reader);
