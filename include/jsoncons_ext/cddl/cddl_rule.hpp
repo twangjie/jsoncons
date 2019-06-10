@@ -14,8 +14,6 @@
 
 namespace jsoncons { namespace cddl {
 
-enum class occurence_type {exactly_once,optional,zero_or_more,one_or_more};
-
 class rule_base;
 
 typedef std::unordered_map<std::string,rule_base*> rule_dictionary;
@@ -62,20 +60,13 @@ class memberkey_rule
         return &adefault;
     }
 public:
-    occurence_type occur;
+    size_t min_occur;
+    size_t max_occur;
     std::string key;
     rule_base* rule; 
 
     memberkey_rule() 
-        : rule(def_rule())
-    {
-    }
-    explicit memberkey_rule(const std::string& key) 
-        : occur(occurence_type::exactly_once), key(key), rule(def_rule())
-    {
-    }
-    explicit memberkey_rule(std::string&& key) 
-        : occur(occurence_type::exactly_once), key(std::move(key)), rule(def_rule())
+        : min_occur(1), max_occur(1), rule(def_rule())
     {
     }
     memberkey_rule(const memberkey_rule&) = default;
@@ -324,6 +315,11 @@ public:
             memberkey_rules_[i].rule->validate(dictionary, reader);
         }
         while (!reader.done() && reader.current().event_type() != staj_event_type::end_array)
+        {
+            reader.next();
+        }
+
+        if (reader.current().event_type() == staj_event_type::end_array)
         {
             reader.next();
         }

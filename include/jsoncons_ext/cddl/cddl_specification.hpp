@@ -47,7 +47,7 @@ enum class cddl_state : uint8_t
     expect_colon_or_comma_or_delimiter,
     expect_structure,
     expect_value,
-    expect_occur_or_memberkey,
+    expect_occur_or_grpent,
     expect_occur_or_value,
     occur,
     expect_grpent,
@@ -273,6 +273,7 @@ public:
                         {
                             auto* p = new array_rule();
                             rule_owner_.emplace_back(p);
+                            structure_stack_.back()->memberkey_rules_.back().rule = p;
                             structure_stack_.push_back(p);
                             state_stack.back().state = cddl_state::array_definition;
                             ++p_;
@@ -331,7 +332,7 @@ public:
                     }
                     break;
                 }
-                case cddl_state::expect_occur_or_memberkey:
+                case cddl_state::expect_occur_or_grpent:
                 {
                     switch (*p_)
                     {
@@ -342,18 +343,21 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '*':
+                            structure_stack_.back()->memberkey_rules_.emplace_back();
                             buffer.clear();
                             state_stack.back().state = cddl_state::occur;
                             ++p_;
                             ++column_;
                             break;
                         case '?':
+                            structure_stack_.back()->memberkey_rules_.emplace_back();
                             buffer.clear();
                             state_stack.back().state = cddl_state::expect_grpent;
                             ++p_;
                             ++column_;
                             break;
                         case '+':
+                            structure_stack_.back()->memberkey_rules_.emplace_back();
                             buffer.clear();
                             //structure_stack_.back()->memberkey_rules_.back().occur = occurence_type::one_or_more;
                             state_stack.back().state = cddl_state::expect_grpent;
@@ -361,10 +365,12 @@ public:
                             ++column_;
                             break;
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
+                            structure_stack_.back()->memberkey_rules_.emplace_back();
                             buffer.clear();
                             state_stack.back().state = cddl_state::expect_occur_or_value;
                             break;
                         default:
+                            structure_stack_.back()->memberkey_rules_.emplace_back();
                             state_stack.back().state = cddl_state::expect_grpent;
                             break;
                     }
@@ -443,7 +449,6 @@ public:
                             }
                             else
                             {
-                                structure_stack_.back()->memberkey_rules_.emplace_back();
                                 buffer.clear();
                                 state_stack.back().state = cddl_state::expect_colon_or_comma_or_delimiter;
                                 if (is_ealpha(*p_))
@@ -508,7 +513,7 @@ public:
                             break;
                         default:
                             state_stack.back().state = cddl_state::array_definition2;
-                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, ']');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_grpent, ']');
                             break;
                     }
                     break;
@@ -532,7 +537,7 @@ public:
                             ++column_;
                             break;
                         case ',':
-                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey,']');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_grpent,']');
                             ++p_;
                             ++column_;
                             break;
@@ -567,7 +572,7 @@ public:
                             break;
                         default:
                             state_stack.back().state = cddl_state::map_definition2;
-                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, '}');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_grpent, '}');
                             break;
                     }
                     break;
@@ -583,7 +588,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ',':
-                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, '}');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_grpent, '}');
                             ++p_;
                             ++column_;
                             break;
@@ -623,7 +628,7 @@ public:
                             break;
                         default:
                             state_stack.back().state = cddl_state::group2;
-                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, ')');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_grpent, ')');
                             break;
                     }
                     break;
@@ -639,7 +644,7 @@ public:
                             skip_to_end_of_line();
                             break;
                         case ',':
-                            state_stack.emplace_back(cddl_state::expect_occur_or_memberkey, ')');
+                            state_stack.emplace_back(cddl_state::expect_occur_or_grpent, ')');
                             ++p_;
                             ++column_;
                             break;

@@ -17,7 +17,7 @@
 #include <jsoncons_ext/cddl/cddl_specification.hpp>
 
 using namespace jsoncons;
-
+#if 0
 TEST_CASE("cddl tests")
 {
     std::string s = R"( 
@@ -47,7 +47,7 @@ TEST_CASE("cddl tests")
         spec.validate(reader);
     }
 }
-
+#endif
 TEST_CASE("cddl map tests")
 {
     std::string s = R"( 
