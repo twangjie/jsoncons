@@ -23,6 +23,8 @@ class rule_base
 public:
     typedef std::unique_ptr<rule_base> unique_ptr;
 
+    static const size_t unbounded = size_t(-1);
+
     rule_base() = default;
     rule_base(const rule_base&) = default;
     rule_base(rule_base&&) = default;
@@ -65,8 +67,8 @@ public:
     std::string key;
     rule_base* rule; 
 
-    memberkey_rule() 
-        : min_occur(1), max_occur(1), rule(def_rule())
+    memberkey_rule(size_t min_occur, size_t max_occur) 
+        : min_occur(min_occur), max_occur(max_occur), rule(def_rule())
     {
     }
     memberkey_rule(const memberkey_rule&) = default;
@@ -259,7 +261,6 @@ public:
 
 class structure_rule : public rule_base
 {
-
 public:
     structure_rule() = default;
     structure_rule(const structure_rule&) = default;

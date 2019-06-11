@@ -343,21 +343,21 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '*':
-                            structure_stack_.back()->memberkey_rules_.emplace_back();
+                            structure_stack_.back()->memberkey_rules_.emplace_back(0,rule_base::unbounded);
                             buffer.clear();
                             state_stack.back().state = cddl_state::occur;
                             ++p_;
                             ++column_;
                             break;
                         case '?':
-                            structure_stack_.back()->memberkey_rules_.emplace_back();
+                            structure_stack_.back()->memberkey_rules_.emplace_back(0,1);
                             buffer.clear();
                             state_stack.back().state = cddl_state::expect_grpent;
                             ++p_;
                             ++column_;
                             break;
                         case '+':
-                            structure_stack_.back()->memberkey_rules_.emplace_back();
+                            structure_stack_.back()->memberkey_rules_.emplace_back(1,rule_base::unbounded);
                             buffer.clear();
                             //structure_stack_.back()->memberkey_rules_.back().occur = occurence_type::one_or_more;
                             state_stack.back().state = cddl_state::expect_grpent;
@@ -365,12 +365,12 @@ public:
                             ++column_;
                             break;
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
-                            structure_stack_.back()->memberkey_rules_.emplace_back();
+                            structure_stack_.back()->memberkey_rules_.emplace_back(1,1);
                             buffer.clear();
                             state_stack.back().state = cddl_state::expect_occur_or_value;
                             break;
                         default:
-                            structure_stack_.back()->memberkey_rules_.emplace_back();
+                            structure_stack_.back()->memberkey_rules_.emplace_back(1,1);
                             state_stack.back().state = cddl_state::expect_grpent;
                             break;
                     }
