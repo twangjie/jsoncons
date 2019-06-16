@@ -15,8 +15,41 @@
 #include <jsoncons/json.hpp>
 #include <jsoncons/json_cursor.hpp>
 #include <jsoncons_ext/cddl/cddl_specification.hpp>
+#include <jsoncons_ext/cddl/cddl_validator.hpp>
 
 using namespace jsoncons;
+
+TEST_CASE("cddl_validator tests")
+{
+    std::string s = R"( 
+     Geography = [
+     city           : tstr,
+     gpsCoordinates : GpsCoordinates,
+    ]
+
+    GpsCoordinates = {
+     longitude      : uint,            ; degrees, scaled by 10^7
+     latitude       : uint,            ; degreed, scaled by 10^7
+    }
+    )";
+
+    cddl::cddl_specification spec = cddl::cddl_specification::parse(s);
+    cddl::cddl_validator validator(std::move(spec));
+
+    SECTION("test 1")
+    {
+        std::string root = R"(
+        [
+            "Toronto",
+            {"longitude" : 100, "latitude" : 100}
+        ]
+        )";
+
+        json_reader reader(root, validator);
+        reader.read();
+    }
+}
+
 #if 0
 TEST_CASE("cddl tests")
 {
@@ -47,7 +80,6 @@ TEST_CASE("cddl tests")
         spec.validate(reader);
     }
 }
-#endif
 TEST_CASE("cddl map tests")
 {
     std::string s = R"( 
@@ -72,7 +104,6 @@ TEST_CASE("cddl map tests")
         spec.validate(reader);
     }
 }
-#if 0
 TEST_CASE("cddl tests 2")
 {
     SECTION("test 2")

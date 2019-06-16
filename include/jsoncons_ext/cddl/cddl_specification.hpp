@@ -36,6 +36,12 @@ public:
         root_->validate(dictionary_, reader);
     }
 
+
+    rule_base* root()
+    {
+        return root_;
+    }
+
     static cddl_specification parse(const std::string& s);
 };
 

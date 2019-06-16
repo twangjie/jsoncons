@@ -7,7 +7,7 @@
 #ifndef JSONCONS_CDDL_CDDL_RULE_HPP
 #define JSONCONS_CDDL_CDDL_RULE_HPP
 
-#include <jsoncons/json_cursor.hpp>
+#include <jsoncons/staj_reader.hpp>
 #include <jsoncons_ext/cddl/cddl_error.hpp>
 #include <memory>
 #include <unordered_map>
@@ -34,6 +34,8 @@ public:
     virtual ~rule_base() = default;
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader&) = 0;
+
+    virtual bool matches_event(const staj_event& event) = 0;
 };
 
 class default_rule : public rule_base
@@ -52,9 +54,14 @@ public:
         std::cout << "default validate \n";
         return cddl_errc();
     }
+
+    bool matches_event(const staj_event& event) override
+    {
+        return false;
+    }
 };
 
-class memberkey_rule
+class group_entry_rule
 {
     static default_rule* def_rule()
     {
@@ -67,14 +74,18 @@ public:
     std::string key;
     rule_base* rule; 
 
-    memberkey_rule(size_t min_occur, size_t max_occur) 
+    group_entry_rule(rule_base* rule) 
+        : rule(rule)
+    {
+    }
+    group_entry_rule(size_t min_occur, size_t max_occur) 
         : min_occur(min_occur), max_occur(max_occur), rule(def_rule())
     {
     }
-    memberkey_rule(const memberkey_rule&) = default;
-    memberkey_rule(memberkey_rule&&) = default;
-    memberkey_rule& operator=(const memberkey_rule&) = default;
-    memberkey_rule& operator=(memberkey_rule&&) = default;
+    group_entry_rule(const group_entry_rule&) = default;
+    group_entry_rule(group_entry_rule&&) = default;
+    group_entry_rule& operator=(const group_entry_rule&) = default;
+    group_entry_rule& operator=(group_entry_rule&&) = default;
 };
 
 class tstr_rule : public rule_base
@@ -86,7 +97,7 @@ public:
     tstr_rule& operator=(const tstr_rule&) = default;
     tstr_rule& operator=(tstr_rule&&) = default;
 
-    virtual cddl_errc validate(const rule_dictionary&, staj_reader& reader)
+    cddl_errc validate(const rule_dictionary&, staj_reader& reader) override
     {
         const staj_event& event = reader.current();
 
@@ -100,6 +111,17 @@ public:
                 return cddl_errc::expected_tstr;
         }
         return cddl_errc{};
+    }
+
+    bool matches_event(const staj_event& event) override
+    {
+        switch (event.event_type())
+        {
+        case staj_event_type::string_value:
+                return true;
+            default:
+                return false;
+        }
     }
 };
 
@@ -131,6 +153,19 @@ public:
         }
         return cddl_errc{};
     }
+
+    bool matches_event(const staj_event& event) override
+    {
+        switch (event.event_type())
+        {
+            case staj_event_type::uint64_value:
+                return true;
+            case staj_event_type::int64_value:
+                return true;
+            default:
+                return false;
+        }
+    }
 };
 
 class int_rule : public rule_base
@@ -161,6 +196,11 @@ public:
         }
         return cddl_errc{};
     }
+
+    bool matches_event(const staj_event& event) override
+    {
+        return false;
+    }
 };
 
 class float_rule : public rule_base
@@ -185,6 +225,11 @@ public:
                 return cddl_errc::expected_float;
         }
         return cddl_errc{};
+    }
+
+    bool matches_event(const staj_event& event) override
+    {
+        return false;
     }
 };
 
@@ -227,6 +272,11 @@ public:
         }
         return cddl_errc{};
     }
+
+    bool matches_event(const staj_event& event) override
+    {
+        return false;
+    }
 };
 
 class lookup_rule : public rule_base
@@ -257,6 +307,11 @@ public:
         (it->second)->validate(dictionary, reader);
         return cddl_errc{};
     }
+
+    bool matches_event(const staj_event& event) override
+    {
+        return false;
+    }
 };
 
 class structure_rule : public rule_base
@@ -268,7 +323,7 @@ public:
     structure_rule& operator=(const structure_rule&) = default;
     structure_rule& operator=(structure_rule&&) = default;
 
-    std::vector<memberkey_rule> memberkey_rules_;
+    std::vector<group_entry_rule> memberkey_rules_;
 
     virtual bool is_array() const
     {
@@ -306,14 +361,27 @@ public:
         }
 
         size_t i = 0;
-        for (;i < memberkey_rules_.size(); ++i)
+
+        for (;i < memberkey_rules_.size();)
         {
             if (reader.current().event_type() == staj_event_type::end_array)
             {
                 break;
             }
             std::cout << "event_type: " << (int)reader.current().event_type() << "\n";
-            memberkey_rules_[i].rule->validate(dictionary, reader);
+            cddl_errc result = memberkey_rules_[i].rule->validate(dictionary, reader);
+            if (result != cddl_errc())
+            {
+                if (memberkey_rules_[i].min_occur == 0)
+                {
+                    ++i;
+                }
+                else
+                {
+
+                }
+            }
+            ++i;
         }
         while (!reader.done() && reader.current().event_type() != staj_event_type::end_array)
         {
@@ -330,6 +398,17 @@ public:
     bool is_array() const override
     {
         return true;
+    }
+
+    bool matches_event(const staj_event& event) override
+    {
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_array:
+                return true;
+            default:
+                return false;
+        }
     }
 };
 
@@ -388,6 +467,17 @@ public:
     {
         return true;
     }
+
+    bool matches_event(const staj_event& event) override
+    {
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_object:
+                return true;
+            default:
+                return false;
+        }
+    }
 };
 
 class group_rule : public structure_rule
@@ -410,6 +500,16 @@ public:
             }
         }
         return cddl_errc{};
+    }
+    bool matches_event(const staj_event& event) override
+    {
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_object:
+                return false;
+            default:
+                return false;
+        }
     }
 
     bool is_group() const override
