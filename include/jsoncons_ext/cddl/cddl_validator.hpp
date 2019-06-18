@@ -23,27 +23,27 @@ public:
 private:
     struct stack_item
     {
-        string_type s_;
-        staj_event_type event_type;
+        group_entry_rule grpent_rule;   
 
-        stack_item(staj_event_type event_type)
-            : event_type(event_type)
+        stack_item(const group_entry_rule& grpent_rule)
+            : grpent_rule(grpent_rule)
         {
         }
-
         stack_item(const stack_item&) = default;
         stack_item(stack_item&&) = default;
-        stack_item& operator=(const stack_item&) = default;
-        stack_item& operator=(stack_item&&) = default;
+
+        rule_base* rule()
+        {
+            return grpent_rule.rule;
+        }
     };
     cddl_specification spec_;
-    std::vector<stack_item> content_stack_;
-    std::vector<group_entry_rule> spec_stack_;
+    std::vector<stack_item> spec_stack_;
 public:
     cddl_validator(cddl_specification&& spec)
         : spec_(std::move(spec))
     {
-        spec_stack_.emplace_back(spec.root());
+        spec_stack_.emplace_back(group_entry_rule(spec.root()));
     }
     cddl_validator(const cddl_validator&) = delete;
     cddl_validator(cddl_validator&&) = default;
@@ -67,22 +67,19 @@ private:
     bool do_begin_array(semantic_tag tag, const ser_context&) override
     {
         std::cout << "do_begin_array\n";
-        if (!spec_stack_.back().rule->matches_event(staj_event(staj_event_type::begin_array,tag)))
+        if (!spec_stack_.back().rule()->matches_event(staj_event(staj_event_type::begin_array,tag)))
         {
             throw std::runtime_error("Not an array");
         }
-        content_stack_.emplace_back(staj_event_type::begin_array);
+        //for (auto& item: spec_stack_.back().rule()->get_group_entries())
+        //{
+        //    spec_stack_.emplace_back(item);
+        //}
         return true;
     }
 
     bool do_end_array(const ser_context&) override
     {
-        JSONCONS_ASSERT(!content_stack_.empty());
-        if (content_stack_.back().event_type != staj_event_type::begin_array)
-        {
-            throw std::runtime_error("Invalid content stack");
-        }
-        content_stack_.pop_back();
         return true;
     }
 

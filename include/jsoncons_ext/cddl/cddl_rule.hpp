@@ -16,6 +16,29 @@ namespace jsoncons { namespace cddl {
 
 class rule_base;
 
+class group_entry_rule
+{
+    static rule_base* def_rule();
+public:
+    size_t min_occur;
+    size_t max_occur;
+    std::string key;
+    rule_base* rule; 
+
+    group_entry_rule(rule_base* rule) 
+        : rule(rule)
+    {
+    }
+    group_entry_rule(size_t min_occur, size_t max_occur) 
+        : min_occur(min_occur), max_occur(max_occur), rule(def_rule())
+    {
+    }
+    group_entry_rule(const group_entry_rule&) = default;
+    group_entry_rule(group_entry_rule&&) = default;
+    group_entry_rule& operator=(const group_entry_rule&) = default;
+    group_entry_rule& operator=(group_entry_rule&&) = default;
+};
+
 typedef std::unordered_map<std::string,rule_base*> rule_dictionary;
 
 class rule_base
@@ -61,32 +84,6 @@ public:
     }
 };
 
-class group_entry_rule
-{
-    static default_rule* def_rule()
-    {
-        static default_rule adefault;
-        return &adefault;
-    }
-public:
-    size_t min_occur;
-    size_t max_occur;
-    std::string key;
-    rule_base* rule; 
-
-    group_entry_rule(rule_base* rule) 
-        : rule(rule)
-    {
-    }
-    group_entry_rule(size_t min_occur, size_t max_occur) 
-        : min_occur(min_occur), max_occur(max_occur), rule(def_rule())
-    {
-    }
-    group_entry_rule(const group_entry_rule&) = default;
-    group_entry_rule(group_entry_rule&&) = default;
-    group_entry_rule& operator=(const group_entry_rule&) = default;
-    group_entry_rule& operator=(group_entry_rule&&) = default;
-};
 
 class tstr_rule : public rule_base
 {
@@ -517,6 +514,12 @@ public:
         return true;
     }
 };
+
+rule_base* group_entry_rule::def_rule()
+{
+    static default_rule adefault;
+    return &adefault;
+}
 
 }}
 
