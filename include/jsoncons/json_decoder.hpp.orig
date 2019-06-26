@@ -71,12 +71,16 @@ private:
     {
         structure_type type_;
         size_t offset_;
+<<<<<<< HEAD
+        structure_type type_;
+=======
 
         structure_info(structure_type type, size_t offset)
             : type_(type), offset_(offset)
         {
         }
 
+>>>>>>> 0b4f23251859b01d47d7d7f4a729da0f2275af04
     };
 
     typedef Allocator allocator_type;
@@ -98,7 +102,11 @@ public:
     {
         item_stack_.reserve(1000);
         structure_stack_.reserve(100);
+<<<<<<< HEAD
+        structure_stack_.push_back({0,structure_type::root_t});
+=======
         structure_stack_.emplace_back(structure_type::root_t, 0);
+>>>>>>> 0b4f23251859b01d47d7d7f4a729da0f2275af04
     }
 
     bool is_valid() const
@@ -141,7 +149,11 @@ private:
                 item_stack_.emplace_back(std::false_type(), object(object_allocator_), tag);
                 break;
         }
+<<<<<<< HEAD
+        structure_stack_.push_back({item_stack_.size()-1,structure_type::object_t});
+=======
         structure_stack_.emplace_back(structure_type::object_t, item_stack_.size()-1);
+>>>>>>> 0b4f23251859b01d47d7d7f4a729da0f2275af04
         return true;
     }
 
@@ -187,7 +199,11 @@ private:
                 item_stack_.emplace_back(std::false_type(), array(array_allocator_), tag);
                 break;
         }
+<<<<<<< HEAD
+        structure_stack_.push_back({item_stack_.size()-1,structure_type::array_t});
+=======
         structure_stack_.emplace_back(structure_type::array_t, item_stack_.size()-1);
+>>>>>>> 0b4f23251859b01d47d7d7f4a729da0f2275af04
         return true;
     }
 

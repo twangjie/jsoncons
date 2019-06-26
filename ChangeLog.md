@@ -1,5 +1,14 @@
-0.126.0
--------
+version 0.127.0
+---------------
+
+Changes to staj streaming classes
+
+- `json_cursor` no longer has a constructor that accepts a `staj_filter`.
+  Use a `filtered_staj_reader` instead.
+
+- The `staj_event` function `as<T>` has been deprecated and renamed to `get<T>`. 
+
+- The `staj_event` function `accept` has been renamed to `read_to`. 
 
 Enhancements
 
@@ -13,8 +22,8 @@ Enhancements
   and types that are specialized with `JSONCONS_GETTER_CTOR_TRAITS_DECL` are not required to have a default
   constructor at all.
 
-version 126.0
--------------
+version 0.126.0
+---------------
 
 Enhancements
 

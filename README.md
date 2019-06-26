@@ -8,15 +8,15 @@ data formats such as [CBOR](http://cbor.io/). It supports
 
 - Serializing the tree model into different JSON-like text or binary formats.
 
-- Converting from JSON-like text or binary formats to C++ data structures and back via [json_type_traits](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json_type_traits.md).
+- Converting from JSON-like text or binary formats to C++ data structures and back via [json_type_traits](doc/ref/json_type_traits.md).
 
 - Streaming JSON read and write events, somewhat analogously to SAX (push parsing) and StAX (pull parsing) in the XML world. 
 
 Compared to other JSON libraries, jsoncons has been designed to handle very large JSON texts. At its heart are
-SAX style parsers and serializers. Its [json parser](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json_parser.md) is an 
+SAX style parsers and serializers. Its [json parser](doc/ref/json_parser.md) is an 
 incremental parser that can be fed its input in chunks, and does not require an entire file to be loaded in memory at one time. 
 Its tree model is more compact than most, and can be made more compact still with a user-supplied
-allocator. It also supports memory efficient parsing of very large JSON texts with a [pull parser](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json_cursor.md),
+allocator. It also supports memory efficient parsing of very large JSON texts with a [pull parser](doc/ref/json_cursor.md),
 built on top of its incremental parser.  
 
 The [jsoncons data model](doc/ref/data-model.md) supports the familiar JSON types - nulls,
@@ -77,6 +77,7 @@ Or, download the latest code on [master](https://github.com/danielaparker/jsonco
 - [Quick guide](http://danielaparker.github.io/jsoncons)
 - [Examples](doc/Examples.md)
 - [Reference](doc/Home.md)
+- [Roadmap](Roadmap.md)
 
 As the `jsoncons` library has evolved, names have sometimes changed. To ease transition, jsoncons deprecates the old names but continues to support many of them. See the [deprecated list](doc/ref/deprecated.md) for the status of old names. The deprecated names can be suppressed by defining macro `JSONCONS_NO_DEPRECATED`, which is recommended for new code.
 
@@ -90,7 +91,293 @@ As the `jsoncons` library has evolved, names have sometimes changed. To ease tra
 
 - [Performance benchmarks with text and doubles](https://github.com/danielaparker/json_benchmarks/blob/master/report/performance_fp.md)
 
-### A simple example
+### Overview
+
+For the examples below you need to include some header files and construct a string of JSON data:
+
+```c++
+#include <jsoncons/json.hpp>
+#include <iostream>
+#include <cassert>
+
+using namespace jsoncons; // for convenience
+
+std::string data = R"(
+    {
+       "application": "hiking",
+       "reputons": [
+       {
+           "rater": "HikingAsylum.example.com",
+           "assertion": "strong-hiker",
+           "rated": "Marilyn C",
+           "rating": 0.90
+         }
+       ]
+    }
+)";
+```
+
+jsoncons allows you to work with the data in a number of ways:
+
+- As a variant-like structure, [basic_json](doc/ref/json.md) 
+
+- As a strongly typed C++ data structure
+
+- As a stream of parse events
+
+#### As a variant-like structure
+
+```c++
+
+int main()
+{
+    // Parse the string of data into a json value
+    json j = json::parse(data);
+
+    // Pretty print
+    std::cout << "(1)\n" << pretty_print(j) << "\n\n";
+
+    // Does object member reputons exist?
+    std::cout << "(2) " << std::boolalpha << j.contains("reputons") << "\n\n";
+
+    // Get a reference to reputons array value
+    const json& v = j["reputons"]; 
+
+    // Iterate over reputons array value
+    std::cout << "(3)\n";
+    for (const auto& item : v.array_range())
+    {
+        // Access rated as string and rating as double
+        std::cout << item["rated"].as<std::string>() << ", " << item["rating"].as<double>() << "\n";
+    }
+}
+```
+Output:
+```
+(1)
+{
+    "application": "hiking",
+    "reputons": [
+        {
+            "assertion": "strong-hiker",
+            "rated": "Marilyn C",
+            "rater": "HikingAsylum.example.com",
+            "rating": 0.9
+        }
+    ]
+}
+
+(2) true
+
+(3)
+Marilyn C, 0.9
+```
+
+#### As a strongly typed C++ data structure
+
+jsoncons supports mapping JSON data into C++ data structures. 
+The functions [decode_json](doc/ref/decode_json.md) and [encode_json](doc/ref/encode_json.md) 
+convert strings or streams of JSON data to C++ data structures and back. 
+Decode and encode work for all C++ classes that have 
+[json_type_traits](doc/ref/json_type_traits.md) 
+defined. The standard library containers are already supported, 
+and your own types will be supported too if you specialize `json_type_traits`
+in the `jsoncons` namespace. 
+
+```c++
+namespace ns {
+    class reputon
+    {
+    public:
+        reputon(const std::string& rater,
+                const std::string& assertion,
+                const std::string& rated,
+                double rating)
+            : rater_(rater), assertion_(assertion), rated_(rated), rating_(rating)
+        {
+        }
+
+        const std::string& rater() const {return rater_;}
+        const std::string& assertion() const {return assertion_;}
+        const std::string& rated() const {return rated_;}
+        double rating() const {return rating_;}
+
+    private:
+        std::string rater_;
+        std::string assertion_;
+        std::string rated_;
+        double rating_;
+    };
+
+    class reputation_object
+    {
+    public:
+        reputation_object(const std::string& application, 
+                          const std::vector<reputon>& reputons)
+            : application_(application), 
+              reputons_(reputons)
+        {}
+
+        const std::string& application() const { return application_;}
+        const std::vector<reputon>& reputons() const { return reputons_;}
+    private:
+        std::string application_;
+        std::vector<reputon> reputons_;
+    };
+
+} // namespace ns
+
+// Declare the traits. Specify which data members need to be serialized.
+
+JSONCONS_GETTER_CTOR_TRAITS_DECL(ns::reputon, rater, assertion, rated, rating)
+JSONCONS_GETTER_CTOR_TRAITS_DECL(ns::reputation_object, application, reputons)
+
+int main()
+{
+    // Decode the string of data into a c++ structure
+    ns::reputation_object v = decode_json<ns::reputation_object>(data);
+
+    // Iterate over reputons array value
+    std::cout << "(1)\n";
+    for (const auto& item : v.reputons())
+    {
+        std::cout << item.rated() << ", " << item.rating() << "\n";
+    }
+
+    // Encode the c++ structure into a string
+    std::string s;
+    encode_json<ns::reputation_object>(v, s, indenting::indent);
+    std::cout << "(2)\n";
+    std::cout << s << "\n";
+}
+```
+Output:
+```
+(1)
+Marilyn C, 0.9
+(2)
+{
+    "application": "hiking",
+    "reputons": [
+        {
+            "assertion": "strong-hiker",
+            "rated": "Marilyn C",
+            "rater": "HikingAsylum.example.com",
+            "rating": 0.9
+        }
+    ]
+}
+```
+The macro `JSONCONS_GETTER_CTOR_TRAITS_DECL` simplifies the creation of some necessary boilerplate
+from getter functions and a constructor. It must be placed outside any namespace blocks.
+
+See [examples](doc/Examples.md#G1) for other ways of specializing `json_type_traits`.
+
+#### As a stream of parse events
+
+```c++
+int main()
+{
+    json_cursor reader(data);
+    for (; !reader.done(); reader.next())
+    {
+        const auto& event = reader.current();
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_array:
+                std::cout << "begin_array\n";
+                break;
+            case staj_event_type::end_array:
+                std::cout << "end_array\n";
+                break;
+            case staj_event_type::begin_object:
+                std::cout << "begin_object\n";
+                break;
+            case staj_event_type::end_object:
+                std::cout << "end_object\n";
+                break;
+            case staj_event_type::name:
+                // Or std::string_view, if supported
+                std::cout << "name: " << event.get<jsoncons::string_view>() << "\n";
+                break;
+            case staj_event_type::string_value:
+                // Or std::string_view, if supported
+                std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
+                break;
+            case staj_event_type::null_value:
+                std::cout << "null_value: " << "\n";
+                break;
+            case staj_event_type::bool_value:
+                std::cout << "bool_value: " << std::boolalpha << event.get<bool>() << "\n";
+                break;
+            case staj_event_type::int64_value:
+                std::cout << "int64_value: " << event.get<int64_t>() << "\n";
+                break;
+            case staj_event_type::uint64_value:
+                std::cout << "uint64_value: " << event.get<uint64_t>() << "\n";
+                break;
+            case staj_event_type::double_value:
+                std::cout << "double_value: " << event.get<double>() << "\n";
+                break;
+            default:
+                std::cout << "Unhandled event type\n";
+                break;
+        }
+    }
+}
+```
+Output:
+```
+begin_object
+name: application
+string_value: hiking
+name: reputons
+begin_array
+begin_object
+name: rater
+string_value: HikingAsylum.example.com
+name: assertion
+string_value: strong-hiker
+name: rated
+string_value: Marilyn C
+name: rating
+double_value: 0.9
+end_object
+end_array
+end_object
+```
+
+## About jsoncons::basic_json
+
+The jsoncons library provides a `basic_json` class template, which is the generalization of a `json` value for different 
+character types, different policies for ordering name-value pairs, etc. A `basic_json` provides a tree model
+of JSON-like data formats, and defines an interface for accessing and modifying that data.
+Despite its name, it is not JSON specific.
+
+```c++
+typedef basic_json<char,
+                   ImplementationPolicy = sorted_policy,
+                   Allocator = std::allocator<char>> json;
+```
+The library includes four instantiations of `basic_json`:
+
+- [json](doc/ref/json.md) constructs a utf8 character json value that sorts name-value members alphabetically
+
+- [ojson](doc/ref/ojson.md) constructs a utf8 character json value that preserves the original name-value insertion order
+
+- [wjson](doc/ref/wjson.md) constructs a wide character json value that sorts name-value members alphabetically
+
+- [wojson](doc/ref/wojson.md) constructs a wide character json value that preserves the original name-value insertion order
+
+## More examples
+
+[Constructing JSON values](#E1)  
+
+[Playing around with CBOR, JSON, and CSV](#E2)  
+
+[Query CBOR with JSONPath](#E3)  
+
+<div id="E1"/> 
 
 ```c++
 #include <iostream>
@@ -120,33 +407,12 @@ int main()
 
     export_settings["Image Sizing"] = std::move(image_sizing);
 
-    // Write to stream
-    std::ofstream os("export_settings.json");
-    os << export_settings;
-
-    // Read from stream
-    std::ifstream is("export_settings.json");
-    json j = json::parse(is);
-
     // Pretty print
-    std::cout << "(1)\n" << pretty_print(j) << "\n\n";
-
-    // Does object member exist?
-    std::cout << "(2) " << std::boolalpha << j.contains("Image Sizing") << "\n\n";
-
-    // Get reference to object member
-    const json& val = j["Image Sizing"];
-
-    // Access member as double
-    std::cout << "(3) " << "Dimension 1 = " << val["Dimension 1"].as<double>() << "\n\n";
-
-    // Try access member with default
-    std::cout << "(4) " << "Dimension 2 = " << val.get_with_default("Dimension 2",0.0) << "\n";
+    std::cout << pretty_print(export_settings) << "\n\n";
 }
 ```
 Output:
 ```json
-(1)
 {
     "File Format Options": {
         "Color Spaces": ["sRGB","AdobeRGB","ProPhoto RGB"],
@@ -165,154 +431,7 @@ Output:
         "Resize What": "long_edge"
     }
 }
-
-(2) true
-
-(3) Dimension 1 = 9.8
-
-(4) Dimension 2 = 0
 ```
-
-## About jsoncons::basic_json
-
-The jsoncons library provides a `basic_json` class template, which is the generalization of a `json` value for different 
-character types, different policies for ordering name-value pairs, etc. A `basic_json` provides a tree model
-of JSON-like data formats, and defines an interface for accessing and modifying that data.
-Despite its name, it is not JSON specific.
-
-```c++
-typedef basic_json<char,
-                   ImplementationPolicy = sorted_policy,
-                   Allocator = std::allocator<char>> json;
-```
-The library includes four instantiations of `basic_json`:
-
-- [json](doc/ref/json.md) constructs a utf8 character json value that sorts name-value members alphabetically
-
-- [ojson](doc/ref/ojson.md) constructs a utf8 character json value that preserves the original name-value insertion order
-
-- [wjson](doc/ref/wjson.md) constructs a wide character json value that sorts name-value members alphabetically
-
-- [wojson](doc/ref/wojson.md) constructs a wide character json value that preserves the original name-value insertion order
-
-## More examples
-
-[Encode C++ data structures to JSON, decode JSON to C++ data structures](#E1)  
-
-[Playing around with CBOR, JSON, and CSV](#E2)  
-
-[Query CBOR with JSONPath](#E3)  
-
-[Pull parser example](#E4)  
-
-[Iterate over a json stream with staj iterators](#E5)  
-
-[Dump json content into a larger document](#E6)  
-
-<div id="E1"/> 
-
-### Encode C++ data structures to JSON, decode JSON to C++ data structures
-
-jsoncons supports conversion between C++ data structures and JSON. The functions [encode_json](doc/ref/encode_json.md) 
-and [decode_json](doc/ref/decode_json.md) convert C++ data structures to JSON formatted strings or streams and back. 
-Encode and decode work for all C++ classes that have 
-[json_type_traits](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json_type_traits.md) 
-defined. The standard library containers are already supported, and you can specialize `json_type_traits`
-for your own types in the `jsoncons` namespace. 
-
-`JSONCONS_MEMBER_TRAITS_DECL` is a macro that simplifies the creation of the necessary boilerplate
-from member data. It must be placed outside any namespace blocks.
-
-```c++
-#include <cassert>
-#include <iostream>
-#include <jsoncons/json.hpp>
-
-namespace ns {
-
-    struct reputon
-    {
-        std::string rater;
-        std::string assertion;
-        std::string rated;
-        double rating;
-
-        friend bool operator==(const reputon& lhs, const reputon& rhs)
-        {
-            return lhs.rater == rhs.rater && lhs.assertion == rhs.assertion && 
-                   lhs.rated == rhs.rated && lhs.rating == rhs.rating;
-        }
-
-        friend bool operator!=(const reputon& lhs, const reputon& rhs)
-        {
-            return !(lhs == rhs);
-        };
-    };
-
-    class reputation_object
-    {
-        std::string application;
-        std::vector<reputon> reputons;
-
-        // Make json_type_traits specializations friends to give accesses to private members
-        JSONCONS_TYPE_TRAITS_FRIEND;
-    public:
-        reputation_object()
-        {
-        }
-        reputation_object(const std::string& application, const std::vector<reputon>& reputons)
-            : application(application), reputons(reputons)
-        {}
-
-        friend bool operator==(const reputation_object& lhs, const reputation_object& rhs)
-        {
-            return (lhs.application == rhs.application) && (lhs.reputons == rhs.reputons);
-        }
-
-        friend bool operator!=(const reputation_object& lhs, const reputation_object& rhs)
-        {
-            return !(lhs == rhs);
-        };
-    };
-
-
-} // namespace ns
-
-// Declare the traits. Specify which data members need to be serialized.
-JSONCONS_MEMBER_TRAITS_DECL(ns::reputon, rater, assertion, rated, rating)
-JSONCONS_MEMBER_TRAITS_DECL(ns::reputation_object, application, reputons)
-
-using namespace jsoncons; // for convenience
-
-int main()
-{
-    ns::reputation_object val("hiking", { ns::reputon{"HikingAsylum.example.com","strong-hiker","Marilyn C",0.90} });
-
-    std::string s;
-    encode_json(val, s, indenting::indent);
-    std::cout << s << "\n";
-
-    auto val2 = decode_json<ns::reputation_object>(s);
-
-    assert(val2 == val);
-}
-```
-Output:
-```
-{
-    "application": "hiking",
-    "reputons": [
-        {
-            "assertion": "strong-hiker",
-            "rated": "Marilyn C",
-            "rater": "HikingAsylum.example.com",
-            "rating": 0.9
-        }
-    ]
-}
-```
-
-See [examples](https://github.com/danielaparker/jsoncons/blob/master/doc/Examples.md#G1)
 
 <div id="E2"/> 
 
@@ -604,314 +723,6 @@ Output:
     "1.23456789012345678901234567890"
 ]
 ```
-
-<div id="E4"/> 
-
-### Pull parser example
-
-A typical pull parsing application will repeatedly process the `current()` 
-event and call `next()` to advance to the next event, until `done()` 
-returns `true`.
-
-The example JSON text, `book_catalog.json`, is used by the examples below.
-
-```json
-[ 
-  { 
-      "author" : "Haruki Murakami",
-      "title" : "Hard-Boiled Wonderland and the End of the World",
-      "isbn" : "0679743464",
-      "publisher" : "Vintage",
-      "date" : "1993-03-02",
-      "price": 18.90
-  },
-  { 
-      "author" : "Graham Greene",
-      "title" : "The Comedians",
-      "isbn" : "0099478374",
-      "publisher" : "Vintage Classics",
-      "date" : "2005-09-21",
-      "price": 15.74
-  }
-]
-```
-
-#### Reading the JSON stream
-```c++
-std::ifstream is("book_catalog.json");
-
-json_cursor reader(is);
-
-for (; !reader.done(); reader.next())
-{
-    const auto& event = reader.current();
-    switch (event.event_type())
-    {
-        case staj_event_type::begin_array:
-            std::cout << "begin_array\n";
-            break;
-        case staj_event_type::end_array:
-            std::cout << "end_array\n";
-            break;
-        case staj_event_type::begin_object:
-            std::cout << "begin_object\n";
-            break;
-        case staj_event_type::end_object:
-            std::cout << "end_object\n";
-            break;
-        case staj_event_type::name:
-            // If underlying type is string, can return as string_view
-            std::cout << "name: " << event.as<jsoncons::string_view>() << "\n";
-            break;
-        case staj_event_type::string_value:
-            std::cout << "string_value: " << event.as<jsoncons::string_view>() << "\n";
-            break;
-        case staj_event_type::null_value:
-            std::cout << "null_value: " << event.as<std::string>() << "\n";
-            break;
-        case staj_event_type::bool_value:
-            std::cout << "bool_value: " << event.as<std::string>() << "\n";
-            break;
-        case staj_event_type::int64_value:
-            std::cout << "int64_value: " << event.as<std::string>() << "\n";
-            break;
-        case staj_event_type::uint64_value:
-            std::cout << "uint64_value: " << event.as<std::string>() << "\n";
-            break;
-        case staj_event_type::double_value:
-            // Return as string, could also use event.as<double>()
-            std::cout << "double_value: " << event.as<std::string>() << "\n";
-            break;
-        default:
-            std::cout << "Unhandled event type\n";
-            break;
-    }
-}
-```
-Output:
-```
-begin_array
-begin_object
-name: author
-string_value: Haruki Murakami
-name: title
-string_value: Hard-Boiled Wonderland and the End of the World
-name: isbn
-string_value: 0679743464
-name: publisher
-string_value: Vintage
-name: date
-string_value: 1993-03-02
-name: price
-double_value: 18.90
-end_object
-begin_object
-name: author
-string_value: Graham Greene
-name: title
-string_value: The Comedians
-name: isbn
-string_value: 0099478374
-name: publisher
-string_value: Vintage Classics
-name: date
-string_value: 2005-09-21
-name: price
-double_value: 15.74
-end_object
-end_array
-```
-
-<div id="E5"/> 
-
-#### Implementing a staj_filter
-
-```c++
-// A stream filter to filter out all events except name 
-// and restrict name to "author"
-
-class author_filter : public staj_filter
-{
-    bool accept_next_ = false;
-public:
-    bool accept(const staj_event& event, const ser_context&) override
-    {
-        if (event.event_type()  == staj_event_type::name &&
-            event.as<jsoncons::string_view>() == "author")
-        {
-            accept_next_ = true;
-            return false;
-        }
-        else if (accept_next_)
-        {
-            accept_next_ = false;
-            return true;
-        }
-        else
-        {
-            accept_next_ = false;
-            return false;
-        }
-    }
-};
-```
-
-#### Filtering the JSON stream
-
-```c++
-std::ifstream is("book_catalog.json");
-
-author_filter filter;
-json_cursor reader(is, filter);
-
-for (; !reader.done(); reader.next())
-{
-    const auto& event = reader.current();
-    switch (event.event_type())
-    {
-        case staj_event_type::string_value:
-            std::cout << event.as<jsoncons::string_view>() << "\n";
-            break;
-    }
-}
-```
-Output:
-```
-Haruki Murakami
-Graham Greene
-```
-
-See [json_cursor](doc/ref/json_cursor.md) 
-
-### Iterate over a json stream with staj iterators
-
-```c++
-const std::string example = R"(
-[ 
-  { 
-      "employeeNo" : "101",
-      "name" : "Tommy Cochrane",
-      "title" : "Supervisor"
-  },
-  { 
-      "employeeNo" : "102",
-      "name" : "Bill Skeleton",
-      "title" : "Line manager"
-  }
-]
-)";
-
-int main()
-{
-    std::istringstream is(example);
-
-    json_cursor reader(is);
-
-    staj_array_iterator<json> it(reader);
-
-    for (const auto& j : it)
-    {
-        std::cout << pretty_print(j) << "\n";
-    }
-    std::cout << "\n\n";
-}
-```
-Output:
-```
-{
-    "employeeNo": "101",
-    "name": "Tommy Cochrane",
-    "title": "Supervisor"
-}
-{
-    "employeeNo": "102",
-    "name": "Bill Skeleton",
-    "title": "Line manager"
-}
-```
-See [staj_array_iterator](doc/ref/staj_array_iterator.md) and [staj_object_iterator](doc/ref/staj_object_iterator.md)
-
-<div id="E6"/> 
-
-### Dump json content into a larger document
-
-```c++
-#include <jsoncons/json.hpp>
-
-using namespace jsoncons;
-
-int main()
-{
-    const json some_books = json::parse(R"(
-    [
-        {
-            "title" : "Kafka on the Shore",
-            "author" : "Haruki Murakami",
-            "price" : 25.17
-        },
-        {
-            "title" : "Women: A Novel",
-            "author" : "Charles Bukowski",
-            "price" : 12.00
-        }
-    ]
-    )");
-
-    const json more_books = json::parse(R"(
-    [
-        {
-            "title" : "A Wild Sheep Chase: A Novel",
-            "author" : "Haruki Murakami",
-            "price" : 9.01
-        },
-        {
-            "title" : "Cutter's Way",
-            "author" : "Ivan Passer",
-            "price" : 8.00
-        }
-    ]
-    )");
-
-    json_encoder encoder(std::cout, jsoncons::indenting::indent); // pretty print
-    serializer.begin_array();
-    for (const auto& book : some_books.array_range())
-    {
-        book.dump(encoder);
-    }
-    for (const auto& book : more_books.array_range())
-    {
-        book.dump(encoder);
-    }
-    serializer.end_array();
-    serializer.flush();
-}
-```
-Output:
-```json
-[
-    {
-        "author": "Haruki Murakami",
-        "price": 25.17,
-        "title": "Kafka on the Shore"
-    },
-    {
-        "author": "Charles Bukowski",
-        "price": 12.0,
-        "title": "Women: A Novel"
-    },
-    {
-        "author": "Haruki Murakami",
-        "price": 9.01,
-        "title": "A Wild Sheep Chase: A Novel"
-    },
-    {
-        "author": "Ivan Passer",
-        "price": 8.0,
-        "title": "Cutter's Way"
-    }
-]
-```
-
 ## Building the test suite and examples with CMake
 
 [CMake](https://cmake.org/) is a cross-platform build tool that generates makefiles and solutions for the compiler environment of your choice. On Windows you can download a [Windows Installer package](https://cmake.org/download/). On Linux it is usually available as a package, e.g., on Ubuntu,

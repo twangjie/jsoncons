@@ -21,9 +21,10 @@
 ### Decode JSON to C++ data structures, encode C++ data structures to JSON
 
 [Convert JSON to/from C++ data structures by specializing json_type_traits](#G1)  
-[A simple example using JSONCONS_MEMBER_TRAITS_DECL to generate the json_type_traits](#G2)  
-[A polymorphic example using JSONCONS_GETTER_CTOR_TRAITS_DECL to generate the json_type_traits](#G3)  
-[Convert JSON numbers to/from boost multiprecision numbers](#G4)
+[Mapping to C++ data structures with and without defaults allowed](#G2)  
+[An example using JSONCONS_GETTER_CTOR_TRAITS_DECL to generate the json_type_traits](#G3)  
+[A polymorphic example](#G4)  
+[Convert JSON numbers to/from boost multiprecision numbers](#G5)
 
 ### Construct
 
@@ -343,27 +344,27 @@ for (; !reader.done(); reader.next())
             std::cout << "end_object\n";
             break;
         case staj_event_type::name:
-            // If underlying type is string, can return as string_view
-            std::cout << "name: " << event.as<jsoncons::string_view>() << "\n";
+            // Or std::string_view, if supported
+            std::cout << "name: " << event.get<jsoncons::string_view>() << "\n";
             break;
         case staj_event_type::string_value:
-            std::cout << "string_value: " << event.as<jsoncons::string_view>() << "\n";
+            // Or std::string_view, if supported
+            std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
             break;
         case staj_event_type::null_value:
-            std::cout << "null_value: " << event.as<std::string>() << "\n";
+            std::cout << "null_value: " << "\n";
             break;
         case staj_event_type::bool_value:
-            std::cout << "bool_value: " << event.as<std::string>() << "\n";
+            std::cout << "bool_value: " << std::boolalpha << event.get<bool>() << "\n";
             break;
         case staj_event_type::int64_value:
-            std::cout << "int64_value: " << event.as<std::string>() << "\n";
+            std::cout << "int64_value: " << event.get<int64_t>() << "\n";
             break;
         case staj_event_type::uint64_value:
-            std::cout << "uint64_value: " << event.as<std::string>() << "\n";
+            std::cout << "uint64_value: " << event.get<uint64_t>() << "\n";
             break;
         case staj_event_type::double_value:
-            // Return as string, could also use event.as<double>()
-            std::cout << "double_value: " << event.as<std::string>() << "\n";
+            std::cout << "double_value: " << event.get<double>() << "\n";
             break;
         default:
             std::cout << "Unhandled event type\n";
@@ -386,7 +387,7 @@ string_value: Vintage
 name: date
 string_value: 1993-03-02
 name: price
-double_value: 18.90
+double_value: 19
 end_object
 begin_object
 name: author
@@ -400,7 +401,7 @@ string_value: Vintage Classics
 name: date
 string_value: 2005-09-21
 name: price
-double_value: 15.74
+double_value: 16
 end_object
 end_array
 ```
@@ -415,10 +416,10 @@ class author_filter : public staj_filter
 {
     bool accept_next_ = false;
 public:
-    bool accept(const staj_event& event, const ser_context&) override
+    bool accept(const staj_event& event) override
     {
         if (event.event_type()  == staj_event_type::name &&
-            event.as<jsoncons::string_view>() == "author")
+            event.get<jsoncons::string_view>() == "author")
         {
             accept_next_ = true;
             return false;
@@ -443,7 +444,8 @@ public:
 std::ifstream is("book_catalog.json");
 
 author_filter filter;
-json_cursor reader(is, filter);
+json_cursor cursor(is);
+filtered_staj_reader reader(cursor, filter);
 
 for (; !reader.done(); reader.next())
 {
@@ -451,7 +453,7 @@ for (; !reader.done(); reader.next())
     switch (event.event_type())
     {
         case staj_event_type::string_value:
-            std::cout << event.as<jsoncons::string_view>() << "\n";
+            std::cout << event.get<jsoncons::string_view>() << "\n";
             break;
     }
 }
@@ -471,12 +473,15 @@ See [json_cursor](doc/ref/json_cursor.md)
 <div id="G1"/>
 
 #### Convert JSON to/from C++ data structures by specializing json_type_traits
+
 jsoncons supports conversion between JSON text and C++ data structures. The functions [decode_json](doc/ref/decode_json.md) 
 and [encode_json](doc/ref/encode_json.md) convert JSON formatted strings or streams to C++ data structures and back. 
 Decode and encode work for all C++ classes that have 
 [json_type_traits](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json_type_traits.md) 
-defined. The standard library containers are already supported, and you can specialize `json_type_traits`
-for your own types in the `jsoncons` namespace. 
+defined. defined. The standard library containers are already supported, 
+and your own types will be supported too if you specialize `json_type_traits`
+in the `jsoncons` namespace. 
+
 
 ```c++
 #include <iostream>
@@ -593,10 +598,87 @@ Charles Bukowski, Pulp, 22.48
 
 <div id="G2"/>
 
-#### A simple example using JSONCONS_MEMBER_TRAITS_DECL to generate the json_type_traits 
+#### Mapping to C++ data structures with and without defaults allowed
 
-`JSONCONS_MEMBER_TRAITS_DECL` is a macro that can be used to generate the `json_type_traits` boilerplate
-from member data.
+The macros `JSONCONS_MEMBER_TRAITS_DECL` and `JSONCONS_NONDEFAULT_MEMBER_TRAITS_DECL` both generate
+the `json_type_traits` boilerplate from member data. The difference is that `JSONCONS_MEMBER_TRAITS_DECL`
+does not require all data members to be present in the JSON data, while `JSONCONS_NONDEFAULT_MEMBER_TRAITS_DECL` does.
+
+```c++
+#include <iostream>
+#include <jsoncons/json.hpp>
+#include <vector>
+#include <string>
+
+namespace ns {
+
+    class Person
+    {
+    public:
+        Person(const std::string& name, const std::string& surname,
+               const std::string& ssn, unsigned int age)
+           : name(name), surname(surname), ssn(ssn), age(age) { }
+
+    private:
+        // Make json_type_traits specializations friends to give accesses to private members
+        JSONCONS_TYPE_TRAITS_FRIEND;
+
+        Person() : age(0) {}
+
+        std::string name;
+        std::string surname;
+        std::string ssn;
+        unsigned int age;
+    };
+
+} // namespace ns
+
+// Declare the traits. Specify which data members need to be serialized.
+JSONCONS_MEMBER_TRAITS_DECL(ns::Person, name, surname, ssn, age)
+
+int main()
+{
+    try
+    {
+        // Incomplete JSON data: field ssn missing
+        std::string data = R"({"name":"Rod","surname":"Bro","age":30})";
+        auto person = jsoncons::decode_json<ns::Person>(data);
+
+        std::string s;
+        jsoncons::encode_json(person, s, indenting::indent);
+        std::cout << s << "\n";
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << e.what() << "";
+    }
+}
+```
+Output:
+```
+{
+    "age": 30,
+    "name": "Rod",
+    "ssn": "",
+    "surname": "Bro"
+}
+```
+
+If all members of the JSON data must be present, use
+```
+JSONCONS_NONDEFAULT_MEMBER_TRAITS_DECL(ns::Person, name, surname, ssn, age)
+```
+instead. This will cause an exception to be thrown with the message
+```
+Key 'ssn' not found
+```
+
+<div id="G3"/>
+
+#### An example using JSONCONS_GETTER_CTOR_TRAITS_DECL to generate the json_type_traits 
+
+The macro `JSONCONS_GETTER_CTOR_TRAITS_DECL` simplifies the creation of some necessary boilerplate
+from getter functions and a constructor. It must be placed outside any namespace blocks.
 
 ```c++
 #include <cassert>
@@ -604,57 +686,71 @@ from member data.
 #include <jsoncons/json.hpp>
 
 namespace ns {
-
-    struct reputon
+    class reputon
     {
-        std::string rater;
-        std::string assertion;
-        std::string rated;
-        double rating;
+    public:
+        reputon(const std::string& rater,
+                const std::string& assertion,
+                const std::string& rated,
+                double rating)
+            : rater_(rater), assertion_(assertion), rated_(rated), rating_(rating)
+        {
+        }
+
+        const std::string& rater() const {return rater_;}
+        const std::string& assertion() const {return assertion_;}
+        const std::string& rated() const {return rated_;}
+        double rating() const {return rating_;}
 
         friend bool operator==(const reputon& lhs, const reputon& rhs)
         {
-            return lhs.rater == rhs.rater && lhs.assertion == rhs.assertion && 
-                   lhs.rated == rhs.rated && lhs.rating == rhs.rating;
+            return lhs.rater_ == rhs.rater_ && lhs.assertion_ == rhs.assertion_ && 
+                   lhs.rated_ == rhs.rated_ && lhs.rating_ == rhs.rating_;
         }
 
         friend bool operator!=(const reputon& lhs, const reputon& rhs)
         {
             return !(lhs == rhs);
         };
+
+    private:
+        std::string rater_;
+        std::string assertion_;
+        std::string rated_;
+        double rating_;
     };
 
     class reputation_object
     {
-        std::string application;
-        std::vector<reputon> reputons;
-
-        // Make json_type_traits specializations friends to give accesses to private members
-        JSONCONS_TYPE_TRAITS_FRIEND;
     public:
-        reputation_object()
-        {
-        }
-        reputation_object(const std::string& application, const std::vector<reputon>& reputons)
-            : application(application), reputons(reputons)
+        reputation_object(const std::string& application, 
+                          const std::vector<reputon>& reputons)
+            : application_(application), 
+              reputons_(reputons)
         {}
+
+        const std::string& application() const { return application_;}
+        const std::vector<reputon>& reputons() const { return reputons_;}
 
         friend bool operator==(const reputation_object& lhs, const reputation_object& rhs)
         {
-            return (lhs.application == rhs.application) && (lhs.reputons == rhs.reputons);
+            return (lhs.application_ == rhs.application_) && (lhs.reputons_ == rhs.reputons_);
         }
 
         friend bool operator!=(const reputation_object& lhs, const reputation_object& rhs)
         {
             return !(lhs == rhs);
         };
+    private:
+        std::string application_;
+        std::vector<reputon> reputons_;
     };
 
 } // namespace ns
 
 // Declare the traits. Specify which data members need to be serialized.
-JSONCONS_MEMBER_TRAITS_DECL(ns::reputon, rater, assertion, rated, rating)
-JSONCONS_MEMBER_TRAITS_DECL(ns::reputation_object, application, reputons)
+JSONCONS_GETTER_CTOR_TRAITS_DECL(ns::reputon, rater, assertion, rated, rating)
+JSONCONS_GETTER_CTOR_TRAITS_DECL(ns::reputation_object, application, reputons)
 
 using namespace jsoncons; // for convenience
 
@@ -686,9 +782,9 @@ Output:
 }
 ```
 
-<div id="G3"/>
+<div id="G4"/>
 
-#### A polymorphic example using JSONCONS_GETTER_CTOR_TRAITS_DECL to generate the json_type_traits
+#### A polymorphic example
 
 `JSONCONS_GETTER_CTOR_TRAITS_DECL` is a macro that can be used to generate the `json_type_traits` boilerplate
 from getter functions and a constructor.
@@ -881,7 +977,7 @@ Output:
 ]
 ```
 
-<div id="G4"/>
+<div id="G5"/>
 
 #### Convert JSON numbers to/from boost multiprecision numbers
 

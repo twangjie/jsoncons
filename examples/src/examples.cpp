@@ -34,7 +34,7 @@ void cbor_examples();
 void ubjson_examples();
 void json_parser_examples();
 void byte_string_examples();
-void pull_parser_examples();
+void json_cursor_examples();
 void data_model_examples();
 void staj_iterator_examples();
 void bson_examples();
@@ -551,8 +551,6 @@ int main()
 
         data_model_examples();
 
-        pull_parser_examples();
-
         staj_iterator_examples();
  
         bson_examples();
@@ -565,10 +563,6 @@ int main()
 
         byte_string_examples();
 
-        readme_examples();
-
-        type_extensibility_examples();
-
         cbor_examples();
 
         csv_examples();
@@ -578,6 +572,12 @@ int main()
         jsonpath_examples();
 
         polymorphic_examples();
+
+        type_extensibility_examples();
+
+        readme_examples();
+
+        json_cursor_examples();
     }
     catch (const std::exception& e)
     {
