@@ -22,24 +22,6 @@ class cddl_validator : public json_content_handler
 public:
     typedef std::string string_type;
 private:
-    struct acceptor
-    {
-        typedef json json_type;
-        group_entry_rule grpent_rule;   
-
-        acceptor(const group_entry_rule& grpent_rule)
-            : grpent_rule(grpent_rule)
-        {
-        }
-        acceptor(const acceptor&) = default;
-        acceptor(acceptor&&) = default;
-
-        rule_base* rule()
-        {
-            return grpent_rule.rule;
-        }
-    };
-
     cddl_specification spec_;
     std::vector<acceptor> acceptor_stack_;
 public:
