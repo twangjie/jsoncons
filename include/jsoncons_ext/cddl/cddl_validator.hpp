@@ -7,10 +7,11 @@
 #ifndef JSONCONS_CDDL_CDDL_VALIDATOR_HPP
 #define JSONCONS_CDDL_CDDL_VALIDATOR_HPP
 
+#include <jsoncons/json.hpp>
 #include <jsoncons/json_content_handler.hpp>
 #include <jsoncons/staj_reader.hpp>
 #include <jsoncons_ext/cddl/cddl_error.hpp>
-#include <jsoncons_ext/cddl/cddl_rule.hpp>
+#include <jsoncons_ext/cddl/acceptor.hpp>
 #include <jsoncons_ext/cddl/cddl_specification.hpp>
 #include <memory>
 
@@ -21,29 +22,31 @@ class cddl_validator : public json_content_handler
 public:
     typedef std::string string_type;
 private:
-    struct stack_item
+    struct acceptor
     {
+        typedef json json_type;
         group_entry_rule grpent_rule;   
 
-        stack_item(const group_entry_rule& grpent_rule)
+        acceptor(const group_entry_rule& grpent_rule)
             : grpent_rule(grpent_rule)
         {
         }
-        stack_item(const stack_item&) = default;
-        stack_item(stack_item&&) = default;
+        acceptor(const acceptor&) = default;
+        acceptor(acceptor&&) = default;
 
         rule_base* rule()
         {
             return grpent_rule.rule;
         }
     };
+
     cddl_specification spec_;
-    std::vector<stack_item> spec_stack_;
+    std::vector<acceptor> acceptor_stack_;
 public:
     cddl_validator(cddl_specification&& spec)
         : spec_(std::move(spec))
     {
-        spec_stack_.emplace_back(group_entry_rule(spec.root()));
+        acceptor_stack_.emplace_back(group_entry_rule(spec.root()));
     }
     cddl_validator(const cddl_validator&) = delete;
     cddl_validator(cddl_validator&&) = default;
@@ -67,13 +70,13 @@ private:
     bool do_begin_array(semantic_tag tag, const ser_context&) override
     {
         std::cout << "do_begin_array\n";
-        if (!spec_stack_.back().rule()->matches_event(staj_event(staj_event_type::begin_array,tag)))
+        if (!acceptor_stack_.back().rule()->matches_event(staj_event(staj_event_type::begin_array,tag)))
         {
             throw std::runtime_error("Not an array");
         }
-        //for (auto& item: spec_stack_.back().rule()->get_group_entries())
+        //for (auto& item: acceptor_stack_.back().rule()->get_group_entries())
         //{
-        //    spec_stack_.emplace_back(item);
+        //    acceptor_stack_.emplace_back(item);
         //}
         return true;
     }

@@ -4,8 +4,8 @@
 
 // See https://github.com/danielaparker/jsoncons for latest version
 
-#ifndef JSONCONS_CDDL_CDDL_RULE_HPP
-#define JSONCONS_CDDL_CDDL_RULE_HPP
+#ifndef JSONCONS_CDDL_RULE_HPP
+#define JSONCONS_CDDL_RULE_HPP
 
 #include <jsoncons/staj_reader.hpp>
 #include <jsoncons_ext/cddl/cddl_error.hpp>

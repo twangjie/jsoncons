@@ -9,7 +9,7 @@
 
 #include <jsoncons/json_cursor.hpp>
 #include <jsoncons_ext/cddl/cddl_error.hpp>
-#include <jsoncons_ext/cddl/cddl_rule.hpp>
+#include <jsoncons_ext/cddl/rule.hpp>
 #include <memory>
 
 namespace jsoncons { namespace cddl {
