@@ -24,11 +24,13 @@ public:
 private:
     cddl_specification spec_;
     std::vector<acceptor> acceptor_stack_;
+
+    string_type key_;
 public:
     cddl_validator(cddl_specification&& spec)
         : spec_(std::move(spec))
     {
-        acceptor_stack_.emplace_back(group_entry_rule(spec.root()));
+        acceptor_stack_.emplace_back(spec.root());
     }
     cddl_validator(const cddl_validator&) = delete;
     cddl_validator(cddl_validator&&) = default;
@@ -52,14 +54,11 @@ private:
     bool do_begin_array(semantic_tag tag, const ser_context&) override
     {
         std::cout << "do_begin_array\n";
-        if (!acceptor_stack_.back().rule()->matches_event(staj_event(staj_event_type::begin_array,tag)))
+        if (!acceptor_stack_.back().accept_event(key_, staj_event(staj_event_type::begin_array,tag)))
         {
             throw std::runtime_error("Not an array");
         }
-        //for (auto& item: acceptor_stack_.back().rule()->get_group_entries())
-        //{
-        //    acceptor_stack_.emplace_back(item);
-        //}
+        key_.clear();
         return true;
     }
 
@@ -78,8 +77,9 @@ private:
         return true;
     }
 
-    bool do_string_value(const string_view_type&, semantic_tag, const ser_context&) override
+    bool do_string_value(const string_view_type& s, semantic_tag tag, const ser_context&) override
     {
+        //Acceptor next = acceptor_stack_.back().createChildAcceptor(key_, staj_event(s,tag));
         return true;
     }
 

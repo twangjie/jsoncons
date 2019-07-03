@@ -16,7 +16,7 @@ namespace jsoncons { namespace cddl {
 
 class rule_base;
 
-class group_entry_rule
+class group_entry
 {
     static rule_base* def_rule();
 public:
@@ -25,18 +25,18 @@ public:
     std::string key;
     rule_base* rule; 
 
-    group_entry_rule(rule_base* rule) 
+    group_entry(rule_base* rule) 
         : rule(rule)
     {
     }
-    group_entry_rule(size_t min_occur, size_t max_occur) 
+    group_entry(size_t min_occur, size_t max_occur) 
         : min_occur(min_occur), max_occur(max_occur), rule(def_rule())
     {
     }
-    group_entry_rule(const group_entry_rule&) = default;
-    group_entry_rule(group_entry_rule&&) = default;
-    group_entry_rule& operator=(const group_entry_rule&) = default;
-    group_entry_rule& operator=(group_entry_rule&&) = default;
+    group_entry(const group_entry&) = default;
+    group_entry(group_entry&&) = default;
+    group_entry& operator=(const group_entry&) = default;
+    group_entry& operator=(group_entry&&) = default;
 };
 
 typedef std::unordered_map<std::string,rule_base*> rule_dictionary;
@@ -58,7 +58,47 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader&) = 0;
 
-    virtual bool matches_event(const staj_event& event) = 0;
+    virtual bool accept_event(const staj_event& event) 
+    {
+        return false;
+    }
+
+    virtual bool accept_event_type(const staj_event_type& event_type)
+    {
+        return false;
+    }
+
+    virtual bool is_array() const
+    {
+        return false;
+    }
+    virtual bool is_map() const
+    {
+        return false;
+    }
+    virtual bool is_group() const
+    {
+        return false;
+    }
+
+    virtual size_t size() const 
+    {
+        return 0;
+    }
+
+    virtual const group_entry& at(size_t i) const 
+    {
+        throw std::runtime_error("Not an array");
+    }
+
+    virtual const group_entry& at(const std::string& key) const 
+    {
+        throw std::runtime_error("Not a map");
+    }
+
+    virtual void init(const rule_dictionary& dictionary) 
+    {
+    }
 };
 
 class default_rule : public rule_base
@@ -78,10 +118,6 @@ public:
         return cddl_errc();
     }
 
-    bool matches_event(const staj_event& event) override
-    {
-        return false;
-    }
 };
 
 
@@ -110,7 +146,7 @@ public:
         return cddl_errc{};
     }
 
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         switch (event.event_type())
         {
@@ -151,7 +187,7 @@ public:
         return cddl_errc{};
     }
 
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         switch (event.event_type())
         {
@@ -194,7 +230,7 @@ public:
         return cddl_errc{};
     }
 
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         return false;
     }
@@ -224,7 +260,7 @@ public:
         return cddl_errc{};
     }
 
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         return false;
     }
@@ -270,7 +306,7 @@ public:
         return cddl_errc{};
     }
 
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         return false;
     }
@@ -279,9 +315,10 @@ public:
 class lookup_rule : public rule_base
 {
     std::string value_;
+    rule_base* rule_;
 public:
     lookup_rule(const std::string& value) 
-        : value_(value)
+        : value_(value), rule_(nullptr)
     {
     }
     lookup_rule(std::string&& value) 
@@ -295,19 +332,24 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
+        return rule_->validate(dictionary, reader);
+    }
+
+    bool accept_event(const staj_event& event) override
+    {
+        return false;
+    }
+
+    void init(const rule_dictionary& dictionary) override
+    {
         auto it = dictionary.find(value_);
         if (it == dictionary.end())
         {
             std::cout << value_ << " NOT FOUND\n";
-            return cddl_errc::id_lookup_failed;
+            //return cddl_errc::id_lookup_failed;
+            std::runtime_error("id lookup failed");
         }
-        (it->second)->validate(dictionary, reader);
-        return cddl_errc{};
-    }
-
-    bool matches_event(const staj_event& event) override
-    {
-        return false;
+        rule_ = it->second;
     }
 };
 
@@ -320,20 +362,7 @@ public:
     structure_rule& operator=(const structure_rule&) = default;
     structure_rule& operator=(structure_rule&&) = default;
 
-    std::vector<group_entry_rule> memberkey_rules_;
-
-    virtual bool is_array() const
-    {
-        return false;
-    }
-    virtual bool is_map() const
-    {
-        return false;
-    }
-    virtual bool is_group() const
-    {
-        return false;
-    }
+    std::vector<group_entry> group_entries_;
 };
 
 class array_rule : public structure_rule
@@ -359,17 +388,17 @@ public:
 
         size_t i = 0;
 
-        for (;i < memberkey_rules_.size();)
+        for (;i < group_entries_.size();)
         {
             if (reader.current().event_type() == staj_event_type::end_array)
             {
                 break;
             }
             std::cout << "event_type: " << (int)reader.current().event_type() << "\n";
-            cddl_errc result = memberkey_rules_[i].rule->validate(dictionary, reader);
+            cddl_errc result = group_entries_[i].rule->validate(dictionary, reader);
             if (result != cddl_errc())
             {
-                if (memberkey_rules_[i].min_occur == 0)
+                if (group_entries_[i].min_occur == 0)
                 {
                     ++i;
                 }
@@ -397,7 +426,7 @@ public:
         return true;
     }
 
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         switch (event.event_type())
         {
@@ -407,10 +436,34 @@ public:
                 return false;
         }
     }
+
+    bool accept_event_type(const staj_event_type& event_type) override
+    {
+        return event_type == staj_event_type::begin_array;
+    }
+
+    size_t size() const override
+    {
+        return group_entries_.size();
+    }
+
+    const group_entry& at(size_t i) const override
+    {
+        return group_entries_.at(i);
+    }
+
+    void init(const rule_dictionary& dictionary) override
+    {
+        for (auto& item : group_entries_)
+        {
+            item.rule->init(dictionary);
+        }
+    }
 };
 
 class map_rule : public structure_rule
 {
+    std::unordered_map<std::string,rule_base*> rule_map_;
 public:
     map_rule() = default;
     map_rule(const map_rule&) = default;
@@ -421,7 +474,7 @@ public:
     virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
         std::unordered_map<std::string,rule_base*> rules;
-        for (auto& item : memberkey_rules_)
+        for (auto& item : group_entries_)
         {
             rules.try_emplace(item.key,item.rule);
         }
@@ -434,7 +487,7 @@ public:
             default:
                 return cddl_errc::expected_map;
         }
-        for (size_t i = 0; i < memberkey_rules_.size(); ++i)
+        for (size_t i = 0; i < group_entries_.size(); ++i)
         {
             if (reader.current().event_type() == staj_event_type::end_object)
             {
@@ -465,7 +518,7 @@ public:
         return true;
     }
 
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         switch (event.event_type())
         {
@@ -473,6 +526,30 @@ public:
                 return true;
             default:
                 return false;
+        }
+    }
+
+    bool accept_event_type(const staj_event_type& event_type) override
+    {
+        return event_type == staj_event_type::begin_object;
+    }
+
+    size_t size() const override
+    {
+        return group_entries_.size();
+    }
+
+    const group_entry& at(const std::string& key) const override
+    {
+        return rule_map_.at(key);
+    }
+
+    void init(const rule_dictionary& dictionary) override
+    {
+        for (auto& item : group_entries_)
+        {
+            rule_map_.try_emplace(item.key,item.rule);
+            item.rule->init(dictionary);
         }
     }
 };
@@ -488,9 +565,9 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary& dictionary, staj_reader& reader)
     {
-        for (size_t i = 0; i < memberkey_rules_.size(); ++i)
+        for (size_t i = 0; i < group_entries_.size(); ++i)
         {
-            cddl_errc result = memberkey_rules_[i].rule->validate(dictionary, reader);
+            cddl_errc result = group_entries_[i].rule->validate(dictionary, reader);
             if (result != cddl_errc())
             {
                 return result;
@@ -498,7 +575,7 @@ public:
         }
         return cddl_errc{};
     }
-    bool matches_event(const staj_event& event) override
+    bool accept_event(const staj_event& event) override
     {
         switch (event.event_type())
         {
@@ -513,9 +590,17 @@ public:
     {
         return true;
     }
+
+    void init(const rule_dictionary& dictionary) override
+    {
+        for (auto& item : group_entries_)
+        {
+            item.rule->init(dictionary);
+        }
+    }
 };
 
-rule_base* group_entry_rule::def_rule()
+rule_base* group_entry::def_rule()
 {
     static default_rule adefault;
     return &adefault;

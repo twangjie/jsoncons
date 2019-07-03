@@ -10,6 +10,7 @@
 #include <jsoncons/json_cursor.hpp>
 #include <jsoncons_ext/cddl/cddl_error.hpp>
 #include <jsoncons_ext/cddl/rule.hpp>
+#include <jsoncons_ext/cddl/acceptor.hpp>
 #include <memory>
 
 namespace jsoncons { namespace cddl {
@@ -279,7 +280,7 @@ public:
                         {
                             auto* p = new array_rule();
                             rule_owner_.emplace_back(p);
-                            structure_stack_.back()->memberkey_rules_.back().rule = p;
+                            structure_stack_.back()->group_entries_.back().rule = p;
                             structure_stack_.push_back(p);
                             state_stack.back().state = cddl_state::array_definition;
                             ++p_;
@@ -349,34 +350,34 @@ public:
                             skip_to_end_of_line();
                             break;
                         case '*':
-                            structure_stack_.back()->memberkey_rules_.emplace_back(0,rule_base::unbounded);
+                            structure_stack_.back()->group_entries_.emplace_back(0,rule_base::unbounded);
                             buffer.clear();
                             state_stack.back().state = cddl_state::occur;
                             ++p_;
                             ++column_;
                             break;
                         case '?':
-                            structure_stack_.back()->memberkey_rules_.emplace_back(0,1);
+                            structure_stack_.back()->group_entries_.emplace_back(0,1);
                             buffer.clear();
                             state_stack.back().state = cddl_state::expect_grpent;
                             ++p_;
                             ++column_;
                             break;
                         case '+':
-                            structure_stack_.back()->memberkey_rules_.emplace_back(1,rule_base::unbounded);
+                            structure_stack_.back()->group_entries_.emplace_back(1,rule_base::unbounded);
                             buffer.clear();
-                            //structure_stack_.back()->memberkey_rules_.back().occur = occurence_type::one_or_more;
+                            //structure_stack_.back()->group_entries_.back().occur = occurence_type::one_or_more;
                             state_stack.back().state = cddl_state::expect_grpent;
                             ++p_;
                             ++column_;
                             break;
                         case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8': case '9':
-                            structure_stack_.back()->memberkey_rules_.emplace_back(1,1);
+                            structure_stack_.back()->group_entries_.emplace_back(1,1);
                             buffer.clear();
                             state_stack.back().state = cddl_state::expect_occur_or_value;
                             break;
                         default:
-                            structure_stack_.back()->memberkey_rules_.emplace_back(1,1);
+                            structure_stack_.back()->group_entries_.emplace_back(1,1);
                             state_stack.back().state = cddl_state::expect_grpent;
                             break;
                     }
@@ -482,7 +483,7 @@ public:
                             break;
                         case ':':
                             std::cout << "key: " << buffer << "\n";
-                            structure_stack_.back()->memberkey_rules_.back().key = std::move(buffer);
+                            structure_stack_.back()->group_entries_.back().key = std::move(buffer);
                             state_stack.back().state = cddl_state::expect_rangeop_or_slash_or_comma_or_delimiter;
                             state_stack.emplace_back(cddl_state::expect_value, state_stack.back());
                             ++p_;
@@ -790,12 +791,12 @@ public:
                     auto it = dictionary.find(buffer);
                     if (it != dictionary.end())
                     {
-                        structure_stack_.back()->memberkey_rules_.back().rule = it->second;
+                        structure_stack_.back()->group_entries_.back().rule = it->second;
                     }
                     else
                     {
                         rule_owner_.emplace_back(new lookup_rule(std::move(buffer)));
-                        structure_stack_.back()->memberkey_rules_.back().rule = rule_owner_.back().get();
+                        structure_stack_.back()->group_entries_.back().rule = rule_owner_.back().get();
                     }
 
                     state_stack.pop_back();
@@ -1070,7 +1071,7 @@ public:
                         case '\"':
                             std::cout << "value: " << buffer << "\n";
                             rule_owner_.emplace_back(new tstr_value_rule(std::move(buffer)));
-                            structure_stack_.back()->memberkey_rules_.back().rule = rule_owner_.back().get();
+                            structure_stack_.back()->group_entries_.back().rule = rule_owner_.back().get();
                             state_stack.pop_back();
                             ++p_;
                             ++column_;
@@ -1102,6 +1103,11 @@ public:
         {
             std::cout << "rule: " << item.id << "\n";
             dictionary.try_emplace(std::move(item.id),item.rule);
+        }
+
+        for (auto& p : rule_owner_)
+        {
+            p->init(dictionary);
         }
         return cddl_specification(std::move(rule_owner_), 
                                   std::move(dictionary), 
