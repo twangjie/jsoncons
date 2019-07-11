@@ -156,7 +156,7 @@ Returns the allocator associated with the json value.
   </tr>
 </table>
 
-    semantic_tag get_semantic_tag() const
+    semantic_tag tag() const
 Returns the [semantic_tag](semantic_tag.md) associated with this value
 
     json& operator[](size_t i)
@@ -164,8 +164,9 @@ Returns the [semantic_tag](semantic_tag.md) associated with this value
 Returns a reference to the value at position i in a json object or array.
 Throws `std::runtime_error` if not an object or array.
 
-    json& operator[](const string_view_type& name)
-Returns a proxy to a keyed value. If written to, inserts or updates with the new value. If read, evaluates to a reference to the keyed value, if it exists, otherwise throws. 
+    proxy<json> operator[](const string_view_type& name)
+Returns a proxy to a keyed value. `proxy<json>` supports conversion to `json&`. If written to, 
+inserts or updates with the new value. If read, evaluates to a reference to the keyed value, if it exists, otherwise throws. 
 Throws `std::runtime_error` if not an object.
 If read, throws `std::out_of_range` if the object does not have a member with the specified name.  
 
@@ -176,7 +177,7 @@ Throws `std::out_of_range` if the object does not have a member with the specifi
 
     object_iterator find(const string_view_type& name)
     const_object_iterator find(const string_view_type& name) const
-Returns an object iterator to a member whose name compares equal to `name`. If there is no such member, returns `end_member()`.
+Returns an object iterator to a member whose name compares equal to `name`. If there is no such member, returns `object_range.end()`.
 Throws `std::runtime_error` if not an object.
 
     json& at(const string_view_type& name)
