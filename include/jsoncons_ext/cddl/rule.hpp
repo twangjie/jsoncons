@@ -58,12 +58,12 @@ public:
 
     virtual cddl_errc validate(const rule_dictionary&, staj_reader&) = 0;
 
-    virtual bool accept_event(const staj_event& event) 
+    virtual bool accept_event(const staj_event&) 
     {
         return false;
     }
 
-    virtual bool accept_event_type(const staj_event_type& event_type)
+    virtual bool accept_event_type(const staj_event_type&)
     {
         return false;
     }
@@ -86,17 +86,17 @@ public:
         return 0;
     }
 
-    virtual const group_entry& at(size_t i) const 
+    virtual const group_entry& at(size_t) const 
     {
         throw std::runtime_error("Not an array");
     }
 
-    virtual const group_entry& at(const std::string& key) const 
+    virtual const group_entry& at(const std::string&) const 
     {
         throw std::runtime_error("Not a map");
     }
 
-    virtual void init(const rule_dictionary& dictionary) 
+    virtual void init(const rule_dictionary&) 
     {
     }
 };
@@ -230,7 +230,7 @@ public:
         return cddl_errc{};
     }
 
-    bool accept_event(const staj_event& event) override
+    bool accept_event(const staj_event&) override
     {
         return false;
     }
@@ -260,7 +260,7 @@ public:
         return cddl_errc{};
     }
 
-    bool accept_event(const staj_event& event) override
+    bool accept_event(const staj_event&) override
     {
         return false;
     }
@@ -291,7 +291,7 @@ public:
         {
             case staj_event_type::string_value:
                 std::cout << "tstr_value_rule\n";
-                if (reader.current().as<std::string>() != value_)
+                if (reader.current().get<std::string>() != value_)
                 {
                     return cddl_errc::expected_tstr;
                 }
@@ -306,7 +306,7 @@ public:
         return cddl_errc{};
     }
 
-    bool accept_event(const staj_event& event) override
+    bool accept_event(const staj_event&) override
     {
         return false;
     }
@@ -335,7 +335,7 @@ public:
         return rule_->validate(dictionary, reader);
     }
 
-    bool accept_event(const staj_event& event) override
+    bool accept_event(const staj_event&) override
     {
         return false;
     }
@@ -498,7 +498,7 @@ public:
             {
                 throw std::runtime_error("Expected name");
             }
-            auto it = rules.find(reader.current().as<std::string>());
+            auto it = rules.find(reader.current().get<std::string>());
             if (it != rules.end())
             {
                 reader.next();

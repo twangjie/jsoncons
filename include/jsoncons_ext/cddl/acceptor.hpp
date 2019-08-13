@@ -31,7 +31,7 @@ namespace jsoncons { namespace cddl {
         acceptor(const acceptor&) = default;
         acceptor(acceptor&&) = default;
 
-        acceptor make_child_acceptor(std::string& key, staj_event_type ev_type) const
+        acceptor make_child_acceptor(std::string&, staj_event_type ev_type) const
         {  
             if (is_root_)
             {
@@ -46,7 +46,7 @@ namespace jsoncons { namespace cddl {
             return acceptor(parent_, false);
         }
 
-        bool accept_event(const std::string& key, const staj_event& ev) 
+        bool accept_event(const std::string&, const staj_event& ev) 
         {
             bool result = false;
             if (parent_->is_array())
@@ -65,8 +65,8 @@ namespace jsoncons { namespace cddl {
                         {
                             ++index_;
                             occur_ = 0;
-                            auto group_ent = parent_->at(index_);
-                            result = group_ent.rule->accept_event(ev);
+                            auto group_ent2 = parent_->at(index_);
+                            result = group_ent2.rule->accept_event(ev);
                             ++occur_;
                         }
                     }

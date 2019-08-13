@@ -77,7 +77,7 @@ private:
         return true;
     }
 
-    bool do_string_value(const string_view_type& s, semantic_tag tag, const ser_context&) override
+    bool do_string_value(const string_view_type&, semantic_tag, const ser_context&) override
     {
         //Acceptor next = acceptor_stack_.back().createChildAcceptor(key_, staj_event(s,tag));
         return true;
