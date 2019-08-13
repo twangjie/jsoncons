@@ -1,6 +1,8 @@
 ### jsoncons::ubjson::basic_ubjson_encoder
 
 ```c++
+#include <jsoncons_ext/ubjson/ubjson_encoder.hpp>
+
 template<
     class Result>
 > class basic_ubjson_encoder : public jsoncons::json_content_handler
@@ -8,17 +10,13 @@ template<
 
 `basic_ubjson_encoder` is noncopyable and nonmoveable.
 
-#### Header
-
-    #include <jsoncons_ext/ubjson/ubjson_encoder.hpp>
-
-![ubjson_encoder](./diagrams/ubjson_encoder.png)
+![basic_ubjson_encoder](./diagrams/ubjson_encoder.png)
 
 Four specializations for common character types and result types are defined:
 
 Type                       |Definition
 ---------------------------|------------------------------
-ubjson_encoder            |basic_ubjson_encoder<jsoncons::binary_stream_result>
+ubjson_stream_encoder            |basic_ubjson_encoder<jsoncons::binary_stream_result>
 ubjson_bytes_encoder     |basic_ubjson_encoder<jsoncons::binary_buffer_result>
 
 #### Member types

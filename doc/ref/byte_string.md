@@ -1,14 +1,11 @@
 ### jsoncons::byte_string
 
 ```c++
+#include <jsoncons/byte_string.hpp>
+
 typedef basic_byte_string<Allocator = std::allocator<uint8_t>> byte_string;
 ```
 The `byte_string` class is an instantiation of the `basic_byte_string` class template that uses `std::allocator<uint8_t>` as the allocator type.
-
-#### Header
-```c++
-#include <jsoncons/byte_string.hpp>
-```
 
 #### Member types
 
@@ -95,11 +92,11 @@ std::cout << "(3) " << j << std::endl;
 
 Output:
 ```
-(1) 0x480x650x6c0x6c0x6f
+(1) 48 65 6c 6c 6f
 
 (2) Hello
 
-(3) "SGVsbG8_"
+(3) "SGVsbG8"
 ```
 
 #### Byte string from char array
@@ -122,9 +119,9 @@ std::cout << "(3) " << j << std::endl;
 
 Output:
 ```
-(1) 0x480x650x6c0x6c0x6f
+(1) 48 65 6c 6c 6f
 
 (2) Hello
 
-(3) "SGVsbG8_"
+(3) "SGVsbG8"
 ```

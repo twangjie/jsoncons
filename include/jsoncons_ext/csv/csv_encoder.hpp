@@ -83,7 +83,7 @@ private:
     basic_csv_encoder& operator=(const basic_csv_encoder&) = delete;
 public:
     basic_csv_encoder(result_type result)
-       : basic_csv_encoder(std::move(result), basic_csv_options<CharT>::default_options())
+       : basic_csv_encoder(std::move(result), basic_csv_options<CharT>::get_default_options())
     {
     }
 
@@ -93,9 +93,7 @@ public:
        result_(std::move(result)),
        options_(options),
        stack_(),
-       fp_(floating_point_options(options.floating_point_format(), 
-                                  options.precision(),
-                                  0)),
+       fp_(options.float_format(), options.precision()),
        column_names_(options_.column_names())
     {
     }
@@ -565,53 +563,21 @@ private:
     }
 };
 
-// encode_csv
-
-template <class T,class CharT>
-typename std::enable_if<is_basic_json_class<T>::value,void>::type 
-encode_csv(const T& j, std::basic_string<CharT>& s, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-    basic_csv_encoder<char_type,jsoncons::string_result<std::basic_string<char_type>>> encoder(s,options);
-    j.dump(encoder);
-}
-
-template <class T,class CharT>
-typename std::enable_if<!is_basic_json_class<T>::value,void>::type 
-encode_csv(const T& val, std::basic_string<CharT>& s, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-    basic_csv_encoder<char_type,jsoncons::string_result<std::basic_string<char_type>>> encoder(s,options);
-    write_to(basic_json<CharT>(), val, encoder);
-}
-
-template <class T, class CharT>
-typename std::enable_if<is_basic_json_class<T>::value,void>::type 
-encode_csv(const T& j, std::basic_ostream<CharT>& os, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-    basic_csv_encoder<char_type,jsoncons::stream_result<char_type>> encoder(os,options);
-    j.dump(encoder);
-}
-
-template <class T, class CharT>
-typename std::enable_if<!is_basic_json_class<T>::value,void>::type 
-encode_csv(const T& val, std::basic_ostream<CharT>& os, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-    basic_csv_encoder<char_type,jsoncons::stream_result<char_type>> encoder(os,options);
-    write_to(basic_json<CharT>(), val, encoder);
-}
-
-typedef basic_csv_encoder<char> csv_encoder;
+typedef basic_csv_encoder<char> csv_stream_encoder;
 typedef basic_csv_encoder<char,jsoncons::string_result<std::string>> csv_string_encoder;
+typedef basic_csv_encoder<wchar_t> csv_wstream_encoder;
+typedef basic_csv_encoder<wchar_t,jsoncons::string_result<std::wstring>> wcsv_string_encoder;
 
 #if !defined(JSONCONS_NO_DEPRECATED)
 template<class CharT, class Result = jsoncons::stream_result<CharT>, class Allocator = std::allocator<CharT>>
 using basic_csv_serializer = basic_csv_encoder<CharT,Result,Allocator>;
 
-JSONCONS_DEPRECATED("Instead, use csv_encoder") typedef csv_encoder csv_serializer;
-JSONCONS_DEPRECATED("Instead, use csv_string_encoder") typedef csv_string_encoder csv_string_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_stream_encoder") typedef csv_stream_encoder csv_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_string_encoder") typedef csv_string_encoder csv_string_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_stream_encoder") typedef csv_stream_encoder csv_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_string_encoder") typedef csv_string_encoder csv_string_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_stream_encoder") typedef csv_stream_encoder csv_encoder;
+JSONCONS_DEPRECATED_MSG("Instead, use wcsv_stream_encoder") typedef csv_stream_encoder wcsv_encoder;
 #endif
 
 }}

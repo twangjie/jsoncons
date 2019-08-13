@@ -13,6 +13,7 @@
 #include <unordered_map> // std::unordered_map
 #include <limits> // std::numeric_limits
 #include <cwchar>
+#include <jsoncons/json_options.hpp>
 
 namespace jsoncons { namespace csv {
 
@@ -123,7 +124,7 @@ class basic_csv_encode_options
 public:
     typedef std::basic_string<CharT> string_type;
 
-    virtual chars_format floating_point_format() const = 0;
+    virtual float_chars_format float_format() const = 0;
 
     virtual int precision() const = 0;
 
@@ -149,7 +150,7 @@ class basic_csv_options : public virtual basic_csv_decode_options<CharT>,
     typedef CharT char_type;
     typedef std::basic_string<CharT> string_type;
 
-    chars_format floating_point_format_;
+    float_chars_format float_format_;
     int precision_;
     bool assume_header_;
     bool ignore_empty_values_;
@@ -159,11 +160,11 @@ class basic_csv_options : public virtual basic_csv_decode_options<CharT>,
     bool trim_leading_inside_quotes_;
     bool trim_trailing_inside_quotes_;
     bool unquoted_empty_value_is_null_;
-    CharT field_delimiter_;
-    std::pair<CharT,bool> subfield_delimiter_;
-    CharT quote_char_;
-    CharT quote_escape_char_;
-    CharT comment_starter_;
+    char_type field_delimiter_;
+    std::pair<char_type,bool> subfield_delimiter_;
+    char_type quote_char_;
+    char_type quote_escape_char_;
+    char_type comment_starter_;
     quote_style_type quote_style_;
     std::pair<mapping_type,bool> mapping_;
     unsigned long max_lines_;
@@ -178,16 +179,16 @@ class basic_csv_options : public virtual basic_csv_decode_options<CharT>,
 public:
     static const size_t default_indent = 4;
 
-    static const basic_csv_options<CharT>& default_options()
+    static const basic_csv_options& get_default_options()
     {
-        static basic_csv_options<CharT> options{};
+        static basic_csv_options<char_type> options{};
         return options;
     }
 
 //  Constructors
 
     basic_csv_options() :
-        floating_point_format_(chars_format()),
+        float_format_(float_chars_format::general),
         precision_(0),
         assume_header_(false),
         ignore_empty_values_(false),
@@ -214,14 +215,14 @@ public:
 
 //  Properties
 
-    chars_format floating_point_format() const override
+    float_chars_format float_format() const override
     {
-        return floating_point_format_;
+        return float_format_;
     }
 
-    basic_csv_options<CharT>& floating_point_format(chars_format value)
+    basic_csv_options& float_format(float_chars_format value)
     {
-        floating_point_format_ = value;
+        float_format_ = value;
         return *this;
     }
 
@@ -230,7 +231,7 @@ public:
         return precision_;
     }
 
-    basic_csv_options<CharT>& precision(int value)
+    basic_csv_options& precision(int value)
     {
         precision_ = value;
         return *this;
@@ -392,23 +393,23 @@ public:
         return *this;
     }
 
-    CharT field_delimiter() const override
+    char_type field_delimiter() const override
     {
         return field_delimiter_;
     }
 
-    const std::pair<CharT,bool>& subfield_delimiter() const override
+    const std::pair<char_type,bool>& subfield_delimiter() const override
     {
         return subfield_delimiter_;
     }
 
-    basic_csv_options& field_delimiter(CharT value)
+    basic_csv_options& field_delimiter(char_type value)
     {
         field_delimiter_ = value;
         return *this;
     }
 
-    basic_csv_options& subfield_delimiter(CharT value)
+    basic_csv_options& subfield_delimiter(char_type value)
     {
         subfield_delimiter_ = std::make_pair(value,true);
         return *this;
@@ -425,12 +426,12 @@ public:
         return *this;
     }
 
-    CharT quote_char() const override
+    char_type quote_char() const override
     {
         return quote_char_;
     }
 
-    basic_csv_options& quote_char(CharT value)
+    basic_csv_options& quote_char(char_type value)
     {
         quote_char_ = value;
         return *this;
@@ -458,23 +459,23 @@ public:
         return *this;
     }
 
-    CharT quote_escape_char() const override
+    char_type quote_escape_char() const override
     {
         return quote_escape_char_;
     }
 
-    basic_csv_options& quote_escape_char(CharT value)
+    basic_csv_options& quote_escape_char(char_type value)
     {
         quote_escape_char_ = value;
         return *this;
     }
 
-    CharT comment_starter() const override
+    char_type comment_starter() const override
     {
         return comment_starter_;
     }
 
-    basic_csv_options& comment_starter(CharT value)
+    basic_csv_options& comment_starter(char_type value)
     {
         comment_starter_ = value;
         return *this;
@@ -513,21 +514,29 @@ public:
         return *this;
     }
 #if !defined(JSONCONS_NO_DEPRECATED)
-    JSONCONS_DEPRECATED("Instead, use column_names(const string_type&)")
+
+    JSONCONS_DEPRECATED_MSG("Instead, use float_format(float_chars_format)")
+    basic_csv_options& floating_point_format(float_chars_format value)
+    {
+        float_format_ = value;
+        return *this;
+    }
+
+    JSONCONS_DEPRECATED_MSG("Instead, use column_names(const string_type&)")
     basic_csv_options& column_names(const std::vector<string_type>& value)
     {
         column_names_ = value;
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use column_defaults(const string_type&)")
+    JSONCONS_DEPRECATED_MSG("Instead, use column_defaults(const string_type&)")
     basic_csv_options& column_defaults(const std::vector<string_type>& value)
     {
         column_defaults_ = value;
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use column_types(const string_type&)")
+    JSONCONS_DEPRECATED_MSG("Instead, use column_types(const string_type&)")
     basic_csv_options& column_types(const std::vector<string_type>& value)
     {
         if (value.size() > 0)
@@ -535,19 +544,19 @@ public:
             column_types_.reserve(value.size());
             for (size_t i = 0; i < value.size(); ++i)
             {
-                if (value[i] == jsoncons::csv::detail::string_literal<CharT>()())
+                if (value[i] == jsoncons::csv::detail::string_literal<char_type>()())
                 {
                     column_types_.emplace_back(csv_column_type::string_t,0);
                 }
-                else if (value[i] == jsoncons::csv::detail::integer_literal<CharT>()())
+                else if (value[i] == jsoncons::csv::detail::integer_literal<char_type>()())
                 {
                     column_types_.emplace_back(csv_column_type::integer_t,0);
                 }
-                else if (value[i] == jsoncons::csv::detail::float_literal<CharT>()())
+                else if (value[i] == jsoncons::csv::detail::float_literal<char_type>()())
                 {
                     column_types_.emplace_back(csv_column_type::float_t,0);
                 }
-                else if (value[i] == jsoncons::csv::detail::boolean_literal<CharT>()())
+                else if (value[i] == jsoncons::csv::detail::boolean_literal<char_type>()())
                 {
                     column_types_.emplace_back(csv_column_type::boolean_t,0);
                 }
@@ -763,10 +772,10 @@ typedef basic_csv_options<char> csv_options;
 typedef basic_csv_options<wchar_t> wcsv_options;
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-JSONCONS_DEPRECATED("Instead, use csv_options") typedef csv_options csv_parameters;
-JSONCONS_DEPRECATED("Instead, use wcsv_options") typedef wcsv_options wcsv_parameters;
-JSONCONS_DEPRECATED("Instead, use csv_options") typedef csv_options csv_serializing_options;
-JSONCONS_DEPRECATED("Instead, use wcsv_options") typedef wcsv_options wcsv_serializing_options;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_options") typedef csv_options csv_parameters;
+JSONCONS_DEPRECATED_MSG("Instead, use wcsv_options") typedef wcsv_options wcsv_parameters;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_options") typedef csv_options csv_serializing_options;
+JSONCONS_DEPRECATED_MSG("Instead, use wcsv_options") typedef wcsv_options wcsv_serializing_options;
 #endif
 
 

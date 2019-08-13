@@ -402,7 +402,7 @@ struct json_type_traits<Json, T,
     }
 };
 
-template<class Json,class T>
+template<class Json, class T>
 struct json_type_traits<Json, T,
                         typename std::enable_if<std::is_floating_point<T>::value
 >::type>
@@ -513,7 +513,7 @@ struct json_type_traits<Json, bool>
     }
 };
 
-template<class Json,class T>
+template<class Json, class T>
 struct json_type_traits<Json, T, typename std::enable_if<std::is_same<T, 
     std::conditional<!std::is_same<bool,std::vector<bool>::const_reference>::value,
                      std::vector<bool>::const_reference,
@@ -917,7 +917,7 @@ public:
     }
     
     static basic_byte_string<Allocator> as(const Json& j)
-    {
+    { 
         return j.template as_byte_string<Allocator>();
     }
     
@@ -947,7 +947,27 @@ public:
         return Json(val);
     }
 };
-
+/*
+template<class Json>
+struct json_type_traits<Json, byte_string>
+{
+public:
+    static bool is(const Json& j) noexcept
+    {
+        return j.is_byte_string();
+    }
+    
+    static byte_string as(const Json& j)
+    {
+        return j.as_byte_string();
+    }
+    
+    static Json to_json(const byte_string& val)
+    {
+        return Json(val);
+    }
+};
+*/
 // basic_bignum
 
 template<class Json, class Allocator>

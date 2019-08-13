@@ -11,6 +11,7 @@
 #include <string>
 #include <cmath>
 #include <exception>
+#include <ostream>
 
 // Uncomment the following line to suppress deprecated names (recommended for new code)
 //#define JSONCONS_NO_DEPRECATED
@@ -70,23 +71,41 @@
 #  endif // defined(_MSC_VER)
 #endif // !defined(JSONCONS_HAS_STRING_VIEW)
 
-#define JSONCONS_NO_TO_CHARS
-
 // Deprecated symbols markup
-#if !defined(JSONCONS_DEPRECATED) && defined(_MSC_VER)
-#if (_MSC_VER) >= 1400
-#define JSONCONS_DEPRECATED(msg) __declspec(deprecated(msg))
+#if (defined(__cplusplus) && __cplusplus >= 201402L)
+#define JSONCONS_DEPRECATED [[deprecated]]
+#define JSONCONS_DEPRECATED_MSG(msg) [[deprecated(msg)]]
+#endif
+
+#if !defined(JSONCONS_DEPRECATED) && defined(__GNUC__) && defined(__has_extension)
+#if __has_extension(attribute_deprecated)
+#define JSONCONS_DEPRECATED __attribute__((deprecated))
 #endif
 #endif
 
-#if !defined(JSONCONS_DEPRECATED) && defined(__has_extension)
+#if !defined(JSONCONS_DEPRECATED_MSG) && defined(__GNUC__) && defined(__has_extension)
 #if __has_extension(attribute_deprecated_with_message)
-#define JSONCONS_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#define JSONCONS_DEPRECATED_MSG(msg) __attribute__((deprecated(msg)))
+#endif
+#endif
+
+#if !defined(JSONCONS_DEPRECATED) && defined(_MSC_VER)
+#define JSONCONS_DEPRECATED __declspec(deprecated)
+#endif
+
+#if !defined(JSONCONS_DEPRECATED_MSG) && defined(_MSC_VER)
+#if (_MSC_VER) >= 1920
+#define JSONCONS_DEPRECATED_MSG(msg) [[deprecated(msg)]]
+#else
+#define JSONCONS_DEPRECATED_MSG(msg) __declspec(deprecated(msg))
 #endif
 #endif
 
 #if !defined(JSONCONS_DEPRECATED)
-#define JSONCONS_DEPRECATED(msg)
+#define JSONCONS_DEPRECATED
+#endif
+#if !defined(JSONCONS_DEPRECATED_MSG)
+#define JSONCONS_DEPRECATED_MSG(msg)
 #endif
 
 #if defined(ANDROID) || defined(__ANDROID__)
@@ -95,7 +114,7 @@
 #else
 #define JSONCONS_NO_LOCALECONV
 #endif
-#endif
+#endif 
 
 #if defined(_MSC_VER)
 #define JSONCONS_HAS_MSC__STRTOD_L
@@ -127,5 +146,15 @@ using wstring_view = std::wstring_view;
         static const std::basic_string<CharT> sv(s, sizeof(s) / sizeof(CharT));\
         return sv;\
     }
+
+#define JSONCONS_EXPAND(X) X    
+#define JSONCONS_QUOTE(Prefix, A) JSONCONS_EXPAND(Prefix ## #A)
+
+#define JSONCONS_DEFINE_LITERAL( name ) \
+template<class CharT> CharT const* name##_literal(); \
+template<> inline char const * name##_literal<char>() { return JSONCONS_QUOTE(,name); } \
+template<> inline wchar_t const* name##_literal<wchar_t>() { return JSONCONS_QUOTE(L,name); } \
+template<> inline char16_t const* name##_literal<char16_t>() { return JSONCONS_QUOTE(u,name); } \
+template<> inline char32_t const* name##_literal<char32_t>() { return JSONCONS_QUOTE(U,name); }
 
 #endif

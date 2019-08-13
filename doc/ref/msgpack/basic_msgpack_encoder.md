@@ -1,60 +1,41 @@
-### jsoncons::basic_json_encoder
+### jsoncons::bson::basic_msgpack_encoder
 
 ```c++
-template<
-    class CharT,
-    class Result>
-> basic_json_encoder : public jsoncons::basic_json_content_handler<CharT>
+#include <jsoncons_ext/bson/msgpack_encoder.hpp>
 
 template<
-    class CharT,
     class Result>
-> basic_json_compressed_encoder : public jsoncons::basic_json_content_handler<CharT>
+> class basic_msgpack_encoder : public jsoncons::json_content_handler
 ```
 
-`basic_json_encoder` and `basic_json_compressed_encoder` are noncopyable and nonmoveable.
+`basic_msgpack_encoder` is noncopyable.
 
-#### Header
 
-    #include <jsoncons/json_encoder.hpp>
+![msgpack_stream_encoder](./diagrams/msgpack_encoder.png)
 
-![json_encoder](./diagrams/json_encoder.png)
-
-Four specializations for common character types and result types are defined
-for both the pretty print and compressed serializers:
+Four specializations for common character types and result types are defined:
 
 Type                       |Definition
 ---------------------------|------------------------------
-json_encoder            |basic_json_encoder<char,jsoncons::stream_result<char>>
-json_string_encoder     |basic_json_encoder<char,jsoncons::string_result<std::string>>
-wjson_encoder           |basic_json_encoder<wchar_t,jsoncons::stream_result<wchar_t>>
-wjson_string_encoder    |basic_json_encoder<wchar_t,jsoncons::string_result<std::wstring>>
-json_compressed_encoder            |basic_json_compressed_encoder<char,jsoncons::stream_result<char>>
-json_compressed_string_encoder     |basic_json_compressed_encoder<char,jsoncons::string_result<std::string>>
-wjson_compressed_encoder           |basic_json_compressed_encoder<wchar_t,jsoncons::stream_result<wchar_t>>
-wjson_compressed_string_encoder    |basic_json_compressed_encoder<wchar_t,jsoncons::string_result<std::wstring>>
+msgpack_stream_encoder            |basic_msgpack_encoder<jsoncons::binary_stream_result>
+bson_bytes_encoder     |basic_msgpack_encoder<jsoncons::binary_buffer_result>
 
 #### Member types
 
 Type                       |Definition
 ---------------------------|------------------------------
-char_type                  |CharT
+char_type                  |char
 result_type                |Result
 string_view_type           |
 
 #### Constructors
 
-    explicit basic_json_encoder(result_type result)
-Constructs a new encoder that is associated with the output adaptor `result`.
-
-    basic_json_encoder(result_type result, 
-                          const basic_json_encode_options<CharT>& options)
-Constructs a new encoder that is associated with the output adaptor `result` 
-and uses the specified [json options](json_options.md). 
+    explicit basic_msgpack_encoder(result_type result)
+Constructs a new encoder that writes to the specified result.
 
 #### Destructor
 
-    virtual ~basic_json_encoder()
+    virtual ~basic_msgpack_encoder()
 
 ### Inherited from [basic_json_content_handler](../json_content_handler.md)
 
@@ -115,46 +96,4 @@ and uses the specified [json options](json_options.md).
 
 ### Examples
 
-### Feeding json events directly to a `json_encoder`
-```c++
-#include <iostream>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <jsoncons/json_encoder.hpp>
 
-using namespace jsoncons;
-using boost::numeric::ublas::matrix;
-
-int main()
-{
-    matrix<double> A(2, 2);
-    A(0, 0) = 1;
-    A(0, 1) = 2;
-    A(1, 0) = 3;
-    A(1, 1) = 4;
-
-    json_options options;
-    json_encoder os(std::cout, options); 
-    os.begin_array();
-    for (size_t i = 0; i < A.size1(); ++i)
-    {
-        os.begin_array();
-        for (size_t j = 0; j < A.size2(); ++j)
-        {
-            os.double_value(A(i, j));
-        }
-        os.end_array();
-    }
-    os.end_array();
-
-    return 0;
-}
-```
-
-Output:
-
-```json
-[
-    [1,2],
-    [3,4]
-]
-```

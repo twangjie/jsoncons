@@ -81,7 +81,8 @@ inline
 int k_comp(int e, int alpha, int /*gamma*/)
 {
     constexpr double d_1_log2_10 = 0.30102999566398114; //  1 / lg(10)
-    return static_cast<int>(std::ceil((alpha - e + 63) * d_1_log2_10));
+	int x = alpha - e + 63;
+    return static_cast<int>(std::ceil(x * d_1_log2_10));
 }
 
 // powers_ten_round64
@@ -192,7 +193,8 @@ void normalized_boundaries(double d, diy_fp_t *out_m_minus, diy_fp_t *out_m_plus
         mi.f = (v.f << 1) - 1;
         mi.e = v.e - 1;
     }
-    mi.f <<= mi.e - pl.e;
+	int x = mi.e - pl.e;
+    mi.f <<= x;
     mi.e = pl.e;
     *out_m_plus = pl;
     *out_m_minus = mi;

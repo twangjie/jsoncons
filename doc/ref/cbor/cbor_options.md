@@ -1,11 +1,10 @@
 ### jsoncons::cbor::cbor_options
 
-Specifies options for encoding and decoding CBOR.
-
-#### Header
 ```c++
 #include <jsoncons/cbor/cbor_options.hpp>
 ```
+
+Specifies options for encoding and decoding CBOR.
 
 ![cbor_options](./diagrams/cbor_options.png)
 
@@ -33,7 +32,7 @@ string references if present.
 
 #### Static member functions
 
-    static const cbor_options& default_options()
+    static const cbor_options& get_default_options()
 Default CBOR encode and decode options.
 
 ### See also

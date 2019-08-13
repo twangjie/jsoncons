@@ -4,8 +4,12 @@
 #include <jsoncons/json.hpp>
 #include <jsoncons_ext/csv/csv.hpp>
 #include <fstream>
+#include <iomanip>
+#include "example_types.hpp"
 
 using namespace jsoncons;
+
+namespace csv_examples {
 
 void csv_source_to_json_value()
 {
@@ -105,7 +109,7 @@ void read_write_csv_tasks()
     std::cout << pretty_print(tasks) << "\n\n";
 
     std::cout << "(2)\n";
-    csv::csv_encoder encoder(std::cout);
+    csv::csv_stream_encoder encoder(std::cout);
     tasks.dump(encoder);
 }
 
@@ -117,7 +121,7 @@ void serialize_array_of_arrays_to_comma_delimited()
     json countries;
     is >> countries;
 
-    csv::csv_encoder encoder(std::cout);
+    csv::csv_stream_encoder encoder(std::cout);
     countries.dump(encoder);
 }
 
@@ -131,7 +135,7 @@ void serialize_to_tab_delimited_file()
 
     csv::csv_options options;
     options.field_delimiter('\t');
-    csv::csv_encoder encoder(std::cout,options);
+    csv::csv_stream_encoder encoder(std::cout,options);
 
     employees.dump(encoder);
 }
@@ -157,7 +161,7 @@ void serialize_books_to_csv_file()
     ]
     )");
 
-    csv::csv_encoder encoder(std::cout);
+    csv::csv_stream_encoder encoder(std::cout);
 
     books.dump(encoder);
 }
@@ -186,7 +190,7 @@ void serialize_books_to_csv_file_with_reorder()
     csv::csv_options options;
     options.column_names("author,title,price");
 
-    csv::csv_encoder encoder(std::cout, options);
+    csv::csv_stream_encoder encoder(std::cout, options);
 
     books.dump(encoder);
 }
@@ -270,7 +274,7 @@ void decode_csv_stream()
     const std::string bond_yields = R"(Date,1Y,2Y,3Y,5Y
 2017-01-09,0.0062,0.0075,0.0083,0.011
 2017-01-08,0.0063,0.0076,0.0084,0.0112
-2017-01-08,0.0063,0.0076,0.0084,0.0112
+2017-01-07,0.0063,0.0076,0.0084,0.0112
 )";
 
     csv::csv_options options;
@@ -357,14 +361,16 @@ NY,LON,TOR;LON
 "NY";"LON","TOR","LON"
 "NY","LON","TOR";"LON"
 )";
-    json_options print_options;
-    print_options.array_array_line_splits(line_split_kind::same_line);
-
     csv::csv_options options1;
     options1.assume_header(true)
-           .subfield_delimiter(';');
+            .subfield_delimiter(';');
 
     json j1 = csv::decode_csv<json>(s,options1);
+
+    json_options print_options;
+    print_options.array_array_line_splits(line_split_kind::same_line)
+                 .float_format(float_chars_format::fixed);
+
     std::cout << "(1)\n" << pretty_print(j1,print_options) << "\n\n";
 
     csv::csv_options options2;
@@ -383,27 +389,188 @@ NY,LON,TOR;LON
     std::cout << "(3)\n" << pretty_print(j3,print_options) << "\n\n";
 }
 
-void csv_examples()
+    const std::string data = R"(index_id,observation_date,rate
+EUR_LIBOR_06M,2015-10-23,0.0000214
+EUR_LIBOR_06M,2015-10-26,0.0000143
+EUR_LIBOR_06M,2015-10-27,0.0000001
+)";
+
+void as_a_variant_like_structure()
+{
+    csv::csv_options options;
+    options.assume_header(true);
+
+    // Parse the CSV data into an ojson value
+    ojson j = csv::decode_csv<ojson>(data, options);
+
+    // Pretty print
+    json_options print_options;
+    print_options.float_format(float_chars_format::fixed);
+    std::cout << "(1)\n" << pretty_print(j, print_options) << "\n\n";
+
+    // Iterate over the rows
+    std::cout << std::fixed << std::setprecision(7);
+    std::cout << "(2)\n";
+    for (const auto& row : j.array_range())
+    {
+        // Access rated as string and rating as double
+        std::cout << row["index_id"].as<std::string>() << ", " 
+                  << row["observation_date"].as<std::string>() << ", " 
+                  << row["rate"].as<double>() << "\n";
+    }
+}
+
+void as_a_strongly_typed_cpp_structure()
+{
+    csv::csv_options options;
+    options.assume_header(true)
+           .float_format(float_chars_format::fixed);
+
+    // Decode the CSV data into a c++ structure
+    std::vector<ns::fixing> v = csv::decode_csv<std::vector<ns::fixing>>(data, options);
+
+    // Iterate over values
+    std::cout << std::fixed << std::setprecision(7);
+    std::cout << "(1)\n";
+    for (const auto& item : v)
+    {
+        std::cout << item.index_id() << ", " << item.observation_date() << ", " << item.rate() << "\n";
+    }
+
+    // Encode the c++ structure into CSV data
+    std::string s;
+    csv::encode_csv(v, s, options);
+    std::cout << "(2)\n";
+    std::cout << s << "\n";
+}
+
+void as_a_stream_of_json_events()
+{
+    csv::csv_options options;
+    options.assume_header(true);
+
+    csv::csv_cursor cursor(data, options);
+
+    for (; !cursor.done(); cursor.next())
+    {
+        const auto& event = cursor.current();
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_array:
+                std::cout << event.event_type() << " " << "\n";
+                break;
+            case staj_event_type::end_array:
+                std::cout << event.event_type() << " " << "\n";
+                break;
+            case staj_event_type::begin_object:
+                std::cout << event.event_type() << " " << "\n";
+                break;
+            case staj_event_type::end_object:
+                std::cout << event.event_type() << " " << "\n";
+                break;
+            case staj_event_type::name:
+                // Or std::string_view, if supported
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
+                break;
+            case staj_event_type::string_value:
+                // Or std::string_view, if supported
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
+                break;
+            case staj_event_type::null_value:
+                std::cout << event.event_type() << "\n";
+                break;
+            case staj_event_type::bool_value:
+                std::cout << event.event_type() << ": " << std::boolalpha << event.get<bool>() << "\n";
+                break;
+            case staj_event_type::int64_value:
+                std::cout << event.event_type() << ": " << event.get<int64_t>() << "\n";
+                break;
+            case staj_event_type::uint64_value:
+                std::cout << event.event_type() << ": " << event.get<uint64_t>() << "\n";
+                break;
+            case staj_event_type::double_value:
+                std::cout << event.event_type() << ": " << event.get<double>() << "\n";
+                break;
+            default:
+                std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
+                break;
+        }
+    }
+}
+
+void grouped_into_basic_json_records()
+{
+    csv::csv_options options;
+    options.assume_header(true);
+
+    csv::csv_cursor cursor(data, options);
+
+    auto it = make_array_iterator<ojson>(cursor);
+    auto end = jsoncons::end(it);
+
+    json_options print_options;
+    print_options.float_format(float_chars_format::fixed);
+    while (it != end)
+    {
+        std::cout << pretty_print(*it, print_options) << "\n";
+        ++it;
+    }
+}
+
+void grouped_into_strongly_typed_records()
+{
+    typedef std::tuple<std::string,std::string,double> record_type;
+
+    csv::csv_options options;
+    options.assume_header(true);
+    csv::csv_cursor cursor(data, options);
+
+    auto it = make_array_iterator<record_type>(cursor);
+
+    std::cout << std::fixed << std::setprecision(7);
+    for (const auto& record : it)
+    {
+        std::cout << std::get<0>(record) << ", " << std::get<1>(record) << ", " << std::get<2>(record) << "\n";
+    }
+}
+
+
+} // csv_examples
+
+void run_csv_examples()
 {
     std::cout << "\nCSV examples\n\n";
-    read_write_csv_tasks();
-    serialize_to_tab_delimited_file();
-    serialize_array_of_arrays_to_comma_delimited();
-    serialize_books_to_csv_file();
-    serialize_books_to_csv_file_with_reorder();
-    last_column_repeats();
-    last_two_columns_repeat();
-    decode_csv_string();
-    decode_csv_stream();
-    encode_csv_file_from_books();
-    decode_encode_csv_tasks();
+    csv_examples::read_write_csv_tasks();
+    csv_examples::serialize_to_tab_delimited_file();
+    csv_examples::serialize_array_of_arrays_to_comma_delimited();
+    csv_examples::serialize_books_to_csv_file();
+    csv_examples::serialize_books_to_csv_file_with_reorder();
+    csv_examples::last_column_repeats();
+    csv_examples::last_two_columns_repeat();
+    csv_examples::decode_csv_string();
+    csv_examples::decode_csv_stream();
+    csv_examples::encode_csv_file_from_books();
+    csv_examples::decode_encode_csv_tasks();
 
-    csv_decode_without_type_inference();
-    csv_parser_type_inference();
+    csv_examples::csv_decode_without_type_inference();
+    csv_examples::csv_parser_type_inference();
 
-    decode_csv_with_subfields();
-    csv_source_to_json_value();
-    csv_source_to_cpp_object();
+    csv_examples::decode_csv_with_subfields();
+    csv_examples::csv_source_to_json_value();
+    csv_examples::csv_source_to_cpp_object();
+
+    std::cout << "\n";
+    csv_examples::as_a_variant_like_structure();
+    std::cout << "\n";
+    csv_examples::as_a_strongly_typed_cpp_structure();
+    std::cout << "\n";
+    csv_examples::as_a_stream_of_json_events();
+    std::cout << "\n";
+    csv_examples::grouped_into_basic_json_records();
+    std::cout << "\n";
+    csv_examples::grouped_into_strongly_typed_records();
+    std::cout << "\n";
+
     std::cout << std::endl;
 }
 

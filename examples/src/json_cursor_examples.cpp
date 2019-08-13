@@ -36,60 +36,60 @@ void reading_a_json_stream()
 {
     std::istringstream is(example);
 
-    json_cursor reader(is);
+    json_cursor cursor(is);
 
-    for (; !reader.done(); reader.next())
+    for (; !cursor.done(); cursor.next())
     {
-        const auto& event = reader.current();
+        const auto& event = cursor.current();
         switch (event.event_type())
         {
             case staj_event_type::begin_array:
-                std::cout << "begin_array\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::end_array:
-                std::cout << "end_array\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::begin_object:
-                std::cout << "begin_object\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::end_object:
-                std::cout << "end_object\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::name:
                 // Or std::string_view, if supported
-                std::cout << "name: " << event.get<jsoncons::string_view>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                 break;
             case staj_event_type::string_value:
                 // Or std::string_view, if supported
-                std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                 break;
             case staj_event_type::null_value:
-                std::cout << "null_value: " << "\n";
+                std::cout << event.event_type() << "\n";
                 break;
             case staj_event_type::bool_value:
-                std::cout << "bool_value: " << std::boolalpha << event.get<bool>() << "\n";
+                std::cout << event.event_type() << ": " << std::boolalpha << event.get<bool>() << "\n";
                 break;
             case staj_event_type::int64_value:
-                std::cout << "int64_value: " << event.get<int64_t>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<int64_t>() << "\n";
                 break;
             case staj_event_type::uint64_value:
-                std::cout << "uint64_value: " << event.get<uint64_t>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<uint64_t>() << "\n";
                 break;
             case staj_event_type::double_value:
-                std::cout << "double_value: " << event.get<double>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<double>() << "\n";
                 break;
             default:
-                std::cout << "Unhandled event type\n";
+                std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
                 break;
         }
     }
 }
 
-class author_filter : public staj_filter
+struct author_filter 
 {
     bool accept_next_ = false;
-public:
-    bool accept(const staj_event& event, const ser_context&) override
+
+    bool operator()(const staj_event& event, const ser_context&) 
     {
         if (event.event_type()  == staj_event_type::name &&
             event.get<jsoncons::string_view>() == "author")
@@ -113,18 +113,19 @@ public:
 // Filtering the stream
 void filtering_a_json_stream()
 {
-    json_cursor cursor(example);
-
     author_filter filter;
-    filtered_staj_reader reader(cursor, filter);
+    json_cursor cursor(example, filter);
 
-    for (; !reader.done(); reader.next())
+    for (; !cursor.done(); cursor.next())
     {
-        const auto& event = reader.current();
+        const auto& event = cursor.current();
         switch (event.event_type())
         {
             case staj_event_type::string_value:
                 std::cout << event.get<jsoncons::string_view>() << "\n";
+                break;
+            default:
+                std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
                 break;
         }
     }

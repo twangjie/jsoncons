@@ -16,6 +16,7 @@
 #include <jsoncons/config/binary_detail.hpp>
 #include <jsoncons_ext/ubjson/ubjson_encoder.hpp>
 #include <jsoncons_ext/ubjson/ubjson_reader.hpp>
+#include <jsoncons_ext/ubjson/ubjson_cursor.hpp>
 
 namespace jsoncons { namespace ubjson {
 
@@ -44,7 +45,7 @@ typename std::enable_if<is_basic_json_class<T>::value,void>::type
 encode_ubjson(const T& j, std::ostream& os)
 {
     typedef typename T::char_type char_type;
-    ubjson_encoder encoder(os);
+    ubjson_stream_encoder encoder(os);
     auto adaptor = make_json_content_handler_adaptor<basic_json_content_handler<char_type>>(encoder);
     j.dump(adaptor);
 }
@@ -53,7 +54,7 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,void>::type 
 encode_ubjson(const T& val, std::ostream& os)
 {
-    ubjson_encoder encoder(os);
+    ubjson_stream_encoder encoder(os);
     write_to(json(), val, encoder);
 }
 
@@ -74,10 +75,9 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
 decode_ubjson(const std::vector<uint8_t>& v)
 {
-    jsoncons::json_decoder<json> decoder;
-    basic_ubjson_reader<jsoncons::bytes_source> reader(v, decoder);
-    reader.read();
-    return decoder.get_result().template as<T>();
+    ubjson_bytes_cursor reader(v);
+    T val = read_from<T>(json(),reader);
+    return val;
 }
 
 template<class T>
@@ -86,7 +86,7 @@ decode_ubjson(std::istream& is)
 {
     jsoncons::json_decoder<T> decoder;
     auto adaptor = make_json_content_handler_adaptor<json_content_handler>(decoder);
-    ubjson_reader reader(is, adaptor);
+    ubjson_stream_reader reader(is, adaptor);
     reader.read();
     return decoder.get_result();
 }
@@ -95,10 +95,9 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
 decode_ubjson(std::istream& is)
 {
-    jsoncons::json_decoder<json> decoder;
-    ubjson_reader reader(is, decoder);
-    reader.read();
-    return decoder.get_result();
+    ubjson_stream_cursor reader(is);
+    T val = read_from<T>(json(), reader);
+    return val;
 }
 
 }}

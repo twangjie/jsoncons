@@ -16,7 +16,6 @@
 #include <jsoncons/source.hpp>
 #include <jsoncons/json_exception.hpp>
 #include <jsoncons/json_content_handler.hpp>
-#include <jsoncons/parse_error_handler.hpp>
 #include <jsoncons_ext/csv/csv_error.hpp>
 #include <jsoncons_ext/csv/csv_parser.hpp>
 #include <jsoncons/json.hpp>
@@ -45,7 +44,9 @@ class basic_csv_reader
     basic_csv_reader(const basic_csv_reader&) = delete; 
     basic_csv_reader& operator = (const basic_csv_reader&) = delete; 
 
-    default_parse_error_handler default_err_handler_;
+    basic_null_json_content_handler<CharT> default_content_handler_;
+
+    basic_json_content_handler<CharT>& handler_;
 
     basic_csv_parser<CharT,Allocator> parser_;
     Src source_;
@@ -67,8 +68,8 @@ public:
 
        : basic_csv_reader(std::forward<Source>(source), 
                           handler, 
-                          basic_csv_options<CharT>::default_options(), 
-                          default_err_handler_)
+                          basic_csv_options<CharT>::get_default_options(), 
+                          default_csv_parsing())
     {
     }
 
@@ -80,17 +81,17 @@ public:
         : basic_csv_reader(std::forward<Source>(source), 
                            handler, 
                            options, 
-                           default_err_handler_)
+                           default_csv_parsing())
     {
     }
 
     template <class Source>
     basic_csv_reader(Source&& source,
                      basic_json_content_handler<CharT>& handler,
-                     parse_error_handler& err_handler)
+                     std::function<bool(csv_errc,const ser_context&)> err_handler)
         : basic_csv_reader(std::forward<Source>(source), 
                            handler, 
-                           basic_csv_options<CharT>::default_options(), 
+                           basic_csv_options<CharT>::get_default_options(), 
                            err_handler)
     {
     }
@@ -99,10 +100,10 @@ public:
     basic_csv_reader(Source&& source,
                      basic_json_content_handler<CharT>& handler,
                      const basic_csv_decode_options<CharT>& options,
-                     parse_error_handler& err_handler,
+                     std::function<bool(csv_errc,const ser_context&)> err_handler,
                      typename std::enable_if<!std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
-       :
-         parser_(handler, options, err_handler),
+       : handler_(handler),
+         parser_(options, err_handler),
          source_(std::forward<Source>(source)),
          buffer_length_(default_max_buffer_length),
          eof_(false),
@@ -115,10 +116,10 @@ public:
     basic_csv_reader(Source&& source,
                      basic_json_content_handler<CharT>& handler,
                      const basic_csv_decode_options<CharT>& options,
-                     parse_error_handler& err_handler,
+                     std::function<bool(csv_errc,const ser_context&)> err_handler,
                      typename std::enable_if<std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
-       :
-         parser_(handler, options, err_handler),
+       : handler_(handler),
+         parser_(options, err_handler),
          buffer_length_(0),
          eof_(false),
          begin_(false)
@@ -177,13 +178,13 @@ public:
 
 #if !defined(JSONCONS_NO_DEPRECATED)
 
-    JSONCONS_DEPRECATED("Instead, use buffer_length()")
+    JSONCONS_DEPRECATED_MSG("Instead, use buffer_length()")
     size_t buffer_capacity() const
     {
         return buffer_length_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use buffer_length(size_t)")
+    JSONCONS_DEPRECATED_MSG("Instead, use buffer_length(size_t)")
     void buffer_capacity(size_t length)
     {
         buffer_length_ = length;
@@ -200,11 +201,7 @@ private:
             return;
         }   
         parser_.reset();
-        if (ec)
-        {
-            return;
-        }
-        while (!parser_.stopped())
+        while (!parser_.finished())
         {
             if (parser_.source_exhausted())
             {
@@ -215,15 +212,6 @@ private:
                     {
                         return;
                     }
-                    /* buffer_.clear();
-                    buffer_.resize(buffer_length_);
-                    size_t count = source_.read(buffer_.data(), buffer_length_);
-                    buffer_.resize(count);
-                    if (buffer_.size() == 0)
-                    {
-                        eof_ = true;
-                    }
-                    parser_.update(buffer_.data(),buffer_.size());*/
                 }
                 else
                 {
@@ -231,7 +219,7 @@ private:
                     eof_ = true;
                 }
             }
-            parser_.parse_some(ec);
+            parser_.parse_some(handler_, ec);
             if (ec) return;
         }
     }
@@ -265,64 +253,12 @@ private:
 
 };
 
-template <class T,class CharT>
-typename std::enable_if<is_basic_json_class<T>::value,T>::type 
-decode_csv(const std::basic_string<CharT>& s, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-
-    json_decoder<T> decoder;
-
-    basic_csv_reader<char_type,jsoncons::string_source<char_type>> reader(s,decoder,options);
-    reader.read();
-    return decoder.get_result();
-}
-
-template <class T,class CharT>
-typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
-decode_csv(const std::basic_string<CharT>& s, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-
-    json_decoder<basic_json<CharT>> decoder;
-
-    basic_csv_reader<char_type,jsoncons::string_source<char_type>> reader(s,decoder,options);
-    reader.read();
-    return decoder.get_result().template as<T>();
-}
-
-template <class T,class CharT>
-typename std::enable_if<is_basic_json_class<T>::value,T>::type 
-decode_csv(std::basic_istream<CharT>& is, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-
-    json_decoder<T> decoder;
-
-    basic_csv_reader<char_type,jsoncons::stream_source<char_type>> reader(is,decoder,options);
-    reader.read();
-    return decoder.get_result();
-}
-
-template <class T,class CharT>
-typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
-decode_csv(std::basic_istream<CharT>& is, const basic_csv_options<CharT>& options = basic_csv_options<CharT>::default_options())
-{
-    typedef CharT char_type;
-
-    json_decoder<basic_json<CharT>> decoder;
-
-    basic_csv_reader<char_type,jsoncons::stream_source<char_type>> reader(is,decoder,options);
-    reader.read();
-    return decoder.get_result().template as<T>();
-}
-
 typedef basic_csv_reader<char> csv_reader;
 typedef basic_csv_reader<wchar_t> wcsv_reader;
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-JSONCONS_DEPRECATED("Instead, use csv_reader") typedef csv_reader csv_string_reader;
-JSONCONS_DEPRECATED("Instead, use wcsv_reader") typedef wcsv_reader wcsv_string_reader;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_reader") typedef csv_reader csv_string_reader;
+JSONCONS_DEPRECATED_MSG("Instead, use wcsv_reader") typedef wcsv_reader wcsv_string_reader;
 #endif
 
 }}

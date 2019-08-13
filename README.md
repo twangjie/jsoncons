@@ -1,22 +1,21 @@
 # JSONCONS
 
 jsoncons is a C++, header-only library for constructing [JSON](http://www.json.org) and JSON-like
-data formats such as [CBOR](http://cbor.io/). It supports 
+data formats such as [CBOR](http://cbor.io/). For each supported data format, it enables you
+to work with the data in a number of ways:
 
-- Parsing JSON-like text or binary formats into a tree model
-  that defines an interface for accessing and modifying that data.
+- As a variant-like data structure, [basic_json](doc/ref/basic_json.md) 
 
-- Serializing the tree model into different JSON-like text or binary formats.
+- As a strongly typed C++ data structure
 
-- Converting from JSON-like text or binary formats to C++ data structures and back via [json_type_traits](doc/ref/json_type_traits.md).
-
-- Streaming JSON read and write events, somewhat analogously to SAX (push parsing) and StAX (pull parsing) in the XML world. 
+- As a stream of parse events, somewhat analogous to StAX pull parsing and push serializing
+  in the XML world.
 
 Compared to other JSON libraries, jsoncons has been designed to handle very large JSON texts. At its heart are
 SAX style parsers and serializers. Its [json parser](doc/ref/json_parser.md) is an 
 incremental parser that can be fed its input in chunks, and does not require an entire file to be loaded in memory at one time. 
-Its tree model is more compact than most, and can be made more compact still with a user-supplied
-allocator. It also supports memory efficient parsing of very large JSON texts with a [pull parser](doc/ref/json_cursor.md),
+Its variant-like data structure is more compact than most, and can be made more compact still with a user-supplied
+allocator. It also supports memory efficient parsing of very large JSON texts with a [pull parser](doc/ref/basic_json_cursor.md),
 built on top of its incremental parser.  
 
 The [jsoncons data model](doc/ref/data-model.md) supports the familiar JSON types - nulls,
@@ -56,6 +55,7 @@ jsoncons uses some features that are new to C++ 11, including [move semantics](h
 |-------------------------|---------------------------|-------------|-------------------|-------|
 | Microsoft Visual Studio | vs2015 (MSVC 19.0.24241.7)| x86,x64     | Windows 10        |       |
 |                         | vs2017                    | x86,x64     | Windows 10        |       |
+|                         | vs2019                    | x86,x64     | Windows 10        |       |
 | g++                     | 4.8 and above             | x64         | Ubuntu            |`std::regex` isn't fully implemented in 4.8, so `jsoncons::jsonpath` regular expression filters aren't supported in 4.8 |
 |                         | 4.8.5                     | x64         | CentOS 7.6        |`std::regex` isn't fully implemented in 4.8, so `jsoncons::jsonpath` regular expression filters aren't supported in 4.8 |
 |                         | 6.3.1 (Red Hat 6.3.1-1)   | x64         | Fedora release 24 |       |
@@ -68,7 +68,9 @@ It is also cross compiled for ARMv8-A architecture on Travis using clang and exe
 
 ## Get jsoncons
 
-Download the [latest release](https://github.com/danielaparker/jsoncons/releases) and unpack the zip file. Copy the directory `include/jsoncons` to your `include` directory. If you wish to use extensions, copy `include/jsoncons_ext` as well. 
+You can use the [vcpkg](https://github.com/Microsoft/vcpkg) platform library manager to install the [jsoncons package](https://github.com/microsoft/vcpkg/tree/master/ports/jsoncons).
+
+Or, download the [latest release](https://github.com/danielaparker/jsoncons/releases) and unpack the zip file. Copy the directory `include/jsoncons` to your `include` directory. If you wish to use extensions, copy `include/jsoncons_ext` as well. 
 
 Or, download the latest code on [master](https://github.com/danielaparker/jsoncons/archive/master.zip).
 
@@ -76,7 +78,7 @@ Or, download the latest code on [master](https://github.com/danielaparker/jsonco
 
 - [Quick guide](http://danielaparker.github.io/jsoncons)
 - [Examples](doc/Examples.md)
-- [Reference](doc/Home.md)
+- [Reference](doc/Reference.md)
 - [Roadmap](Roadmap.md)
 
 As the `jsoncons` library has evolved, names have sometimes changed. To ease transition, jsoncons deprecates the old names but continues to support many of them. See the [deprecated list](doc/ref/deprecated.md) for the status of old names. The deprecated names can be suppressed by defining macro `JSONCONS_NO_DEPRECATED`, which is recommended for new code.
@@ -91,12 +93,25 @@ As the `jsoncons` library has evolved, names have sometimes changed. To ease tra
 
 - [Performance benchmarks with text and doubles](https://github.com/danielaparker/json_benchmarks/blob/master/report/performance_fp.md)
 
-### Overview
+## Examples
 
-For the examples below you need to include some header files and construct a string of JSON data:
+[Working with JSON data](#E1)  
+
+[Working with CBOR data](#E2)  
+
+[Constructing json values](#E3)  
+
+[Playing around with CBOR, JSON, and CSV](#E4)  
+
+<div id="E1"/> 
+
+### Working with JSON data
+
+For the examples below you need to include some header files and initialize a string of JSON data:
 
 ```c++
 #include <jsoncons/json.hpp>
+#include <jsoncons_ext/jsonpath/json_query.hpp>
 #include <iostream>
 
 using namespace jsoncons; // for convenience
@@ -118,42 +133,57 @@ std::string data = R"(
 
 jsoncons allows you to work with the data in a number of ways:
 
-- As a variant-like structure, [basic_json](doc/ref/json.md) 
+- As a variant-like data structure, [basic_json](doc/ref/basic_json.md) 
 
 - As a strongly typed C++ data structure
 
 - As a stream of parse events
 
-#### As a variant-like structure
+#### As a variant-like data structure
 
 ```c++
-
 int main()
 {
-    // Parse the string of data into a json value
-    json j = json::parse(data);
+        // Parse the string of data into a json value
+        json j = json::parse(data);
 
-    // Pretty print
-    std::cout << "(1)\n" << pretty_print(j) << "\n\n";
+        // Does object member reputons exist?
+        std::cout << "(1) " << std::boolalpha << j.contains("reputons") << "\n\n";
 
-    // Does object member reputons exist?
-    std::cout << "(2) " << std::boolalpha << j.contains("reputons") << "\n\n";
+        // Get a reference to reputons array 
+        const json& v = j["reputons"]; 
 
-    // Get a reference to reputons array value
-    const json& v = j["reputons"]; 
+        // Iterate over reputons array 
+        std::cout << "(2)\n";
+        for (const auto& item : v.array_range())
+        {
+            // Access rated as string and rating as double
+            std::cout << item["rated"].as<std::string>() << ", " << item["rating"].as<double>() << "\n";
+        }
+        std::cout << "\n";
 
-    // Iterate over reputons array value
-    std::cout << "(3)\n";
-    for (const auto& item : v.array_range())
-    {
-        // Access rated as string and rating as double
-        std::cout << item["rated"].as<std::string>() << ", " << item["rating"].as<double>() << "\n";
-    }
+        // Select all "rated" with JSONPath
+        std::cout << "(3)\n";
+        json result = jsonpath::json_query(j,"$..rated");
+        std::cout << pretty_print(result) << "\n\n";
+
+        // Serialize back to JSON
+        std::cout << "(4)\n" << pretty_print(j) << "\n\n";
 }
 ```
 Output:
 ```
-(1)
+(1) true
+
+(2)
+Marilyn C, 0.90
+
+(3)
+[
+    "Marilyn C"
+]
+
+(4)
 {
     "application": "hiking",
     "reputons": [
@@ -165,11 +195,6 @@ Output:
         }
     ]
 }
-
-(2) true
-
-(3)
-Marilyn C, 0.9
 ```
 
 #### As a strongly typed C++ data structure
@@ -284,52 +309,52 @@ See [examples](doc/Examples.md#G1) for other ways of specializing `json_type_tra
 ```c++
 int main()
 {
-    json_cursor reader(data);
-    for (; !reader.done(); reader.next())
+    json_cursor cursor(data);
+    for (; !cursor.done(); cursor.next())
     {
-        const auto& event = reader.current();
+        const auto& event = cursor.current();
         switch (event.event_type())
         {
             case staj_event_type::begin_array:
-                std::cout << "begin_array\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::end_array:
-                std::cout << "end_array\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::begin_object:
-                std::cout << "begin_object\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::end_object:
-                std::cout << "end_object\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::name:
                 // Or std::string_view, if supported
-                std::cout << "name: " << event.get<jsoncons::string_view>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                 break;
             case staj_event_type::string_value:
                 // Or std::string_view, if supported
-                std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                 break;
             case staj_event_type::null_value:
-                std::cout << "null_value: " << "\n";
+                std::cout << event.event_type() << "\n";
                 break;
             case staj_event_type::bool_value:
-                std::cout << "bool_value: " << std::boolalpha << event.get<bool>() << "\n";
+                std::cout << event.event_type() << ": " << std::boolalpha << event.get<bool>() << "\n";
                 break;
             case staj_event_type::int64_value:
-                std::cout << "int64_value: " << event.get<int64_t>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<int64_t>() << "\n";
                 break;
             case staj_event_type::uint64_value:
-                std::cout << "uint64_value: " << event.get<uint64_t>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<uint64_t>() << "\n";
                 break;
             case staj_event_type::double_value:
-                std::cout << "double_value: " << event.get<double>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<double>() << "\n";
                 break;
             default:
-                std::cout << "Unhandled event type\n";
+                std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
                 break;
         }
-    }
+    }    
 }
 ```
 Output:
@@ -351,39 +376,312 @@ double_value: 0.9
 end_object
 end_array
 end_object
+string_value: Marilyn C
 ```
 
-## About jsoncons::basic_json
-
-The jsoncons library provides a `basic_json` class template, which is the generalization of a `json` value for different 
-character types, different policies for ordering name-value pairs, etc. A `basic_json` provides a tree model
-of JSON-like data formats, and defines an interface for accessing and modifying that data.
-Despite its name, it is not JSON specific.
+You can apply a filter to the stream, for example,
 
 ```c++
-typedef basic_json<char,
-                   ImplementationPolicy = sorted_policy,
-                   Allocator = std::allocator<char>> json;
+int main()
+{
+    std::string name;
+    auto filter = [&](const staj_event& ev, const ser_context&) -> bool
+    {
+        if (ev.event_type() == staj_event_type::name)
+        {
+            name = ev.get<std::string>();
+            return false;
+        }
+        else if (name == "rated")
+        {
+            name.clear();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    };
+
+    json_cursor cursor(data, filter);
+    for (; !cursor.done(); cursor.next())
+    {
+        const auto& event = cursor.current();
+        switch (event.event_type())
+        {
+            case staj_event_type::string_value:
+                // Or std::string_view, if supported
+                std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
+                break;
+            default:
+                std::cout << "Unhandled event type\n";
+                break;
+        }
+    }
+}    
 ```
-The library includes four instantiations of `basic_json`:
+Output:
+```
+string_value: Marilyn C
+```
 
-- [json](doc/ref/json.md) constructs a utf8 character json value that sorts name-value members alphabetically
+<div id="E2"/> 
 
-- [ojson](doc/ref/ojson.md) constructs a utf8 character json value that preserves the original name-value insertion order
+### Working with CBOR data
 
-- [wjson](doc/ref/wjson.md) constructs a wide character json value that sorts name-value members alphabetically
+For the examples below you need to include some header files and initialize a buffer of CBOR data:
 
-- [wojson](doc/ref/wojson.md) constructs a wide character json value that preserves the original name-value insertion order
+```c++
+#include <iomanip>
+#include <iostream>
+#include <jsoncons/json.hpp>
+#include <jsoncons_ext/cbor/cbor.hpp>
+#include <jsoncons_ext/jsonpath/json_query.hpp>
 
-## More examples
+using namespace jsoncons; // for convenience
 
-[Constructing JSON values](#E1)  
+const std::vector<uint8_t> data = {
+    0x9f, // Start indefinte length array
+      0x83, // Array of length 3
+        0x63, // String value of length 3
+          0x66,0x6f,0x6f, // "foo" 
+        0x44, // Byte string value of length 4
+          0x50,0x75,0x73,0x73, // 'P''u''s''s'
+        0xc5, // Tag 5 (bigfloat)
+          0x82, // Array of length 2
+            0x20, // -1
+            0x03, // 3   
+      0x83, // Another array of length 3
+        0x63, // String value of length 3
+          0x62,0x61,0x72, // "bar"
+        0xd6, // Expected conversion to base64
+        0x44, // Byte string value of length 4
+          0x50,0x75,0x73,0x73, // 'P''u''s''s'
+        0xc4, // Tag 4 (decimal fraction)
+          0x82, // Array of length 2
+            0x38, // Negative integer of length 1
+              0x1c, // -29
+            0xc2, // Tag 2 (positive bignum)
+              0x4d, // Byte string value of length 13
+                0x01,0x8e,0xe9,0x0f,0xf6,0xc3,0x73,0xe0,0xee,0x4e,0x3f,0x0a,0xd2,
+    0xff // "break"
+};
+```
 
-[Playing around with CBOR, JSON, and CSV](#E2)  
+jsoncons allows you to work with the CBOR data similarly to JSON data:
 
-[Query CBOR with JSONPath](#E3)  
+- As a variant-like data structure, [basic_json](doc/ref/basic_json.md) 
 
-<div id="E1"/> 
+- As a strongly typed C++ data structure
+
+- As a stream of parse events
+
+#### As a variant-like data structure
+
+```c++
+int main()
+{
+    // Parse the CBOR data into a json value
+    json j = cbor::decode_cbor<json>(data);
+
+    // Pretty print
+    std::cout << "(1)\n" << pretty_print(j) << "\n\n";
+
+    // Iterate over rows
+    std::cout << "(2)\n";
+    for (const auto& row : j.array_range())
+    {
+        std::cout << row[1].as<jsoncons::byte_string>() << " (" << row[1].tag() << ")\n";
+    }
+    std::cout << "\n";
+
+    // Select the third column with JSONPath
+    std::cout << "(3)\n";
+    json result = jsonpath::json_query(j,"$[*][2]");
+    std::cout << pretty_print(result) << "\n\n";
+
+    // Serialize back to CBOR
+    std::cout << "(4)\n";
+    std::vector<uint8_t> buffer;
+    cbor::encode_cbor(j, buffer);
+    for (auto c : buffer) 
+    {
+        std::cout << std::hex << std::setprecision(2) << std::setw(2) 
+                  << std::noshowbase << std::setfill('0') << static_cast<int>(c) << ' ';
+    }
+    std::cout << "\n\n";
+}
+```
+Output:
+```
+(1)
+[
+    ["foo", "UHVzcw", "0x3p-1"],
+    ["bar", "UHVzcw==", "1.23456789012345678901234567890"]
+]
+
+(2)
+50 75 73 73 (n/a)
+50 75 73 73 (base64)
+
+(3)
+[
+    "0x3p-1",
+    "1.23456789012345678901234567890"
+]
+
+(4)
+82 83 63 66 6f 6f 44 50 75 73 73 c5 82 20 03 83 63 62 61 72 d6 44 50 75 73 73 c4 82 38 1c c2 4d 01 8e e9 0f f6 c3 73 e0 ee 4e 3f 0a d2
+```
+
+#### As a strongly typed C++ data structure
+
+```c++
+int main()
+{
+    // Parse the string of data into a std::vector<std::tuple<std::string,jsoncons::byte_string,std::string>> value
+    auto val = cbor::decode_cbor<std::vector<std::tuple<std::string,jsoncons::byte_string,std::string>>>(data);
+
+    std::cout << "(1)\n";
+    for (const auto& row : val)
+    {
+        std::cout << std::get<0>(row) << ", " << std::get<1>(row) << ", " << std::get<2>(row) << "\n";
+    }
+    std::cout << "\n";
+
+    // Serialize back to CBOR
+    std::cout << "(2)\n";
+    std::vector<uint8_t> buffer;
+    cbor::encode_cbor(val, buffer);
+    for (auto c : buffer) 
+    {
+        std::cout << std::hex << std::setprecision(2) << std::setw(2) 
+                  << std::noshowbase << std::setfill('0') << static_cast<int>(c) << ' ';
+    }
+    std::cout << "\n\n";
+}
+```
+Output:
+```
+(1)
+foo, 50 75 73 73, 0x3p-1
+bar, 50 75 73 73, 1.23456789012345678901234567890
+
+(2)
+82 83 63 66 6f 6f 44 50 75 73 73 66 30 78 33 70 2d 31 83 63 62 61 72 44 50 75 73 73 78 1f 31 2e 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30
+```
+
+Note that when decoding the bigfloat and decimal fraction into a `std::string`, we lose the semantic information
+that the variant like data structure preserved with a tag, so serializing back to CBOR produces a text string.
+
+#### As a stream of parse events
+
+```c++
+int main()
+{
+    cbor::cbor_bytes_cursor cursor(data);
+    for (; !cursor.done(); cursor.next())
+    {
+        const auto& event = cursor.current();
+        switch (event.event_type())
+        {
+            case staj_event_type::begin_array:
+                std::cout << event.event_type() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::end_array:
+                std::cout << event.event_type() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::begin_object:
+                std::cout << event.event_type() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::end_object:
+                std::cout << event.event_type() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::name:
+                // Or std::string_view, if supported
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::string_value:
+                // Or std::string_view, if supported
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::byte_string_value:
+                std::cout << event.event_type() << ": " << event.get<jsoncons::byte_string_view>() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::null_value:
+                std::cout << event.event_type() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::bool_value:
+                std::cout << event.event_type() << ": " << std::boolalpha << event.get<bool>() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::int64_value:
+                std::cout << event.event_type() << ": " << event.get<int64_t>() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::uint64_value:
+                std::cout << event.event_type() << ": " << event.get<uint64_t>() << " " << "(" << event.tag() << ")\n";
+                break;
+            case staj_event_type::double_value:
+                std::cout << event.event_type() << ": "  << event.get<double>() << " " << "(" << event.tag() << ")\n";
+                break;
+            default:
+                std::cout << "Unhandled event type " << event.event_type() << " " << "(" << event.tag() << ")\n";
+                break;
+        }
+    }
+}
+```
+Output:
+```
+begin_array (n/a)
+begin_array (n/a)
+string_value: foo (n/a)
+byte_string_value: 50 75 73 73 (n/a)
+string_value: 0x3p-1 (bigfloat)
+end_array (n/a)
+begin_array (n/a)
+string_value: bar (n/a)
+byte_string_value: 50 75 73 73 (base64)
+string_value: 1.23456789012345678901234567890 (bigdec)
+end_array (n/a)
+end_array (n/a)
+```
+
+You can apply a filter to the stream, for example,
+
+```c++
+int main()
+{
+    auto filter = [&](const staj_event& ev, const ser_context&) -> bool
+    {
+        return (ev.tag() == semantic_tag::bigdec) || (ev.tag() == semantic_tag::bigfloat);  
+    };
+
+    cbor::cbor_bytes_cursor cursor(data, filter);
+    for (; !cursor.done(); cursor.next())
+    {
+        const auto& event = cursor.current();
+        switch (event.event_type())
+        {
+            case staj_event_type::string_value:
+                // Or std::string_view, if supported
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << " " << "(" << event.tag() << ")\n";
+                break;
+            default:
+                std::cout << "Unhandled event type " << event.event_type() << " " << "(" << event.tag() << ")\n";
+                break;
+        }
+    }
+}
+```
+Output:
+```
+string_value: 0x3p-1 (bigfloat)
+string_value: 1.23456789012345678901234567890 (bigdec)
+```
+
+<div id="E3"/> 
+
+### Constructing json values
 
 ```c++
 #include <iostream>
@@ -439,7 +737,7 @@ Output:
 }
 ```
 
-<div id="E2"/> 
+<div id="E4"/> 
 
 ### Playing around with CBOR, JSON, and CSV
 
@@ -454,7 +752,7 @@ using namespace jsoncons;
 
 int main()
 {
-    // Construct some CBOR using the streaming API
+    // Construct some CBOR using the push serializer
     std::vector<uint8_t> b;
     cbor::cbor_bytes_encoder encoder(b);
     encoder.begin_array(); // indefinite length outer array
@@ -609,7 +907,7 @@ Output:
 
 (7) 273.15
 
-(8) 50757373
+(8) 50 75 73 73
 
 (9) 828363666f6f4450757373c3490100000000000000008363626172d64450757373c48221196ab3
 
@@ -619,118 +917,8 @@ foo,UHVzcw,-18446744073709551617
 bar,UHVzcw==,273.15
 ```
 
-<div id="E3"/> 
+<div id="E5"/> 
 
-### Query CBOR with JSONPath
-```c++
-#include <jsoncons/json.hpp>
-#include <jsoncons_ext/cbor/cbor.hpp>
-#include <jsoncons_ext/jsonpath/json_query.hpp>
-#include <iostream>
-#include <iomanip>
-#include <cassert>
-
-using namespace jsoncons; // For convenience
-
-int main()
-{
-    // Construct a json array of numbers
-    json j = json::array();
-
-    j.emplace_back(5.0);
-
-    j.emplace_back(0.000071);
-
-    j.emplace_back("-18446744073709551617",semantic_tag::bigint);
-
-    j.emplace_back("1.23456789012345678901234567890", semantic_tag::bigdec);
-
-    j.emplace_back("0x3p-1", semantic_tag::bigfloat);
-
-    // Encode to JSON
-    std::cout << "(1)\n";
-    std::cout << pretty_print(j);
-    std::cout << "\n\n";
-
-    // as<std::string>() and as<double>()
-    std::cout << "(2)\n";
-    std::cout << std::dec << std::setprecision(15);
-    for (const auto& item : j.array_range())
-    {
-        std::cout << item.as<std::string>() << ", " << item.as<double>() << "\n";
-    }
-    std::cout << "\n";
-
-    // Encode to CBOR
-    std::vector<uint8_t> v;
-    cbor::encode_cbor(j,v);
-
-    std::cout << "(3)\n";
-    for (auto c : v)
-    {
-        std::cout << std::hex << std::setprecision(2) << std::setw(2)
-                  << std::setfill('0') << static_cast<int>(c);
-    }
-    std::cout << "\n\n";
-/*
-    85 -- Array of length 5     
-      fa -- float 
-        40a00000 -- 5.0
-      fb -- double 
-        3f129cbab649d389 -- 0.000071
-      c3 -- Tag 3 (negative bignum)
-        49 -- Byte string value of length 9
-          010000000000000000
-      c4 -- Tag 4 (decimal fraction)
-        82 -- Array of length 2
-          38 -- Negative integer of length 1
-            1c -- -29
-          c2 -- Tag 2 (positive bignum)
-            4d -- Byte string value of length 13
-              018ee90ff6c373e0ee4e3f0ad2
-      c5 -- Tag 5 (bigfloat)
-        82 -- Array of length 2
-          20 -- -1
-          03 -- 3   
-*/
-
-    // Decode back to json
-    json other = cbor::decode_cbor<json>(v);
-    assert(other == j);
-
-    // Query with JSONPath
-    std::cout << "(4)\n";
-    json result = jsonpath::json_query(other,"$[?(@ < 1.5)]");
-    std::cout << pretty_print(result) << "\n\n";
-```
-Output:
-```
-(1)
-[
-    5.0,
-    7.1e-05,
-    "-18446744073709551617",
-    "1.23456789012345678901234567890",
-    [-1, 3]
-]
-
-(2)
-5.0, 5
-7.1e-05, 7.1e-05
--18446744073709551617, -1.84467440737096e+19
-1.23456789012345678901234567890, 1.23456789012346
-1.5, 1.5
-
-(3)
-85fa40a00000fb3f129cbab649d389c349010000000000000000c482381cc24d018ee90ff6c373e0ee4e3f0ad2c5822003
-
-(4)
-[
-    7.1e-05,
-    "-18446744073709551617",
-    "1.23456789012345678901234567890"
-]
-```
 ## Building the test suite and examples with CMake
 
 [CMake](https://cmake.org/) is a cross-platform build tool that generates makefiles and solutions for the compiler environment of your choice. On Windows you can download a [Windows Installer package](https://cmake.org/download/). On Linux it is usually available as a package, e.g., on Ubuntu,

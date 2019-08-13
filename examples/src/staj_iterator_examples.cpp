@@ -6,6 +6,7 @@
 #include <jsoncons/staj_iterator.hpp>
 #include <string>
 #include <sstream>
+#include "example_types.hpp"
 
 using namespace jsoncons;
 
@@ -43,9 +44,9 @@ void staj_array_iterator_example()
 {
     std::istringstream is(array_example);
 
-    json_cursor reader(is);
+    json_cursor cursor(is);
 
-    staj_array_iterator<json> it(reader);
+    auto it = make_array_iterator<json>(cursor);
 
     for (const auto& j : it)
     {
@@ -54,48 +55,13 @@ void staj_array_iterator_example()
     std::cout << "\n\n";
 }
 
-struct employee
-{
-    std::string employeeNo;
-    std::string name;
-    std::string title;
-};
-
-namespace jsoncons
-{
-    template<class Json>
-    struct json_type_traits<Json, employee>
-    {
-        static bool is(const Json& j) noexcept
-        {
-            return j.is_object() && j.contains("employeeNo") && j.contains("name") && j.contains("title");
-        }
-        static employee as(const Json& j)
-        {
-            employee val;
-            val.employeeNo = j["employeeNo"].template as<std::string>();
-            val.name = j["name"].template as<std::string>();
-            val.title = j["title"].template as<std::string>();
-            return val;
-        }
-        static Json to_json(const employee& val)
-        {
-            Json j;
-            j["employeeNo"] = val.employeeNo;
-            j["name"] = val.name;
-            j["title"] = val.title;
-            return j;
-        }
-    };
-}
-
 void staj_array_iterator_example2()
 {
     std::istringstream is(array_example);
 
-    json_cursor reader(is);
+    json_cursor cursor(is);
 
-    staj_array_iterator<employee> it(reader);
+    auto it = make_array_iterator<ns::employee>(cursor);
 
     for (const auto& val : it)
     {
@@ -106,12 +72,9 @@ void staj_array_iterator_example2()
 
 void staj_object_iterator_example()
 {
+    json_cursor cursor(object_example);
 
-    std::istringstream is(object_example);
-
-    json_cursor reader(is);
-
-    staj_object_iterator<json> it(reader);
+    auto it = make_object_iterator<json>(cursor);
 
     for (const auto& kv : it)
     {

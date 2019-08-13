@@ -10,7 +10,6 @@
 #include <string>
 
 #include <jsoncons/json_content_handler.hpp>
-#include <jsoncons/parse_error_handler.hpp>
 
 namespace jsoncons {
 
@@ -37,19 +36,19 @@ public:
     }
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-    JSONCONS_DEPRECATED("Instead, use to_handler") 
+    JSONCONS_DEPRECATED_MSG("Instead, use to_handler") 
     basic_json_content_handler<CharT>& input_handler()
     {
         return to_handler_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use to_handler") 
+    JSONCONS_DEPRECATED_MSG("Instead, use to_handler") 
     basic_json_content_handler<CharT>& downstream_handler()
     {
         return to_handler_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use to_handler") 
+    JSONCONS_DEPRECATED_MSG("Instead, use to_handler") 
     basic_json_content_handler<CharT>& destination_handler()
     {
         return to_handler_;
@@ -143,23 +142,6 @@ private:
         return to_handler_.null_value(tag, context);
     }
 
-};
-
-// Filters out begin_document and end_document events
-template <class CharT>
-class basic_json_fragment_filter : public basic_json_filter<CharT>
-{
-public:
-    using typename basic_json_filter<CharT>::string_view_type;
-
-    basic_json_fragment_filter(basic_json_content_handler<CharT>& handler)
-        : basic_json_filter<CharT>(handler)
-    {
-    }
-private:
-    void do_flush() override
-    {
-    }
 };
 
 template <class CharT>
@@ -376,8 +358,8 @@ typedef basic_rename_object_member_filter<char> rename_object_member_filter;
 typedef basic_rename_object_member_filter<wchar_t> wrename_object_member_filter;
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-typedef basic_rename_object_member_filter<char> rename_name_filter;
-typedef basic_rename_object_member_filter<wchar_t> wrename_name_filter;
+JSONCONS_DEPRECATED_MSG("Instead, use rename_object_member_filter") typedef basic_rename_object_member_filter<char> rename_name_filter;
+JSONCONS_DEPRECATED_MSG("Instead, use wrename_object_member_filter") typedef basic_rename_object_member_filter<wchar_t> wrename_name_filter;
 #endif
 
 }

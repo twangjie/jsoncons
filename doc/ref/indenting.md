@@ -1,13 +1,10 @@
 ### jsoncons::indenting
 
 ```c++
+#include <jsoncons/json_options.hpp>
+
 enum class indenting {no_indent, indent}
 ```
 
-#### Header
-```c++
-#include <jsoncons/json_options.hpp>
-```
-
-Specifies indentation options for the [json_encoder](json_encoder.md)
+Specifies indentation options for the [basic_json_encoder](basic_json_encoder.md)
 

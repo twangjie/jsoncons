@@ -1,25 +1,23 @@
-### jsoncons::bson::basic_bson_encoder
+### jsoncons::cbor::basic_cbor_encoder
 
 ```c++
+#include <jsoncons_ext/cbor/cbor_encoder.hpp>
+
 template<
     class Result>
-> class basic_bson_encoder : public jsoncons::json_content_handler
+> class basic_cbor_encoder : public jsoncons::json_content_handler
 ```
 
-`basic_bson_encoder` is noncopyable.
+`basic_cbor_encoder` is noncopyable
 
-#### Header
+![basic_cbor_encoder](./diagrams/cbor_encoder.png)
 
-    #include <jsoncons_ext/bson/bson_encoder.hpp>
-
-![bson_encoder](./diagrams/bson_encoder.png)
-
-Two specializations for common result types are defined:
+Four specializations for common result types are defined:
 
 Type                       |Definition
 ---------------------------|------------------------------
-bson_encoder            |basic_bson_encoder<jsoncons::binary_stream_result>
-bson_bytes_encoder     |basic_bson_encoder<jsoncons::binary_buffer_result>
+cbor_stream_encoder            |basic_cbor_encoder<jsoncons::binary_stream_result>
+cbor_bytes_encoder     |basic_cbor_encoder<jsoncons::binary_buffer_result>
 
 #### Member types
 
@@ -31,12 +29,12 @@ string_view_type           |
 
 #### Constructors
 
-    explicit basic_bson_encoder(result_type result)
+    explicit basic_cbor_encoder(result_type result)
 Constructs a new encoder that writes to the specified result.
 
 #### Destructor
 
-    virtual ~basic_bson_encoder()
+    virtual ~basic_cbor_encoder()
 
 ### Inherited from [basic_json_content_handler](../json_content_handler.md)
 
@@ -97,21 +95,23 @@ Constructs a new encoder that writes to the specified result.
 
 ### Examples
 
-#### Encode to BSON
+#### Encode to CBOR buffer
 
 ```c++
 #include <jsoncons/json.hpp>
-#include <jsoncons_ext/bson/bson.hpp>
+#include <jsoncons_ext/cbor/cbor.hpp>
 #include <iomanip>
 
 int main()
 {
     std::vector<uint8_t> buffer;
-    bson::bson_bytes_encoder encoder(buffer);
-    encoder.begin_array(); // The total number of bytes comprising 
-                          // the bson document will be calculated
+    cbor::cbor_bytes_encoder encoder(buffer);
+
+    encoder.begin_array(); // Indefinite length array
     encoder.string_value("cat");
     encoder.byte_string_value(byte_string({'p','u','r','r'}));
+    encoder.byte_string_value(byte_string({'h','i','s','s'}),
+                             semantic_tag::base64); // suggested conversion to base64
     encoder.int64_value(1431027667, semantic_tag::timestamp);
     encoder.end_array();
     encoder.flush();
@@ -124,24 +124,72 @@ int main()
     std::cout << "\n\n";
 
 /* 
-    22000000 -- Total number of bytes comprising the document (34 bytes) 
-      02 -- UTF-8 string
-        3000 -- "0"
-        04000000 -- number bytes in the string (including trailing byte)
-          636174  -- "cat"
-            00 -- trailing byte
-      05 -- binary
-        3100 -- "1"
-        04000000 -- number of bytes
-        70757272 -- 'P''u''r''r'
-      09 -- datetime
-      3200 -- "2"
-        d3bf4b55 -- 1431027667
-      00 
+    9f -- Start indefinte length array
+      63 -- String value of length 3
+        636174 -- "cat"
+      44 -- Byte string value of length 4
+        70757272 -- 'p''u''r''r'
+      d6 - Expected conversion to base64
+      44
+        68697373 -- 'h''i''s''s'
+      c1 -- Tag value 1 (seconds relative to 1970-01-01T00:00Z in UTC time)
+        1a -- 32 bit unsigned integer
+          554bbfd3 -- 1431027667
+      ff -- "break" 
 */ 
 }
 ```
 Output:
 ```
-2200000002300004000000636174000531000400000070757272093200d3bf4b5500
+9f636361744470757272d64468697373c11a554bbfd3ff
 ```
+
+#### Encode to CBOR stream
+
+```c++
+
+#include <jsoncons/json.hpp>
+#include <jsoncons_ext/cbor/cbor.hpp>
+#include <iomanip>
+
+int main()
+{
+    std::ostringstream os;
+    cbor::cbor_stream_encoder encoder(os);
+
+    encoder.begin_array(3); // array of length 3
+    encoder.string_value("-18446744073709551617", semantic_tag::bigint);
+    encoder.string_value("184467440737095516.16", semantic_tag::bigdec);
+    encoder.int64_value(1431027667, semantic_tag::timestamp);
+    encoder.end_array();
+    encoder.flush();
+
+    for (auto c : os.str())
+    {
+        std::cout << std::hex << std::setprecision(2) << std::setw(2) 
+                  << std::noshowbase << std::setfill('0') << (int)unsigned char(c);
+    }
+    std::cout << "\n\n";
+
+/*
+    83 -- array of length 3
+      c3 -- Tag 3 (negative bignum)
+      49 -- Byte string value of length 9
+        010000000000000000 -- Bytes content
+      c4 -- Tag 4 (decimal fraction)
+        82 -- Array of length 2
+          21 -- -2 (exponent)
+          c2 Tag 2 (positive bignum)
+          49 -- Byte string value of length 9
+            010000000000000000
+      c1 -- Tag 1 (seconds relative to 1970-01-01T00:00Z in UTC time)
+        1a -- 32 bit unsigned integer
+          554bbfd3 -- 1431027667
+*/
+}
+```
+Output:
+```
+83c349010000000000000000c48221c249010000000000000000c11a554bbfd3
+```
+

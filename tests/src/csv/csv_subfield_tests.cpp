@@ -5,8 +5,8 @@
 #include "windows.h" // test no inadvertant macro expansions
 #endif
 //#include <jsoncons_ext/csv/csv_options.hpp>
-#include <jsoncons_ext/csv/csv_reader.hpp>
-#include <jsoncons_ext/csv/csv_encoder.hpp>
+#include <jsoncons_ext/csv/csv.hpp>
+#include <jsoncons_ext/csv/csv.hpp>
 #include <jsoncons/json_reader.hpp>
 #include <sstream>
 #include <vector>
@@ -136,15 +136,7 @@ NY,LON,TOR;LON
 }
     )"_json;
 
-    try
-    {
-        json j = csv::decode_csv<json>(s,options);
-        CHECK(j == expected);
-        //std::cout << pretty_print(j) << std::endl;
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-    }
+    json j = csv::decode_csv<json>(s,options);
+    CHECK(j == expected);
 }
 

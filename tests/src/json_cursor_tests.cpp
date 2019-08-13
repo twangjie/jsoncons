@@ -332,11 +332,11 @@ TEST_CASE("json_cursor object_value test")
     CHECK(reader.done());
 }
 
-class remove_mark_filter : public staj_filter
+class remove_mark_filter
 {
     bool reject_next_ = false;
 public:
-    bool accept(const staj_event& event, const ser_context&) override
+    bool operator()(const staj_event& event, const ser_context&) 
     {
         if (event.event_type()  == staj_event_type::name &&
             event.get<jsoncons::string_view>() == "mark")
@@ -356,7 +356,7 @@ public:
     }
 };
 
-TEST_CASE("json_filtered_staj_reader tests")
+TEST_CASE("json_cursor with filter tests")
 {
     std::string s = R"(
     [
@@ -380,10 +380,8 @@ TEST_CASE("json_filtered_staj_reader tests")
     ]
     )";
 
-    json_cursor cursor(s);
     remove_mark_filter filter;
-    
-    filtered_staj_reader reader(cursor, filter);
+    json_cursor reader(s, filter);
 
     REQUIRE_FALSE(reader.done());
     CHECK(reader.current().event_type() == staj_event_type::begin_array);

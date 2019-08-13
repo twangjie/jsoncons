@@ -19,11 +19,12 @@ namespace jsoncons { namespace csv {
         source_error,
         expected_quote,
         invalid_csv_text,
-        invalid_state
+        invalid_state,
+        invalid_escaped_char
     };
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-JSONCONS_DEPRECATED("Instead, use csv_errc") typedef csv_errc csv_parser_errc;
+JSONCONS_DEPRECATED_MSG("Instead, use csv_errc") typedef csv_errc csv_parser_errc;
 #endif
 
 class csv_error_category_impl
@@ -46,8 +47,12 @@ public:
                 return "Expected quote character";
             case csv_errc::invalid_csv_text:
                 return "Invalid CSV text";
+            case csv_errc::invalid_state:
+                return "Invalid CSV parser state";
+            case csv_errc::invalid_escaped_char:
+                return "Invalid character following quote escape character";
             default:
-                return "Unknown JSON parser error";
+                return "Unknown CSV parser error";
         }
     }
 };

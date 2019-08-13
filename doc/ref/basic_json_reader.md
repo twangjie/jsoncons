@@ -1,6 +1,8 @@
 ### jsoncons::basic_json_reader
 
 ```c++
+#include <jsoncons/json_reader.hpp>
+
 template<
     class CharT,
     class Src=jsoncons::stream_source<CharT>,
@@ -14,11 +16,6 @@ A `basic_json_reader` can read a sequence of JSON texts from a stream, using `re
 which omits the check for unconsumed non-whitespace characters. 
 
 `basic_json_reader` is noncopyable and nonmoveable.
-
-#### Header
-```c++
-#include <jsoncons/json_reader.hpp>
-```
 
 Four specializations for common character types and result types are defined:
 
@@ -46,12 +43,12 @@ string_view_type           |
 
     template <class Source>
     basic_json_reader(Source&& source,
-                      parse_error_handler& err_handler); // (3)
+                      std::function<bool(json_errc,const ser_context&)> err_handler); // (3)
 
     template <class Source>
     basic_json_reader(Source&& source, 
                       const basic_json_decode_options<CharT>& options,
-                      parse_error_handler& err_handler); // (4)
+                      std::function<bool(json_errc,const ser_context&)> err_handler); // (4)
 
     template <class Source>
     basic_json_reader(Source&& source, 
@@ -65,50 +62,50 @@ string_view_type           |
     template <class Source>
     basic_json_reader(Source&& source,
                       basic_json_content_handler<CharT>& handler,
-                      parse_error_handler& err_handler); // (7)
+                      std::function<bool(json_errc,const ser_context&)> err_handler); // (7)
 
     template <class Source>
     basic_json_reader(Source&& source,
                       basic_json_content_handler<CharT>& handler, 
                       const basic_json_decode_options<CharT>& options,
-                      parse_error_handler& err_handler); // (8)
+                      std::function<bool(json_errc,const ser_context&)> err_handler); // (8)
 
 Constructors (1)-(4) use a default [json_content_handler](json_content_handler.md) that discards the JSON parse events, and are for validation only.
 
-(1) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`, uses default [options](json_decode_options.md) and a default [parse_error_handler](parse_error_handler.md).
+(1) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`, uses default [options](basic_json_decode_options.md) and a default [parse_error_handler](parse_error_handler.md).
 
 (2) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`, 
-uses the specified [options](json_decode_options.md)
+uses the specified [options](basic_json_decode_options.md)
 and a default [parse_error_handler](parse_error_handler.md).
 
 (3) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`, 
-uses default [options](json_decode_options.md)
+uses default [options](basic_json_decode_options.md)
 and a specified [parse_error_handler](parse_error_handler.md).
 
 (4) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`, 
-uses the specified [options](json_decode_options.md)
+uses the specified [options](basic_json_decode_options.md)
 and a specified [parse_error_handler](parse_error_handler.md).
 
 Constructors (5)-(8) take a user supplied [json_content_handler](json_content_handler.md) that receives JSON parse events, such as a [json_decoder](json_decoder). 
 
 (5) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`,
 emits JSON parse events to the specified 
-[json_content_handler](json_content_handler.md), and uses default [options](json_decode_options.md)
+[json_content_handler](json_content_handler.md), and uses default [options](basic_json_decode_options.md)
 and a default [parse_error_handler](parse_error_handler.md).
 
 (6) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`,
 emits JSON parse events to the specified [json_content_handler](json_content_handler.md) 
-and uses the specified [options](json_decode_options.md)
+and uses the specified [options](basic_json_decode_options.md)
 and a default [parse_error_handler](parse_error_handler.md).
 
 (7) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`,
 emits JSON parse events to the specified [json_content_handler](json_content_handler.md) 
-and uses default [options](json_decode_options.md)
+and uses default [options](basic_json_decode_options.md)
 and a specified [parse_error_handler](parse_error_handler.md).
 
 (8) Constructs a `basic_json_reader` that reads from a character sequence or stream `source`,
 emits JSON parse events to the specified [json_content_handler](json_content_handler.md) and
-uses the specified [options](json_decode_options.md)
+uses the specified [options](basic_json_decode_options.md)
 and a specified [parse_error_handler](parse_error_handler.md).
 
 Note: It is the programmer's responsibility to ensure that `basic_json_reader` does not outlive any source, 

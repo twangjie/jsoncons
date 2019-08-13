@@ -16,6 +16,7 @@
 #include <jsoncons/config/binary_detail.hpp>
 #include <jsoncons_ext/msgpack/msgpack_encoder.hpp>
 #include <jsoncons_ext/msgpack/msgpack_reader.hpp>
+#include <jsoncons_ext/msgpack/msgpack_cursor.hpp>
 
 namespace jsoncons { namespace msgpack {
 
@@ -44,7 +45,7 @@ typename std::enable_if<is_basic_json_class<T>::value,void>::type
 encode_msgpack(const T& j, std::ostream& os)
 {
     typedef typename T::char_type char_type;
-    msgpack_encoder encoder(os);
+    msgpack_stream_encoder encoder(os);
     auto adaptor = make_json_content_handler_adaptor<basic_json_content_handler<char_type>>(encoder);
     j.dump(adaptor);
 }
@@ -53,7 +54,7 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,void>::type 
 encode_msgpack(const T& val, std::ostream& os)
 {
-    msgpack_encoder encoder(os);
+    msgpack_stream_encoder encoder(os);
     write_to(json(), val, encoder);
 }
 
@@ -79,10 +80,9 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
 decode_msgpack(const std::vector<uint8_t>& v)
 {
-    jsoncons::json_decoder<json> decoder;
-    basic_msgpack_reader<jsoncons::bytes_source> reader(v, decoder);
-    reader.read();
-    return decoder.get_result().template as<T>();
+    msgpack_bytes_cursor reader(v);
+    T val = read_from<T>(json(),reader);
+    return val;
 }
 
 template<class T>
@@ -91,7 +91,7 @@ decode_msgpack(std::istream& is)
 {
     jsoncons::json_decoder<T> decoder;
     auto adaptor = make_json_content_handler_adaptor<json_content_handler>(decoder);
-    msgpack_reader reader(is, adaptor);
+    msgpack_stream_reader reader(is, adaptor);
     std::error_code ec;
     reader.read(ec);
     if (ec)
@@ -105,14 +105,14 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
 decode_msgpack(std::istream& is)
 {
-    jsoncons::json_decoder<json> decoder;
-    msgpack_reader reader(is, decoder);
-    reader.read();
-    return decoder.get_result();
+    msgpack_stream_cursor reader(is);
+    T val = read_from<T>(json(), reader);
+    return val;
 }
   
 #if !defined(JSONCONS_NO_DEPRECATED)
 template<class Json>
+JSONCONS_DEPRECATED_MSG("Instead, use encode_msgpack(const T&, std::vector<uint8_t>&")
 std::vector<uint8_t> encode_msgpack(const Json& j)
 {
     std::vector<uint8_t> v;

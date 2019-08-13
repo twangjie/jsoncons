@@ -17,7 +17,6 @@
 #include <jsoncons/source.hpp>
 #include <jsoncons/json_exception.hpp>
 #include <jsoncons/json_content_handler.hpp>
-#include <jsoncons/parse_error_handler.hpp>
 #include <jsoncons/json_parser.hpp>
 
 namespace jsoncons {
@@ -32,7 +31,7 @@ public:
 private:
     basic_null_json_content_handler<CharT> default_content_handler_;
     basic_json_content_handler<CharT>& other_handler_;
-    //parse_error_handler& err_handler_;
+    //std::function<bool(json_errc,const ser_context&)> err_handler_;
 
     // noncopyable and nonmoveable
     json_utf8_other_content_handler_adapter<CharT>(const json_utf8_other_content_handler_adapter<CharT>&) = delete;
@@ -45,7 +44,7 @@ public:
     }
 
     json_utf8_other_content_handler_adapter(basic_json_content_handler<CharT>& other_handler/*,
-                                          parse_error_handler& err_handler*/)
+                                          std::function<bool(json_errc,const ser_context&)> err_handler*/)
         : other_handler_(other_handler)/*,
           err_handler_(err_handler)*/
     {
@@ -150,7 +149,6 @@ private:
     static const size_t default_max_buffer_length = 16384;
 
     basic_null_json_content_handler<CharT> default_content_handler_;
-    default_parse_error_handler default_err_handler_;
 
     basic_json_content_handler<CharT>& handler_;
 
@@ -171,8 +169,8 @@ public:
     explicit basic_json_reader(Source&& source)
         : basic_json_reader(std::forward<Source>(source),
                             default_content_handler_,
-                            basic_json_options<CharT>::default_options(),
-                            default_err_handler_)
+                            basic_json_options<CharT>::get_default_options(),
+                            default_json_parsing())
     {
     }
 
@@ -182,16 +180,16 @@ public:
         : basic_json_reader(std::forward<Source>(source),
                             default_content_handler_,
                             options,
-                            default_err_handler_)
+                            default_json_parsing())
     {
     }
 
     template <class Source>
     basic_json_reader(Source&& source,
-                      parse_error_handler& err_handler)
+                      std::function<bool(json_errc,const ser_context&)> err_handler)
         : basic_json_reader(std::forward<Source>(source),
                             default_content_handler_,
-                            basic_json_options<CharT>::default_options(),
+                            basic_json_options<CharT>::get_default_options(),
                             err_handler)
     {
     }
@@ -199,7 +197,7 @@ public:
     template <class Source>
     basic_json_reader(Source&& source, 
                       const basic_json_decode_options<CharT>& options,
-                      parse_error_handler& err_handler)
+                      std::function<bool(json_errc,const ser_context&)> err_handler)
         : basic_json_reader(std::forward<Source>(source),
                             default_content_handler_,
                             options,
@@ -212,8 +210,8 @@ public:
                       basic_json_content_handler<CharT>& handler)
         : basic_json_reader(std::forward<Source>(source),
                             handler,
-                            basic_json_options<CharT>::default_options(),
-                            default_err_handler_)
+                            basic_json_options<CharT>::get_default_options(),
+                            default_json_parsing())
     {
     }
 
@@ -224,17 +222,17 @@ public:
         : basic_json_reader(std::forward<Source>(source),
                             handler,
                             options,
-                            default_err_handler_)
+                            default_json_parsing())
     {
     }
 
     template <class Source>
     basic_json_reader(Source&& source,
                       basic_json_content_handler<CharT>& handler,
-                      parse_error_handler& err_handler)
+                      std::function<bool(json_errc,const ser_context&)> err_handler)
         : basic_json_reader(std::forward<Source>(source),
                             handler,
-                            basic_json_options<CharT>::default_options(),
+                            basic_json_options<CharT>::get_default_options(),
                             err_handler)
     {
     }
@@ -243,7 +241,7 @@ public:
     basic_json_reader(Source&& source,
                       basic_json_content_handler<CharT>& handler, 
                       const basic_json_decode_options<CharT>& options,
-                      parse_error_handler& err_handler,
+                      std::function<bool(json_errc,const ser_context&)> err_handler,
                       typename std::enable_if<!std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
        : handler_(handler),
          parser_(options,err_handler),
@@ -259,7 +257,7 @@ public:
     basic_json_reader(Source&& source,
                       basic_json_content_handler<CharT>& handler, 
                       const basic_json_decode_options<CharT>& options,
-                      parse_error_handler& err_handler,
+                      std::function<bool(json_errc,const ser_context&)> err_handler,
                       typename std::enable_if<std::is_constructible<basic_string_view<CharT>,Source>::value>::type* = 0)
        : handler_(handler),
          parser_(options,err_handler),
@@ -288,13 +286,13 @@ public:
         buffer_.reserve(buffer_length_);
     }
 #if !defined(JSONCONS_NO_DEPRECATED)
-    JSONCONS_DEPRECATED("Instead, use max_nesting_depth() on options")
+    JSONCONS_DEPRECATED_MSG("Instead, use max_nesting_depth() on options")
     size_t max_nesting_depth() const
     {
         return parser_.max_nesting_depth();
     }
 
-    JSONCONS_DEPRECATED("Instead, use max_nesting_depth(size_t) on options")
+    JSONCONS_DEPRECATED_MSG("Instead, use max_nesting_depth(size_t) on options")
     void max_nesting_depth(size_t depth)
     {
         parser_.max_nesting_depth(depth);
@@ -451,25 +449,25 @@ public:
 
 #if !defined(JSONCONS_NO_DEPRECATED)
 
-    JSONCONS_DEPRECATED("Instead, use buffer_length()")
+    JSONCONS_DEPRECATED_MSG("Instead, use buffer_length()")
     size_t buffer_capacity() const
     {
         return buffer_length_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use buffer_length(size_t)")
+    JSONCONS_DEPRECATED_MSG("Instead, use buffer_length(size_t)")
     void buffer_capacity(size_t length)
     {
         buffer_length_ = length;
         buffer_.reserve(buffer_length_);
     }
-    JSONCONS_DEPRECATED("Instead, use max_nesting_depth()")
+    JSONCONS_DEPRECATED_MSG("Instead, use max_nesting_depth()")
     size_t max_depth() const
     {
         return parser_.max_nesting_depth();
     }
 
-    JSONCONS_DEPRECATED("Instead, use max_nesting_depth(size_t)")
+    JSONCONS_DEPRECATED_MSG("Instead, use max_nesting_depth(size_t)")
     void max_depth(size_t depth)
     {
         parser_.max_nesting_depth(depth);
@@ -509,9 +507,10 @@ private:
 
 typedef basic_json_reader<char> json_reader;
 typedef basic_json_reader<wchar_t> wjson_reader;
+
 #if !defined(JSONCONS_NO_DEPRECATED)
-typedef basic_json_reader<char,jsoncons::string_source<char>> json_string_reader;
-typedef basic_json_reader<wchar_t, jsoncons::string_source<wchar_t>> wjson_string_reader;
+JSONCONS_DEPRECATED_MSG("Instead, use json_reader") typedef json_reader json_string_reader;
+JSONCONS_DEPRECATED_MSG("Instead, use wjson_reader") typedef wjson_reader wjson_string_reader;
 #endif
 
 }

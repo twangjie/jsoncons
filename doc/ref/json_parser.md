@@ -1,8 +1,11 @@
 ### jsoncons::json_parser
 
 ```c++
+#include <jsoncons/json_parser.hpp>
+
 typedef basic_json_parser<char> json_parser
 ```
+
 `json_parser` is an incremental json parser. It can be fed its input
 in chunks, and does not require an entire file to be loaded in memory
 at one time.
@@ -25,36 +28,32 @@ no more input, `finish_parse` may be called.
 `check_done` can be called to check if the input has any unconsumed 
 non-whitespace characters, which would normally be considered an error.  
 
-`json_parser` is used by the push parser [json_reader](json_reader.md),
-and by the pull parser [json_cursor](json_cursor.md).
+`json_parser` is used by the push parser [basic_json_reader](basic_json_reader.md),
+and by the pull parser [basic_json_cursor](basic_json_cursor.md).
 
 `json_parser` is noncopyable and nonmoveable.
 
-#### Header
-```c++
-#include <jsoncons/json_parser.hpp>
-```
 #### Constructors
 
     json_parser(); // (1)
 
     json_parser(const json_decode_options& options); // (2)
 
-    json_parser(parse_error_handler& err_handler); // (3)
+    json_parser(std::function<bool(json_errc,const ser_context&)> err_handler); // (3)
 
     json_parser(const json_decode_options& options, 
-                parse_error_handler& err_handler); // (4)
+                std::function<bool(json_errc,const ser_context&)> err_handler); // (4)
 
-(1) Constructs a `json_parser` that uses default [json_decode_options](json_decode_options.md)
+(1) Constructs a `json_parser` that uses default [basic_json_decode_options](basic_json_decode_options.md)
 and a default [parse_error_handler](parse_error_handler.md).
 
-(2) Constructs a `json_parser` that uses the specified [json_decode_options](json_decode_options.md)
+(2) Constructs a `json_parser` that uses the specified [basic_json_decode_options](basic_json_decode_options.md)
 and a default [parse_error_handler](parse_error_handler.md).
 
-(3) Constructs a `json_parser` that uses default [json_decode_options](json_decode_options.md)
+(3) Constructs a `json_parser` that uses default [basic_json_decode_options](basic_json_decode_options.md)
 and a specified [parse_error_handler](parse_error_handler.md).
 
-(4) Constructs a `json_parser` that uses the specified [json_decode_options](json_decode_options.md)
+(4) Constructs a `json_parser` that uses the specified [basic_json_decode_options](basic_json_decode_options.md)
 and a specified [parse_error_handler](parse_error_handler.md).
 
 Note: It is the programmer's responsibility to ensure that `json_reader` does not outlive any error handler passed in the constuctor.

@@ -15,55 +15,11 @@
 
 namespace jsoncons {
 
-#if !defined(JSONCONS_NO_TO_CHARS)
-using chars_format = std::chars_format;
-#else
-enum class chars_format : uint8_t {fixed=1,scientific=2,hex=4,general=fixed|scientific};
+enum class float_chars_format : uint8_t {general,fixed,scientific,hex};
+
+#if !defined(JSONCONS_NO_DEPRECATED)
+JSONCONS_DEPRECATED_MSG("instead, use float_chars_format") typedef float_chars_format chars_format;
 #endif
-
-// floating_point_options
-
-class floating_point_options
-{
-    chars_format format_;
-    int precision_;
-    uint8_t decimal_places_;
-public:
-    floating_point_options()
-        : format_(chars_format::general), precision_(0), decimal_places_(0)
-    {
-    }
-
-    floating_point_options(chars_format format, int precision, uint8_t decimal_places = 0)
-        : format_(format), precision_(precision), decimal_places_(decimal_places)
-    {
-    }
-
-    explicit floating_point_options(chars_format format)
-        : format_(format), precision_(0), decimal_places_(0)
-    {
-    }
-
-    floating_point_options(const floating_point_options&) = default;
-    floating_point_options(floating_point_options&&) = default;
-    floating_point_options& operator=(const floating_point_options& e) = default;
-    floating_point_options& operator=(floating_point_options&& e) = default;
-
-    int precision() const
-    {
-        return precision_;
-    }
-
-    uint8_t decimal_places() const
-    {
-        return decimal_places_;
-    }
-
-    chars_format format() const
-    {
-        return format_;
-    }
-};
 
 enum class indenting : uint8_t {no_indent = 0, indent = 1};
 
@@ -76,8 +32,8 @@ enum class bigint_chars_format : uint8_t {number, base10, base64, base64url
 };
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-JSONCONS_DEPRECATED("Instead, use bigint_chars_format") typedef bigint_chars_format bignum_chars_format;
-JSONCONS_DEPRECATED("Instead, use bigint_chars_format") typedef bigint_chars_format big_integer_chars_format;
+JSONCONS_DEPRECATED_MSG("Instead, use bigint_chars_format") typedef bigint_chars_format bignum_chars_format;
+JSONCONS_DEPRECATED_MSG("Instead, use bigint_chars_format") typedef bigint_chars_format big_integer_chars_format;
 #endif
 
 enum class byte_string_chars_format : uint8_t {none=0,base16,base64,base64url};
@@ -96,15 +52,15 @@ public:
 
     virtual bool is_str_to_nan() const = 0;
 
-    virtual std::basic_string<CharT> nan_to_str() const = 0;
+    virtual string_type nan_to_str() const = 0;
 
     virtual bool is_str_to_inf() const = 0;
 
-    virtual std::basic_string<CharT> inf_to_str() const = 0;
+    virtual string_type inf_to_str() const = 0;
 
     virtual bool is_str_to_neginf() const = 0;
 
-    virtual std::basic_string<CharT> neginf_to_str() const = 0;
+    virtual string_type neginf_to_str() const = 0;
 
     virtual bool lossless_number() const = 0;
 };
@@ -135,7 +91,7 @@ public:
 
     virtual size_t line_length_limit() const = 0;  
 
-    virtual chars_format floating_point_format() const = 0; 
+    virtual float_chars_format float_format() const = 0; 
 
     virtual int precision() const = 0; 
 
@@ -151,31 +107,31 @@ public:
 
     virtual bool pad_inside_array_brackets() const = 0;
 
-    virtual std::basic_string<CharT> new_line_chars() const = 0;
+    virtual string_type new_line_chars() const = 0;
 
     virtual bool is_nan_to_num() const = 0;
 
-    virtual std::basic_string<CharT> nan_to_num() const = 0;
+    virtual string_type nan_to_num() const = 0;
 
     virtual bool is_inf_to_num() const = 0;
 
-    virtual std::basic_string<CharT> inf_to_num() const = 0;
+    virtual string_type inf_to_num() const = 0;
 
     virtual bool is_neginf_to_num() const = 0;
 
-    virtual std::basic_string<CharT> neginf_to_num() const = 0;
+    virtual string_type neginf_to_num() const = 0;
 
     virtual bool is_nan_to_str() const = 0;
 
-    virtual std::basic_string<CharT> nan_to_str() const = 0;
+    virtual string_type nan_to_str() const = 0;
 
     virtual bool is_inf_to_str() const = 0;
 
-    virtual std::basic_string<CharT> inf_to_str() const = 0;
+    virtual string_type inf_to_str() const = 0;
 
     virtual bool is_neginf_to_str() const = 0;
 
-    virtual std::basic_string<CharT> neginf_to_str() const = 0;
+    virtual string_type neginf_to_str() const = 0;
 };
 
 template <class CharT>
@@ -187,7 +143,7 @@ public:
     typedef std::basic_string<CharT> string_type;
 private:
     size_t indent_size_;
-    chars_format floating_point_format_;
+    float_chars_format float_format_;
     int precision_;
 #if !defined(JSONCONS_NO_DEPRECATED)
     bool can_read_nan_replacement_;
@@ -212,7 +168,7 @@ private:
     spaces_option spaces_around_comma_;
     bool pad_inside_object_braces_;
     bool pad_inside_array_brackets_;
-    std::basic_string<CharT> new_line_chars_;
+    string_type new_line_chars_;
 
     bool is_nan_to_num_;
     bool is_inf_to_num_;
@@ -224,21 +180,21 @@ private:
     bool is_str_to_inf_;
     bool is_str_to_neginf_;
 
-    std::basic_string<CharT> nan_to_num_;
-    std::basic_string<CharT> inf_to_num_;
-    std::basic_string<CharT> neginf_to_num_;
-    std::basic_string<CharT> nan_to_str_;
-    std::basic_string<CharT> inf_to_str_;
-    std::basic_string<CharT> neginf_to_str_;
+    string_type nan_to_num_;
+    string_type inf_to_num_;
+    string_type neginf_to_num_;
+    string_type nan_to_str_;
+    string_type inf_to_str_;
+    string_type neginf_to_str_;
 
     bool lossless_number_;
 public:
     static const size_t indent_size_default = 4;
     static const size_t line_length_limit_default = 120;
 
-    static const basic_json_options<CharT>& default_options()
+    static const basic_json_options& get_default_options()
     {
-        static basic_json_options<CharT> options{};
+        static basic_json_options<char_type> options{};
         return options;
     }
 
@@ -246,7 +202,7 @@ public:
 
     basic_json_options()
         : indent_size_(indent_size_default),
-          floating_point_format_(chars_format()),
+          float_format_(float_chars_format::general),
           precision_(0),
 #if !defined(JSONCONS_NO_DEPRECATED)
           can_read_nan_replacement_(false),
@@ -283,29 +239,29 @@ public:
 
 //  Properties
     byte_string_chars_format byte_string_format() const override {return byte_string_format_;}
-    basic_json_options<CharT>&  byte_string_format(byte_string_chars_format value) {byte_string_format_ = value; return *this;}
+    basic_json_options&  byte_string_format(byte_string_chars_format value) {byte_string_format_ = value; return *this;}
 
     bigint_chars_format bigint_format() const override {return bigint_format_;}
-    basic_json_options<CharT>&  bigint_format(bigint_chars_format value) {bigint_format_ = value; return *this;}
+    basic_json_options&  bigint_format(bigint_chars_format value) {bigint_format_ = value; return *this;}
 
     line_split_kind object_object_line_splits() const override {return object_object_line_splits_;}
-    basic_json_options<CharT>& object_object_line_splits(line_split_kind value) {object_object_line_splits_ = value; return *this;}
+    basic_json_options& object_object_line_splits(line_split_kind value) {object_object_line_splits_ = value; return *this;}
 
     line_split_kind array_object_line_splits() const override {return array_object_line_splits_;}
-    basic_json_options<CharT>& array_object_line_splits(line_split_kind value) {array_object_line_splits_ = value; return *this;}
+    basic_json_options& array_object_line_splits(line_split_kind value) {array_object_line_splits_ = value; return *this;}
 
     line_split_kind object_array_line_splits() const override {return object_array_line_splits_;}
-    basic_json_options<CharT>& object_array_line_splits(line_split_kind value) {object_array_line_splits_ = value; return *this;}
+    basic_json_options& object_array_line_splits(line_split_kind value) {object_array_line_splits_ = value; return *this;}
 
     line_split_kind array_array_line_splits() const override {return array_array_line_splits_;}
-    basic_json_options<CharT>& array_array_line_splits(line_split_kind value) {array_array_line_splits_ = value; return *this;}
+    basic_json_options& array_array_line_splits(line_split_kind value) {array_array_line_splits_ = value; return *this;}
 
     size_t indent_size() const override
     {
         return indent_size_;
     }
 
-    basic_json_options<CharT>& indent_size(size_t value)
+    basic_json_options& indent_size(size_t value)
     {
         indent_size_ = value;
         return *this;
@@ -316,7 +272,7 @@ public:
         return spaces_around_colon_;
     }
 
-    basic_json_options<CharT>& spaces_around_colon(spaces_option value)
+    basic_json_options& spaces_around_colon(spaces_option value)
     {
         spaces_around_colon_ = value;
         return *this;
@@ -327,7 +283,7 @@ public:
         return spaces_around_comma_;
     }
 
-    basic_json_options<CharT>& spaces_around_comma(spaces_option value)
+    basic_json_options& spaces_around_comma(spaces_option value)
     {
         spaces_around_comma_ = value;
         return *this;
@@ -338,7 +294,7 @@ public:
         return pad_inside_object_braces_;
     }
 
-    basic_json_options<CharT>& pad_inside_object_braces(bool value)
+    basic_json_options& pad_inside_object_braces(bool value)
     {
         pad_inside_object_braces_ = value;
         return *this;
@@ -349,18 +305,18 @@ public:
         return pad_inside_array_brackets_;
     }
 
-    basic_json_options<CharT>& pad_inside_array_brackets(bool value)
+    basic_json_options& pad_inside_array_brackets(bool value)
     {
         pad_inside_array_brackets_ = value;
         return *this;
     }
 
-    std::basic_string<CharT> new_line_chars() const override
+    string_type new_line_chars() const override
     {
         return new_line_chars_;
     }
 
-    basic_json_options<CharT>& new_line_chars(const std::basic_string<CharT>& value)
+    basic_json_options& new_line_chars(const string_type& value)
     {
         new_line_chars_ = value;
         return *this;
@@ -411,7 +367,7 @@ public:
         return is_str_to_neginf_ || is_str_to_inf_;
     }
 
-    std::basic_string<CharT> nan_to_num() const override
+    string_type nan_to_num() const override
     {
         if (is_nan_to_num_)
         {
@@ -429,7 +385,7 @@ public:
         }
     }
 
-    basic_json_options<CharT>& nan_to_num(const std::basic_string<CharT>& value) 
+    basic_json_options& nan_to_num(const string_type& value) 
     {
         is_nan_to_num_ = true;
         nan_to_str_.clear();
@@ -437,7 +393,7 @@ public:
         return *this;
     }
 
-    std::basic_string<CharT> inf_to_num() const override
+    string_type inf_to_num() const override
     {
         if (is_inf_to_num_)
         {
@@ -455,7 +411,7 @@ public:
         }
     }
 
-    basic_json_options<CharT>& inf_to_num(const std::basic_string<CharT>& value) 
+    basic_json_options& inf_to_num(const string_type& value) 
     {
         is_inf_to_num_ = true;
         inf_to_str_.clear();
@@ -463,7 +419,7 @@ public:
         return *this;
     }
 
-    std::basic_string<CharT> neginf_to_num() const override
+    string_type neginf_to_num() const override
     {
         if (is_neginf_to_num_)
         {
@@ -471,7 +427,7 @@ public:
         }
         else if (is_inf_to_num_)
         {
-            std::basic_string<CharT> s;
+            string_type s;
             s.push_back('-');
             s.append(inf_to_num_);
             return s;
@@ -488,7 +444,7 @@ public:
         }
     }
 
-    basic_json_options<CharT>& neginf_to_num(const std::basic_string<CharT>& value) 
+    basic_json_options& neginf_to_num(const string_type& value) 
     {
         is_neginf_to_num_ = true;
         neginf_to_str_.clear();
@@ -496,7 +452,7 @@ public:
         return *this;
     }
 
-    std::basic_string<CharT> nan_to_str() const override
+    string_type nan_to_str() const override
     {
         if (is_nan_to_str_)
         {
@@ -514,7 +470,7 @@ public:
         }
     }
 
-    basic_json_options<CharT>& nan_to_str(const std::basic_string<CharT>& value, bool is_str_to_nan = true) 
+    basic_json_options& nan_to_str(const string_type& value, bool is_str_to_nan = true) 
     {
         is_nan_to_str_ = true;
         is_str_to_nan_ = is_str_to_nan;
@@ -523,7 +479,7 @@ public:
         return *this;
     }
 
-    std::basic_string<CharT> inf_to_str() const override
+    string_type inf_to_str() const override
     {
         if (is_inf_to_str_)
         {
@@ -541,7 +497,7 @@ public:
         }
     }
 
-    basic_json_options<CharT>& inf_to_str(const std::basic_string<CharT>& value, bool is_inf_to_str = true) 
+    basic_json_options& inf_to_str(const string_type& value, bool is_inf_to_str = true) 
     {
         is_inf_to_str_ = true;
         is_inf_to_str_ = is_inf_to_str;
@@ -550,7 +506,7 @@ public:
         return *this;
     }
 
-    std::basic_string<CharT> neginf_to_str() const override
+    string_type neginf_to_str() const override
     {
         if (is_neginf_to_str_)
         {
@@ -558,7 +514,7 @@ public:
         }
         else if (is_inf_to_str_)
         {
-            std::basic_string<CharT> s;
+            string_type s;
             s.push_back('-');
             s.append(inf_to_str_);
             return s;
@@ -575,7 +531,7 @@ public:
         }
     }
 
-    basic_json_options<CharT>& neginf_to_str(const std::basic_string<CharT>& value, bool is_neginf_to_str = true) 
+    basic_json_options& neginf_to_str(const string_type& value, bool is_neginf_to_str = true) 
     {
         is_neginf_to_str_ = true;
         is_neginf_to_str_ = is_neginf_to_str;
@@ -589,7 +545,7 @@ public:
         return lossless_number_;
     }
 
-    basic_json_options<CharT>& lossless_number(bool value) 
+    basic_json_options& lossless_number(bool value) 
     {
         lossless_number_ = value;
         return *this;
@@ -600,20 +556,20 @@ public:
         return line_length_limit_;
     }
 
-    basic_json_options<CharT>& line_length_limit(size_t value)
+    basic_json_options& line_length_limit(size_t value)
     {
         line_length_limit_ = value;
         return *this;
     }
 
-    chars_format floating_point_format() const override
+    float_chars_format float_format() const override
     {
-        return floating_point_format_;
+        return float_format_;
     }
 
-    basic_json_options<CharT>& floating_point_format(chars_format value)
+    basic_json_options& float_format(float_chars_format value)
     {
-        floating_point_format_ = value;
+        float_format_ = value;
         return *this;
     }
 
@@ -622,7 +578,7 @@ public:
         return precision_;
     }
 
-    basic_json_options<CharT>& precision(int value)
+    basic_json_options& precision(int value)
     {
         precision_ = value;
         return *this;
@@ -633,7 +589,7 @@ public:
         return escape_all_non_ascii_;
     }
 
-    basic_json_options<CharT>& escape_all_non_ascii(bool value)
+    basic_json_options& escape_all_non_ascii(bool value)
     {
         escape_all_non_ascii_ = value;
         return *this;
@@ -644,7 +600,7 @@ public:
         return escape_solidus_;
     }
 
-    basic_json_options<CharT>& escape_solidus(bool value)
+    basic_json_options& escape_solidus(bool value)
     {
         escape_solidus_ = value;
         return *this;
@@ -661,42 +617,54 @@ public:
     }
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-    basic_json_options<CharT>&  big_integer_format(bigint_chars_format value) {bigint_format_ = value; return *this;}
-    bigint_chars_format bignum_format() const {return bigint_format_;}
-    basic_json_options<CharT>&  bignum_format(bigint_chars_format value) {bigint_format_ = value; return *this;}
+    JSONCONS_DEPRECATED_MSG("Instead, use bigint_format(bigint_chars_format)")
+    basic_json_options&  big_integer_format(bigint_chars_format value) {bigint_format_ = value; return *this;}
 
-    JSONCONS_DEPRECATED("Instead, use lossless_number()")
+    JSONCONS_DEPRECATED_MSG("Instead, use bigint_format()")
+    bigint_chars_format bignum_format() const {return bigint_format_;}
+
+    JSONCONS_DEPRECATED_MSG("Instead, use bigint_format(bigint_chars_format)")
+    basic_json_options&  bignum_format(bigint_chars_format value) {bigint_format_ = value; return *this;}
+
+    JSONCONS_DEPRECATED_MSG("Instead, use float_format(float_chars_format)")
+    basic_json_options& floating_point_format(float_chars_format value)
+    {
+        float_format_ = value;
+        return *this;
+    }
+
+    JSONCONS_DEPRECATED_MSG("Instead, use lossless_number()")
     bool dec_to_str() const 
     {
         return lossless_number_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use lossless_number(bool)")
-    basic_json_options<CharT>& dec_to_str(bool value) 
+    JSONCONS_DEPRECATED_MSG("Instead, use lossless_number(bool)")
+    basic_json_options& dec_to_str(bool value) 
     {
         lossless_number_ = value;
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use indent_size()")
+    JSONCONS_DEPRECATED_MSG("Instead, use indent_size()")
     size_t indent() const 
     {
         return indent_size();
     }
 
-    JSONCONS_DEPRECATED("Instead, use indent_size(size_t)")
-    basic_json_options<CharT>& indent(size_t value)
+    JSONCONS_DEPRECATED_MSG("Instead, use indent_size(size_t)")
+    basic_json_options& indent(size_t value)
     {
         return indent_size(value);
     }
 
-    JSONCONS_DEPRECATED("Instead, use is_nan_to_num() or is_nan_to_str()")
+    JSONCONS_DEPRECATED_MSG("Instead, use is_nan_to_num() or is_nan_to_str()")
     bool can_read_nan_replacement() const {return can_read_nan_replacement_;}
 
-    JSONCONS_DEPRECATED("Instead, use is_inf_to_num() or is_inf_to_str()")
+    JSONCONS_DEPRECATED_MSG("Instead, use is_inf_to_num() or is_inf_to_str()")
     bool can_read_pos_inf_replacement() const {return can_read_pos_inf_replacement_;}
 
-    JSONCONS_DEPRECATED("Instead, use is_neginf_to_num() or is_neginf_to_str()")
+    JSONCONS_DEPRECATED_MSG("Instead, use is_neginf_to_num() or is_neginf_to_str()")
     bool can_read_neg_inf_replacement() const {return can_read_neg_inf_replacement_;}
 
     bool can_write_nan_replacement() const {return !nan_replacement_.empty();}
@@ -705,36 +673,36 @@ public:
 
     bool can_write_neg_inf_replacement() const {return !neg_inf_replacement_.empty();}
 
-    JSONCONS_DEPRECATED("Instead, use inf_to_num(const std::basic_string<CharT>&) or inf_to_str(const std::basic_string<CharT>&)")
-    basic_json_options<CharT>& replace_inf(bool replace)
+    JSONCONS_DEPRECATED_MSG("Instead, use inf_to_num(const string_type&) or inf_to_str(const string_type&)")
+    basic_json_options& replace_inf(bool replace)
     {
         can_read_pos_inf_replacement_ = replace;
         can_read_neg_inf_replacement_ = replace;
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use inf_to_num(const std::basic_string<CharT>&) or inf_to_str(const std::basic_string<CharT>&)")
-    basic_json_options<CharT>& replace_pos_inf(bool replace)
+    JSONCONS_DEPRECATED_MSG("Instead, use inf_to_num(const string_type&) or inf_to_str(const string_type&)")
+    basic_json_options& replace_pos_inf(bool replace)
     {
         can_read_pos_inf_replacement_ = replace;
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use neginf_to_num(const std::basic_string<CharT>&) or neginf_to_str(const std::basic_string<CharT>&)")
-    basic_json_options<CharT>& replace_neg_inf(bool replace)
+    JSONCONS_DEPRECATED_MSG("Instead, use neginf_to_num(const string_type&) or neginf_to_str(const string_type&)")
+    basic_json_options& replace_neg_inf(bool replace)
     {
         can_read_neg_inf_replacement_ = replace;
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use nan_to_num() or nan_to_str()")
+    JSONCONS_DEPRECATED_MSG("Instead, use nan_to_num() or nan_to_str()")
     const string_type& nan_replacement() const
     {
         return nan_replacement_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use nan_to_num(const std::basic_string<CharT>&) or nan_to_str(const std::basic_string<CharT>&)")
-    basic_json_options<CharT>& nan_replacement(const string_type& value)
+    JSONCONS_DEPRECATED_MSG("Instead, use nan_to_num(const string_type&) or nan_to_str(const string_type&)")
+    basic_json_options& nan_replacement(const string_type& value)
     {
         nan_replacement_ = value;
 
@@ -743,60 +711,60 @@ public:
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use inf_to_num() or inf_to_str()")
+    JSONCONS_DEPRECATED_MSG("Instead, use inf_to_num() or inf_to_str()")
     const string_type& pos_inf_replacement() const 
     {
         return pos_inf_replacement_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use inf_to_num(const std::basic_string<CharT>&) or inf_to_str(const std::basic_string<CharT>&)")
-    basic_json_options<CharT>& pos_inf_replacement(const string_type& value)
+    JSONCONS_DEPRECATED_MSG("Instead, use inf_to_num(const string_type&) or inf_to_str(const string_type&)")
+    basic_json_options& pos_inf_replacement(const string_type& value)
     {
         pos_inf_replacement_ = value;
         can_read_pos_inf_replacement_ = is_string(value);
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use neginf_to_num() or neginf_to_str()")
+    JSONCONS_DEPRECATED_MSG("Instead, use neginf_to_num() or neginf_to_str()")
     const string_type& neg_inf_replacement() const 
     {
         return neg_inf_replacement_;
     }
 
-    JSONCONS_DEPRECATED("Instead, use neginf_to_num(const std::basic_string<CharT>&) or neginf_to_str(const std::basic_string<CharT>&)")
-    basic_json_options<CharT>& neg_inf_replacement(const string_type& value)
+    JSONCONS_DEPRECATED_MSG("Instead, use neginf_to_num(const string_type&) or neginf_to_str(const string_type&)")
+    basic_json_options& neg_inf_replacement(const string_type& value)
     {
         neg_inf_replacement_ = value;
         can_read_neg_inf_replacement_ = is_string(value);
         return *this;
     }
 
-    JSONCONS_DEPRECATED("Instead, use object_object_line_splits()")
+    JSONCONS_DEPRECATED_MSG("Instead, use object_object_line_splits()")
     line_split_kind object_object_split_lines() const {return object_object_line_splits_;}
-    JSONCONS_DEPRECATED("Instead, use object_object_line_splits(line_split_kind)")
-    basic_json_options<CharT>& object_object_split_lines(line_split_kind value) {object_object_line_splits_ = value; return *this;}
+    JSONCONS_DEPRECATED_MSG("Instead, use object_object_line_splits(line_split_kind)")
+    basic_json_options& object_object_split_lines(line_split_kind value) {object_object_line_splits_ = value; return *this;}
 
-    JSONCONS_DEPRECATED("Instead, use array_object_line_splits()")
+    JSONCONS_DEPRECATED_MSG("Instead, use array_object_line_splits()")
     line_split_kind array_object_split_lines() const {return array_object_line_splits_;}
-    JSONCONS_DEPRECATED("Instead, use array_object_line_splits(line_split_kind)")
-    basic_json_options<CharT>& array_object_split_lines(line_split_kind value) {array_object_line_splits_ = value; return *this;}
+    JSONCONS_DEPRECATED_MSG("Instead, use array_object_line_splits(line_split_kind)")
+    basic_json_options& array_object_split_lines(line_split_kind value) {array_object_line_splits_ = value; return *this;}
 
-    JSONCONS_DEPRECATED("Instead, use object_array_line_splits()")
+    JSONCONS_DEPRECATED_MSG("Instead, use object_array_line_splits()")
     line_split_kind object_array_split_lines() const {return object_array_line_splits_;}
-    JSONCONS_DEPRECATED("Instead, use object_array_line_splits(line_split_kind)")
-    basic_json_options<CharT>& object_array_split_lines(line_split_kind value) {object_array_line_splits_ = value; return *this;}
+    JSONCONS_DEPRECATED_MSG("Instead, use object_array_line_splits(line_split_kind)")
+    basic_json_options& object_array_split_lines(line_split_kind value) {object_array_line_splits_ = value; return *this;}
 
-    JSONCONS_DEPRECATED("Instead, use array_array_line_splits()")
+    JSONCONS_DEPRECATED_MSG("Instead, use array_array_line_splits()")
     line_split_kind array_array_split_lines() const {return array_array_line_splits_;}
-    JSONCONS_DEPRECATED("Instead, use array_array_line_splits(line_split_kind)")
-    basic_json_options<CharT>& array_array_split_lines(line_split_kind value) {array_array_line_splits_ = value; return *this;}
+    JSONCONS_DEPRECATED_MSG("Instead, use array_array_line_splits(line_split_kind)")
+    basic_json_options& array_array_split_lines(line_split_kind value) {array_array_line_splits_ = value; return *this;}
 #endif
 private:
     enum class input_state {initial,begin_quote,character,end_quote,escape,error};
     bool is_string(const string_type& s) const
     {
         input_state state = input_state::initial;
-        for (CharT c : s)
+        for (char_type c : s)
         {
             switch (c)
             {
@@ -847,12 +815,12 @@ typedef basic_json_encode_options<char> json_encode_options;
 typedef basic_json_encode_options<wchar_t> wjson_encode_options;
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-typedef basic_json_options<char> output_format;
-typedef basic_json_options<wchar_t> woutput_format;
-typedef basic_json_options<char> serialization_options;
-typedef basic_json_options<wchar_t> wserialization_options;
-typedef basic_json_options<char> json_serializing_options;
-typedef basic_json_options<wchar_t> wjson_serializing_options;
+JSONCONS_DEPRECATED_MSG("json_options") typedef json_options output_format;
+JSONCONS_DEPRECATED_MSG("wjson_options") typedef wjson_options woutput_format;
+JSONCONS_DEPRECATED_MSG("json_options") typedef json_options serialization_options;
+JSONCONS_DEPRECATED_MSG("wjson_options") typedef wjson_options wserialization_options;
+JSONCONS_DEPRECATED_MSG("json_options") typedef json_options json_serializing_options;
+JSONCONS_DEPRECATED_MSG("wjson_options") typedef wjson_options wjson_serializing_options;
 #endif
 
 }

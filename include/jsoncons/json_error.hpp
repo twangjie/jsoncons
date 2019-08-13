@@ -136,11 +136,10 @@ std::error_code make_error_code(json_errc result)
 }
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-JSONCONS_DEPRECATED("Instead, use json_errc") typedef json_errc json_parser_errc;
+JSONCONS_DEPRECATED_MSG("Instead, use json_errc") typedef json_errc json_parser_errc;
 
-JSONCONS_DEPRECATED("Instead, use json_errc") typedef json_errc json_parse_errc;
+JSONCONS_DEPRECATED_MSG("Instead, use json_errc") typedef json_errc json_parse_errc;
 #endif
-
 
 }
 

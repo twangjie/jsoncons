@@ -1,6 +1,8 @@
 ### jsoncons::csv::csv_reader
 
 ```c++
+#include <jsoncons_ext/csv/csv_reader.hpp>
+
 typedef basic_csv_reader<char,stream_source<char>> csv_reader
 ```
 
@@ -16,10 +18,6 @@ Type                       |Definition
 char_type                  |CharT
 source_type                |Src
 
-#### Header
-```c++
-#include <jsoncons_ext/csv/csv_reader.hpp>
-```
 #### Constructors
 
     template <class Source>
@@ -35,27 +33,27 @@ source_type                |Src
     template <class Source>
     basic_csv_reader(Source&& source,
                      basic_json_content_handler<CharT>& handler,
-                     parse_error_handler& err_handler); // (3)
+                     std::function<bool(csv_errc,const ser_context&)> err_handler); // (3)
 
     template <class Source>
     basic_csv_reader(Source&& source,
                      basic_json_content_handler<CharT>& handler,
                      const basic_csv_decode_options<CharT>& options,
-                     parse_error_handler& err_handler); // (4)
+                     std::function<bool(csv_errc,const ser_context&)> err_handler); // (4)
 
 (1) Constructs a `csv_reader` that reads from a character sequence or stream `source`
 and a [json_content_handler](../json_content_handler.md) that receives
-JSON events. Uses default [csv_options](csv_options.md).
+JSON events. Uses default [basic_csv_options](basic_csv_options.md).
 
 (2) Constructs a `csv_reader` that  that reads from a character sequence or stream `source`, a [json_content_handler](../json_content_handler.md) that receives
-JSON events, and [csv_options](csv_options.md).
+JSON events, and [basic_csv_options](basic_csv_options.md).
 
 (3) Constructs a `csv_reader` that reads from a character sequence or stream `source`, a [json_content_handler](../json_content_handler.md) that receives
 JSON events and the specified [parse_error_handler](../parse_error_handler.md).
-Uses default [csv_options](csv_options.md).
+Uses default [basic_csv_options](basic_csv_options.md).
 
 (4) Constructs a `csv_reader` that reads from a character sequence or stream `source`, a [json_content_handler](../json_content_handler.md) that receives
-JSON events, [csv_options](csv_options.md),
+JSON events, [basic_csv_options](basic_csv_options.md),
 and the specified [parse_error_handler](../parse_error_handler.md).
 
 Note: It is the programmer's responsibility to ensure that `basic_csv_reader` does not outlive any source, 

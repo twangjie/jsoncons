@@ -23,9 +23,10 @@
 [Convert JSON to/from C++ data structures by specializing json_type_traits](#G1)  
 [Mapping to C++ data structures with and without defaults allowed](#G2)  
 [An example using JSONCONS_ENUM_TRAITS_DECL and JSONCONS_GETTER_CTOR_TRAITS_DECL](#G3)  
-[Serializing a templated class with the `JSONCONS_TEMPLATE_xxx` macros](#G4)  
-[A polymorphic example](#G5)  
-[Convert JSON numbers to/from boost multiprecision numbers](#G6)
+[Serializing a templated class with the _TEMPLATE_ macros](#G4)  
+[Serializing to given names with the _NAMED_ macros](#G5)  
+[A polymorphic example](#G6)  
+[Convert JSON numbers to/from boost multiprecision numbers](#G7)
 
 ### Construct
 
@@ -198,8 +199,7 @@ std::cout << "(1) " << j << std::endl;
 // Strict
 try
 {
-    strict_parse_error_handler err_handler;
-    json j = json::parse(s, err_handler);
+    json j = json::parse(s, strict_json_parsing());
 }
 catch (const ser_error& e)
 {
@@ -325,50 +325,50 @@ The example JSON text, `book_catalog.json`, is used by the examples below.
 ```c++
 std::ifstream is("book_catalog.json");
 
-json_cursor reader(is);
+json_cursor cursor(is);
 
-for (; !reader.done(); reader.next())
+for (; !cursor.done(); cursor.next())
 {
-    const auto& event = reader.current();
+    const auto& event = cursor.current();
     switch (event.event_type())
     {
         case staj_event_type::begin_array:
-            std::cout << "begin_array\n";
+            std::cout << event.event_type() << " " << "\n";
             break;
         case staj_event_type::end_array:
-            std::cout << "end_array\n";
+            std::cout << event.event_type() << " " << "\n";
             break;
         case staj_event_type::begin_object:
-            std::cout << "begin_object\n";
+            std::cout << event.event_type() << " " << "\n";
             break;
         case staj_event_type::end_object:
-            std::cout << "end_object\n";
+            std::cout << event.event_type() << " " << "\n";
             break;
         case staj_event_type::name:
             // Or std::string_view, if supported
-            std::cout << "name: " << event.get<jsoncons::string_view>() << "\n";
+            std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
             break;
         case staj_event_type::string_value:
             // Or std::string_view, if supported
-            std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
+            std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
             break;
         case staj_event_type::null_value:
-            std::cout << "null_value: " << "\n";
+            std::cout << event.event_type() << "\n";
             break;
         case staj_event_type::bool_value:
-            std::cout << "bool_value: " << std::boolalpha << event.get<bool>() << "\n";
+            std::cout << event.event_type() << ": " << std::boolalpha << event.get<bool>() << "\n";
             break;
         case staj_event_type::int64_value:
-            std::cout << "int64_value: " << event.get<int64_t>() << "\n";
+            std::cout << event.event_type() << ": " << event.get<int64_t>() << "\n";
             break;
         case staj_event_type::uint64_value:
-            std::cout << "uint64_value: " << event.get<uint64_t>() << "\n";
+            std::cout << event.event_type() << ": " << event.get<uint64_t>() << "\n";
             break;
         case staj_event_type::double_value:
-            std::cout << "double_value: " << event.get<double>() << "\n";
+            std::cout << event.event_type() << ": " << event.get<double>() << "\n";
             break;
         default:
-            std::cout << "Unhandled event type\n";
+            std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
             break;
     }
 }
@@ -407,17 +407,17 @@ end_object
 end_array
 ```
 
-#### Implementing a staj_filter
+#### Filtering the JSON stream
 
 ```c++
 // A stream filter to filter out all events except name 
 // and restrict name to "author"
 
-class author_filter : public staj_filter
+struct author_filter 
 {
     bool accept_next_ = false;
-public:
-    bool accept(const staj_event& event) override
+
+    bool operator()(const staj_event& event, const ser_context&) 
     {
         if (event.event_type()  == staj_event_type::name &&
             event.get<jsoncons::string_view>() == "author")
@@ -437,24 +437,22 @@ public:
         }
     }
 };
-```
 
-#### Filtering the JSON stream
-
-```c++
 std::ifstream is("book_catalog.json");
 
 author_filter filter;
-json_cursor cursor(is);
-filtered_staj_reader reader(cursor, filter);
+json_cursor cursor(is, filter);
 
-for (; !reader.done(); reader.next())
+for (; !cursor.done(); cursor.next())
 {
-    const auto& event = reader.current();
+    const auto& event = cursor.current();
     switch (event.event_type())
     {
         case staj_event_type::string_value:
             std::cout << event.get<jsoncons::string_view>() << "\n";
+            break;
+        default:
+            std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
             break;
     }
 }
@@ -465,7 +463,7 @@ Haruki Murakami
 Graham Greene
 ```
 
-See [json_cursor](doc/ref/json_cursor.md) 
+See [basic_json_cursor](doc/ref/basic_json_cursor.md) 
 
 <div id="G0"/>
 
@@ -792,7 +790,7 @@ Output:
 
 <div id="G4"/>
 
-#### Serializing a templated class with the `JSONCONS_TEMPLATE_xxx` macros
+#### Serializing a templated class with the _TEMPLATE_ macros
 
 ```c++
 #include <cassert>
@@ -838,6 +836,50 @@ int main()
 ```
 
 <div id="G5"/>
+
+#### Serializing to given names with the _NAMED_ macros
+
+```c++
+#include <jsoncons/json.hpp>
+
+namespace ns {
+
+    struct bond
+    {
+        double principal;
+        std::string maturity;
+        double coupon;
+        std::string period;
+    };
+
+} // namespace ns
+
+// Declare the traits. 
+JSONCONS_MEMBER_TRAITS_NAMED_DECL(ns::bond, (principal,"notional"), (maturity,"maturityDate"), (coupon,"couponRate"), (period,"frequency"))
+
+using namespace jsoncons; // for convenience
+
+int main()
+{
+    ns::bond bond{1000000,"2024-03-30",0.02,"6M"};
+
+    std::string s;
+    jsoncons::encode_json(bond, s, indenting::indent);
+
+    std::cout << s << "\n";
+}
+```
+Output:
+```
+{
+    "couponRate": 0.02,
+    "frequency": "6M",
+    "maturityDate": "2024-03-30",
+    "notional": 1000000.0
+}
+```
+
+<div id="G6"/>
 
 #### A polymorphic example
 
@@ -1032,7 +1074,7 @@ Output:
 ]
 ```
 
-<div id="G6"/>
+<div id="G7"/>
 
 #### Convert JSON numbers to/from boost multiprecision numbers
 
@@ -1606,11 +1648,11 @@ Output:
     "EncodedByteString": "SGVsbG8="
 }
 
-(2) 48656c6c6f
+(2) 48 65 6c 6c 6f
 
-(3) 48656c6c6f
+(3) 48 65 6c 6c 6f
 
-(4) 48656c6c6f
+(4) 48 65 6c 6c 6f
 
 (5) Not a byte string
 ```
@@ -1634,7 +1676,7 @@ int main()
 {
     std::string s = R"({"first":1,"second":2,"fourth":3,"fifth":4})";    
 
-    json_encoder encoder(std::cout);
+    json_stream_encoder encoder(std::cout);
 
     // Filters can be chained
     rename_object_member_filter filter2("fifth", "fourth", encoder);

@@ -1,13 +1,11 @@
 ### jsoncons::staj_object_iterator
 
 ```c++
-template <class T>
-using staj_object_iterator = basic_staj_object_iterator<T,char,basic_json<char>>;
-```
-
-#### Header
-```c++
 #include <jsoncons/staj_iterator.hpp>
+
+template<
+    class Json, 
+    class T=Json> class staj_object_iterator
 ```
 
 A `staj_object_iterator` is an [InputIterator](https://en.cppreference.com/w/cpp/named_req/InputIterator) that
@@ -20,7 +18,7 @@ does not have type `begin_object`, it becomes equal to the default-constructed i
 
 Member type                         |Definition
 ------------------------------------|------------------------------
-`char_type`|`char`
+`char_type`|`Json::char_type`
 `key_type`|`std::basic_string<char_type>`
 `value_type`|`std::pair<string_type,T>`
 `difference_type`|`std::ptrdiff_t`
@@ -62,17 +60,17 @@ Advances the iterator to the next object member.
 
 #### Non-member functions
 
-    template <class T>
-    bool operator==(const staj_object_iterator<T>& a, const staj_object_iterator<T>& b)
+    template <class Json, class T>
+    bool operator==(const staj_object_iterator<Json, T>& a, const staj_object_iterator<Json, T>& b)
 
-    template <class T>
-    bool operator!=(const staj_object_iterator<T>& a, const staj_object_iterator<T>& b)
+    template <class Json, class T>
+    bool operator!=(const staj_object_iterator<Json, T>& a, const staj_object_iterator<Json, T>& b)
 
-    template <class T>
-    staj_object_iterator<T> begin(staj_object_iterator<T> iter) noexcept; // (1)
+    template <class Json, class T>
+    staj_object_iterator<Json, T> begin(staj_object_iterator<Json, T> iter) noexcept; // (1)
 
-    template <class T>
-    staj_object_iterator<T> end(const staj_object_iterator<T>&) noexcept; // (2)
+    template <class Json, class T>
+    staj_object_iterator<Json, T> end(const staj_object_iterator<Json, T>&) noexcept; // (2)
 
 (1) Returns iter unchanged
 
@@ -101,11 +99,9 @@ const std::string example = R"(
 
 int main()
 {
-    std::istringstream is(object_example);
+    json_cursor cursor(example);
 
-    json_cursor reader(is);
-
-    staj_object_iterator<json> it(reader);
+    auto it = make_object_iterator<json>(cursor);
 
     for (const auto& kv : it)
     {

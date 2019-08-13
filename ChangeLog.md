@@ -1,4 +1,123 @@
-version 0.128.0
+v0.132.1
+--------
+
+Fixed vs2019 warnings
+
+v0.132.0
+--------
+
+Changes
+
+- The name `JSONCONS_TEMPLATE_STRICT_MEMBER_TRAITS_DECL` has been deprecated and renamed to 
+`JSONCONS_STRICT_TEMPLATE_MEMBER_TRAITS_DECL`
+
+- The enum name `jsoncons::chars_format` used in `json_options` and `csv_options` has been deprecated and renamed to
+  `float_chars_format`.
+- The function name `floating_point_format()` used in `json_options` and `csv_options` has been deprecated and renamed to
+  `float_format`.
+
+New macros that serialize to given names (instead of the c++ names)
+
+- `JSONCONS_MEMBER_TRAITS_NAMED_DECL(class_name,(member_name0,"name0"),(member_name1,"name1")...)`
+- `JSONCONS_STRICT_MEMBER_TRAITS_NAMED_DECL(class_name,(member_name0,"name0"),(member_name1,"name1")...)`
+- `JSONCONS_TEMPLATE_MEMBER_TRAITS_NAMED_DECL(num_template_params,class_name,(member_name0,"name0"),(member_name1,"name1")...)` 
+- `JSONCONS_STRICT_TEMPLATE_MEMBER_TRAITS_NAMED_DECL(num_template_params,class_name,(member_name0,"name0"),(member_name1,"name1")...)`
+- `JSONCONS_GETTER_CTOR_TRAITS_NAMED_DECL(class_name,(getter_name0,"name0"),(getter_name1,"name1")...) `
+- `JSONCONS_ENUM_TRAITS_NAMED_DECL(enum_type_name,(identifier0,"name0"),(identifier1,"name1")...)`
+
+Deprecated features removed
+
+- Constructor `basic_json(double, const floating_point_options&, semantic_tag)` 
+
+v0.131.2
+--------
+
+Bug fix
+
+- Fixed issue with serializing a C++ standard library container class to a binary format, 
+and getting an indefinite length array or map. 
+
+v0.131.1
+--------
+
+Enhancements
+
+- New non-member functions `make_array_iterator` and `make_object_iterator`
+for creating a `staj_array_iterator` and a `staj_object_iterator`
+(especially for CSV example)
+
+v0.131.0
+--------
+
+Changes
+
+- The `decode_csv` and `encode_csv` functions have been moved from `csv_reader.hpp` and `csv_encoder.hpp`
+  to `csv.hpp`. Rationale: avoid circular reference with new implementation of `decode_csv`.
+
+Enhancements
+
+- `basic_msgpack_parser` template class rewritten to avoid recursive function calls
+- `basic_bson_parser` template class rewritten to avoid recursive function calls
+- New `basic_msgpack_cursor` template class with `msgpack_stream_cursor` and `msgpack_bytes_cursor` typedefs
+- New `basic_bson_cursor` template class with `bson_stream_cursor` and `bson_bytes_cursor` typedefs
+- New `basic_csv_cursor` template class with `csv_cursor` and `wcsv_cursor` typedefs
+
+Bug fix:
+
+- Fixed issue with commented out first line of CSV file and column labels on next line
+- Fixed issue with parsing BSON arrays
+
+v0.130.0
+---------------
+
+Bug fix:
+
+- Fixed issue with `cbor_cursor` not reporting name events and terminal event
+
+Enhancements
+
+- New `basic_cbor_cursor` constructor that takes a filter parameter
+- Rewrote `basic_ubjson_parser` template class to avoid recursive function calls
+- New `basic_ubjson_cursor` template class with `ubjson_stream_cursor` and `ubjson_bytes_cursor` typedefs
+
+v0.129.1
+---------------
+
+- Fixed issue with deprecated class used in `decode_bson`, `decode_msgpack`, and `decode_ubjson`
+
+v0.129.0
+---------------
+
+New features:
+
+- Pull parsers for reporting CBOR parse events, cbor_stream_cursor for streams and cbor_bytes_cursor 
+for buffers, have been added.
+
+- Added compile-time deprecation warnings 
+
+Changes:
+
+- The long since deprecated `basic_json` member type `null_type` has been removed.
+  Instead, use `jsoncons::null_type`.
+
+- The return type of `key_value::key()` has been changed from `string_view_type` to `key_type`.
+
+- The classes `staj_filter` and `filtered_staj_reader` have been removed, instead, use a 
+  lambda expression in the constructor of `json_pull_reader`.
+
+- The names `default_parse_error_handler` and `strict_parse_error_handler` have been deprecated 
+  and renamed to `default_json_parsing` and `strict_json_parsing`. Rationale: these apply only 
+  to JSON. 
+
+- The typedef'ed names `json_encoder`, `bson_encoder`, `cbor_encoder`,
+  `csv_encoder`, `cbor_encoder`, `msgpack_encoder`, and `ubjson_encoder`
+  have been deprecated and renamed to `json_stream_encoder`, 
+  `bson_stream_encoder`, `cbor_stream_encoder`, `csv_stream_encoder`, 
+  `cbor_stream_encoder`, `msgpack_stream_encoder`, and `ubjson_stream_encoder`.
+  Rationale: consistency for type names that are different for 
+  stream and string or bytes buffer specializations. 
+
+v0.128.0
 ---------------
 
 Changes
@@ -30,7 +149,7 @@ are for specializing `json_type_traits` for template types. The parameter `num_t
 
 `JSONCONS_ENUM_TRAITS_DECL` allows you to encode and decode an enum type as a string.
 
-version 0.127.0
+v0.127.0
 ---------------
 
 Changes to staj streaming classes
@@ -54,7 +173,7 @@ Enhancements
   and types that are specialized with `JSONCONS_GETTER_CTOR_TRAITS_DECL` are not required to have a default
   constructor at all.
 
-version 0.126.0
+v0.126.0
 ---------------
 
 Enhancements
@@ -449,7 +568,7 @@ New features:
 - The cbor, msgpack and ubjson streaming serializers now validate that the expected number of
   items have been supplied in an object or array of pre-determined length.
 
-version 0.113.0
+v0.113.0
 ---------------
 
 Bug fix

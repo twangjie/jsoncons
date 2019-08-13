@@ -16,7 +16,9 @@
 #include <jsoncons/json_filter.hpp>
 #include <jsoncons/config/binary_detail.hpp>
 #include <jsoncons_ext/cbor/cbor_reader.hpp>
+#include <jsoncons_ext/cbor/cbor_cursor.hpp>
 #include <jsoncons_ext/cbor/cbor_encoder.hpp>
+#include <jsoncons/ser_traits.hpp>
 
 namespace jsoncons { namespace cbor {
 
@@ -25,13 +27,13 @@ namespace jsoncons { namespace cbor {
 template<class T>
 void encode_cbor(const T& j, std::vector<uint8_t>& v)
 {
-    encode_cbor(j,v,cbor_options::default_options());
+    encode_cbor(j,v,cbor_options::get_default_options());
 }
 
 template<class T>
 void encode_cbor(const T& j, std::ostream& os)
 {
-    encode_cbor(j,os,cbor_options::default_options());
+    encode_cbor(j,os,cbor_options::get_default_options());
 }
 
 template<class T>
@@ -57,7 +59,7 @@ typename std::enable_if<is_basic_json_class<T>::value,void>::type
 encode_cbor(const T& j, std::ostream& os, const cbor_encode_options& options)
 {
     typedef typename T::char_type char_type;
-    cbor_encoder encoder(os, options);
+    cbor_stream_encoder encoder(os, options);
     auto adaptor = make_json_content_handler_adaptor<basic_json_content_handler<char_type>>(encoder);
     j.dump(adaptor);
 }
@@ -66,11 +68,11 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,void>::type 
 encode_cbor(const T& val, std::ostream& os, const cbor_encode_options& options)
 {
-    cbor_encoder encoder(os, options);
+    cbor_stream_encoder encoder(os, options);
     write_to(json(), val, encoder);
 }
 
-// decode_cbor
+// decode_cbor 
 
 template<class T>
 typename std::enable_if<is_basic_json_class<T>::value,T>::type 
@@ -87,10 +89,9 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
 decode_cbor(const std::vector<uint8_t>& v)
 {
-    jsoncons::json_decoder<json> decoder;
-    basic_cbor_reader<jsoncons::bytes_source> reader(v, decoder);
-    reader.read();
-    return decoder.get_result().template as<T>();
+    cbor_bytes_cursor reader(v);
+    T val = read_from<T>(json(),reader);
+    return val;
 }
 
 template<class T>
@@ -99,7 +100,7 @@ decode_cbor(std::istream& is)
 {
     jsoncons::json_decoder<T> decoder;
     auto adaptor = make_json_content_handler_adaptor<json_content_handler>(decoder);
-    cbor_reader reader(is, adaptor);
+    cbor_stream_reader reader(is, adaptor);
     reader.read();
     return decoder.get_result();
 }
@@ -108,16 +109,14 @@ template<class T>
 typename std::enable_if<!is_basic_json_class<T>::value,T>::type 
 decode_cbor(std::istream& is)
 {
-    jsoncons::json_decoder<json> decoder;
-    cbor_reader reader(is, decoder);
-    reader.read();
-    return decoder.get_result().template as<T>();
+    cbor_stream_cursor reader(is);
+    T val = read_from<T>(json(), reader);
+    return val;
 }
-
   
 #if !defined(JSONCONS_NO_DEPRECATED)
 template<class Json>
-JSONCONS_DEPRECATED("Instead, use encode_cbor(const T&, std::vector<uint8_t>&)")
+JSONCONS_DEPRECATED_MSG("Instead, use encode_cbor(const T&, std::vector<uint8_t>&)")
 std::vector<uint8_t> encode_cbor(const Json& j)
 {
     std::vector<uint8_t> v;

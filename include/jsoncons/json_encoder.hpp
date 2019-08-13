@@ -309,16 +309,14 @@ private:
     basic_json_encoder& operator=(const basic_json_encoder&) = delete;
 public:
     basic_json_encoder(result_type result)
-        : basic_json_encoder(std::move(result), basic_json_options<CharT>::default_options())
+        : basic_json_encoder(std::move(result), basic_json_options<CharT>::get_default_options())
     {
     }
 
     basic_json_encoder(result_type result, 
                        const basic_json_encode_options<CharT>& options)
        : options_(options),
-         fp_(floating_point_options(options.floating_point_format(), 
-                                    options.precision(),
-                                    0)),
+         fp_(options.float_format(), options.precision()),
          result_(std::move(result)), 
          indent_amount_(0), 
          column_(0)
@@ -1053,16 +1051,14 @@ private:
     basic_json_compressed_encoder& operator=(const basic_json_compressed_encoder&) = delete;
 public:
     basic_json_compressed_encoder(result_type result)
-        : basic_json_compressed_encoder(std::move(result), basic_json_options<CharT>::default_options())
+        : basic_json_compressed_encoder(std::move(result), basic_json_options<CharT>::get_default_options())
     {
     }
 
     basic_json_compressed_encoder(result_type result, 
                                      const basic_json_encode_options<CharT>& options)
        : options_(options),
-         fp_(floating_point_options(options.floating_point_format(), 
-                                    options.precision(),
-                                    0)),
+         fp_(options.float_format(), options.precision()),
          result_(std::move(result))
     {
     }
@@ -1434,15 +1430,13 @@ private:
     }
 };
 
-typedef basic_json_encoder<char,jsoncons::stream_result<char>> json_encoder;
-typedef basic_json_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_encoder;
-
-typedef basic_json_compressed_encoder<char,jsoncons::stream_result<char>> json_compressed_encoder;
-typedef basic_json_compressed_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_compressed_encoder;
+typedef basic_json_encoder<char,jsoncons::stream_result<char>> json_stream_encoder;
+typedef basic_json_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_stream_encoder;
+typedef basic_json_compressed_encoder<char,jsoncons::stream_result<char>> json_compressed_stream_encoder;
+typedef basic_json_compressed_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_compressed_stream_encoder;
 
 typedef basic_json_encoder<char,jsoncons::string_result<std::string>> json_string_encoder;
 typedef basic_json_encoder<wchar_t,jsoncons::string_result<std::wstring>> wjson_string_encoder;
-
 typedef basic_json_compressed_encoder<char,jsoncons::string_result<std::string>> json_compressed_string_encoder;
 typedef basic_json_compressed_encoder<wchar_t,jsoncons::string_result<std::wstring>> wjson_compressed_string_encoder;
 
@@ -1453,17 +1447,22 @@ using basic_json_serializer = basic_json_encoder<CharT,Result>;
 template<class CharT,class Result=jsoncons::stream_result<CharT>>
 using basic_json_compressed_serializer = basic_json_compressed_encoder<CharT,Result>; 
 
-JSONCONS_DEPRECATED("Instead, use json_encoder") typedef basic_json_encoder<char,jsoncons::stream_result<char>> json_serializer;
-JSONCONS_DEPRECATED("Instead, use wjson_encoder") typedef basic_json_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use json_stream_encoder") typedef json_stream_encoder json_encoder;
+JSONCONS_DEPRECATED_MSG("Instead, use wjson_stream_encoder") typedef wjson_stream_encoder wjson_encoder;
+JSONCONS_DEPRECATED_MSG("Instead, use json_compressed_stream_encoder") typedef json_compressed_stream_encoder json_compressed_encoder;
+JSONCONS_DEPRECATED_MSG("Instead, use wjson_compressed_stream_encoder") typedef wjson_compressed_stream_encoder wjson_compressed_encoder;
 
-JSONCONS_DEPRECATED("Instead, use json_compressed_encoder")  typedef basic_json_compressed_encoder<char,jsoncons::stream_result<char>> json_compressed_serializer;
-JSONCONS_DEPRECATED("Instead, use wjson_compressed_encoder") typedef basic_json_compressed_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_compressed_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use json_stream_encoder") typedef basic_json_encoder<char,jsoncons::stream_result<char>> json_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use wjson_stream_encoder") typedef basic_json_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_serializer;
 
-JSONCONS_DEPRECATED("Instead, use json_string_encoder")  typedef basic_json_encoder<char,jsoncons::string_result<std::string>> json_string_serializer;
-JSONCONS_DEPRECATED("Instead, use wjson_string_encoder") typedef basic_json_encoder<wchar_t,jsoncons::string_result<std::wstring>> wjson_string_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use json_compressed_stream_encoder")  typedef basic_json_compressed_encoder<char,jsoncons::stream_result<char>> json_compressed_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use wjson_compressed_stream_encoder") typedef basic_json_compressed_encoder<wchar_t,jsoncons::stream_result<wchar_t>> wjson_compressed_serializer;
 
-JSONCONS_DEPRECATED("Instead, use json_compressed_string_encoder")  typedef basic_json_compressed_encoder<char,jsoncons::string_result<std::string>> json_compressed_string_serializer;
-JSONCONS_DEPRECATED("Instead, use wjson_compressed_string_encoder") typedef basic_json_compressed_encoder<wchar_t,jsoncons::string_result<std::wstring>> wjson_compressed_string_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use json_string_encoder")  typedef basic_json_encoder<char,jsoncons::string_result<std::string>> json_string_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use wjson_string_encoder") typedef basic_json_encoder<wchar_t,jsoncons::string_result<std::wstring>> wjson_string_serializer;
+
+JSONCONS_DEPRECATED_MSG("Instead, use json_compressed_string_encoder")  typedef basic_json_compressed_encoder<char,jsoncons::string_result<std::string>> json_compressed_string_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use wjson_compressed_string_encoder") typedef basic_json_compressed_encoder<wchar_t,jsoncons::string_result<std::wstring>> wjson_compressed_string_serializer;
 #endif
 
 }

@@ -24,16 +24,15 @@
 ### Introduction
 
 jsoncons is a C++, header-only library for constructing [JSON](http://www.json.org) and JSON-like
-data formats such as [CBOR](http://cbor.io/). It supports 
+data formats such as [CBOR](http://cbor.io/). For each supported data format, it enables you
+to work with the data in a number of ways:
 
-- Parsing JSON-like text or binary formats into a tree model
-  that defines an interface for accessing and modifying that data (covers bignum and byte string values.)
+- As a variant-like data structure, [basic_json](doc/ref/basic_json.md) 
 
-- Serializing the tree model into different JSON-like text or binary formats.
+- As a strongly typed C++ data structure
 
-- Converting from JSON-like text or binary formats to C++ data structures and back via [json_type_traits](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json_type_traits.md).
-
-- Streaming JSON read and write events, somewhat analogously to SAX (push parsing) and StAX (pull parsing) in the XML world. 
+- As a stream of parse events, somewhat analogous to StAX pull parsing and push serializing
+  in the XML world.
 
 The jsoncons library is header-only: it consists solely of header files containing templates and inline functions, and requires no separately-compiled library binaries when linking. It has no dependence on other libraries. 
 
@@ -43,7 +42,7 @@ supports semantic tagging of date-time values, timestamp values, big integers,
 big decimals, bigfloats and binary encodings. This allows it to preserve these type semantics when parsing 
 JSON-like data formats such as CBOR that have them.
 
-For the examples below you need to include some header files and construct a string of JSON data:
+For the examples below you need to include some header files and initialize a string of JSON data:
 
 ```c++
 #include <jsoncons/json.hpp>
@@ -69,13 +68,13 @@ std::string data = R"(
 
 jsoncons allows you to work with the data in a number of ways:
 
-- As a variant-like structure, [basic_json](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json.md) 
+- As a variant-like data structure, [basic_json](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/basic_json.md) 
 
 - As a strongly typed C++ data structure
 
 - As a stream of parse events
 
-#### As a variant-like structure
+#### As a variant-like data structure
 
 ```c++
 
@@ -236,52 +235,52 @@ See [examples](https://github.com/danielaparker/jsoncons/blob/master/doc/Example
 ```c++
 int main()
 {
-    json_cursor reader(data);
-    for (; !reader.done(); reader.next())
+    json_cursor cursor(data);
+    for (; !cursor.done(); cursor.next())
     {
-        const auto& event = reader.current();
+        const auto& event = cursor.current();
         switch (event.event_type())
         {
             case staj_event_type::begin_array:
-                std::cout << "begin_array\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::end_array:
-                std::cout << "end_array\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::begin_object:
-                std::cout << "begin_object\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::end_object:
-                std::cout << "end_object\n";
+                std::cout << event.event_type() << " " << "\n";
                 break;
             case staj_event_type::name:
                 // Or std::string_view, if supported
-                std::cout << "name: " << event.get<jsoncons::string_view>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                 break;
             case staj_event_type::string_value:
                 // Or std::string_view, if supported
-                std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                 break;
             case staj_event_type::null_value:
-                std::cout << "null_value: " << "\n";
+                std::cout << event.event_type() << "\n";
                 break;
             case staj_event_type::bool_value:
-                std::cout << "bool_value: " << std::boolalpha << event.get<bool>() << "\n";
+                std::cout << event.event_type() << ": " << std::boolalpha << event.get<bool>() << "\n";
                 break;
             case staj_event_type::int64_value:
-                std::cout << "int64_value: " << event.get<int64_t>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<int64_t>() << "\n";
                 break;
             case staj_event_type::uint64_value:
-                std::cout << "uint64_value: " << event.get<uint64_t>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<uint64_t>() << "\n";
                 break;
             case staj_event_type::double_value:
-                std::cout << "double_value: " << event.get<double>() << "\n";
+                std::cout << event.event_type() << ": " << event.get<double>() << "\n";
                 break;
             default:
-                std::cout << "Unhandled event type\n";
+                std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
                 break;
         }
-    }
+    }    
 }
 ```
 Output:
@@ -479,10 +478,9 @@ file_export["File Format Options"]["Image Formats"] =
 file_export["File Settings"] = std::move(file_settings);
 file_export["Image Sizing"] = std::move(image_sizing);
 ```
-Note that if `file_export["File Format Options"]` doesn't exist, 
-```c++
-file_export["File Format Options"]["Color Spaces"] = 
-    std::move(color_spaces)
+Note that if `file_export["File Format Options"]` doesn't exist, the statement
+```
+file_export["File Format Options"]["Color Spaces"] = std::move(color_spaces)
 ```
 creates `"File Format Options"` as an object and puts `"Color Spaces"` in it.
 
@@ -620,7 +618,7 @@ produces
 ```
 By default, within objects, arrays of scalar values are displayed on the same line.
 
-The `pretty_print` function takes an optional second parameter, [json_options](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/json_options.md), that allows custom formatting of output.
+The `pretty_print` function takes an optional second parameter, [basic_json_options](https://github.com/danielaparker/jsoncons/blob/master/doc/ref/basic_json_options.md), that allows custom formatting of output.
 To display the array scalar values on a new line, set the `object_array_line_splits` property to `line_split_kind::new_line`. The code
 ```c++
 json_options options;
@@ -684,7 +682,7 @@ int main()
 {
     std::string s = R"({"first":1,"second":2,"fourth":3,"fifth":4})";    
 
-    json_encoder encoder(std::cout);
+    json_stream_encoder encoder(std::cout);
 
     // Filters can be chained
     rename_object_member_filter filter2("fifth", "fourth", encoder);
@@ -929,5 +927,5 @@ Output:
 }
 ```
 
-For more information, consult the latest [examples](https://github.com/danielaparker/jsoncons/blob/master/doc/Examples.md), [documentation](https://github.com/danielaparker/jsoncons/blob/master/doc/Home.md) and [roadmap](https://github.com/danielaparker/jsoncons/blob/master/Roadmap.md). 
+For more information, consult the latest [examples](https://github.com/danielaparker/jsoncons/blob/master/doc/Examples.md), [documentation](https://github.com/danielaparker/jsoncons/blob/master/doc/Reference.md) and [roadmap](https://github.com/danielaparker/jsoncons/blob/master/Roadmap.md). 
 

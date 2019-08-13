@@ -2,7 +2,6 @@
 
 Decodes a [Concise Binary Object Representation](http://cbor.io/) data format into a C++ data structure.
 
-#### Header
 ```c++
 #include <jsoncons_ext/cbor/cbor.hpp>
 
@@ -13,10 +12,10 @@ template<class T>
 T decode_cbor(std::istream& is); // (2)
 ```
 
-(1) Reads a CBOR bytes buffer into a type T if T is an instantiation of [basic_json](../json.md) 
+(1) Reads a CBOR bytes buffer into a type T if T is an instantiation of [basic_json](../basic_json.md) 
 or if T supports [json_type_traits](../json_type_traits.md).
 
-(2) Reads a CBOR binary stream into a type T if T is an instantiation of [basic_json](../json.md) 
+(2) Reads a CBOR binary stream into a type T if T is an instantiation of [basic_json](../basic_json.md) 
 or if T supports [json_type_traits](../json_type_traits.md).
 
 #### Exceptions
@@ -148,7 +147,7 @@ int main()
 ```
 Output:
 ```
-(1) 0x480x650x6c0x6c0x6f
+(1) 48 65 6c 6c 6f
 
 (2) "SGVsbG8"
 ```
@@ -179,7 +178,7 @@ int main()
 ```
 Output:
 ```
-(1) 0x480x650x6c0x6c0x6f
+(1) 48 65 6c 6c 6f
 
 (2) "SGVsbG8="
 ```

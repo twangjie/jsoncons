@@ -5,7 +5,8 @@
 #include <jsoncons/json.hpp>
 #include <jsoncons_ext/cbor/cbor.hpp>
 #include <jsoncons_ext/jsonpointer/jsonpointer.hpp>
-#include <jsoncons_ext/csv/csv_encoder.hpp>
+#include <jsoncons_ext/jsonpath/json_query.hpp>
+#include <jsoncons_ext/csv/csv.hpp>
 #include <string>
 #include <vector>
 #include <iomanip>
@@ -34,22 +35,28 @@ namespace readme
         // Parse the string of data into a json value
         json j = json::parse(data);
 
-        // Pretty print
-        std::cout << "(1)\n" << pretty_print(j) << "\n\n";
-
         // Does object member reputons exist?
-        std::cout << "(2) " << std::boolalpha << j.contains("reputons") << "\n\n";
+        std::cout << "(1) " << std::boolalpha << j.contains("reputons") << "\n\n";
 
-        // Get a reference to reputons array value
+        // Get a reference to reputons array 
         const json& v = j["reputons"]; 
 
-        // Iterate over reputons array value
-        std::cout << "(3)\n";
+        // Iterate over reputons array 
+        std::cout << "(2)\n";
         for (const auto& item : v.array_range())
         {
             // Access rated as string and rating as double
             std::cout << item["rated"].as<std::string>() << ", " << item["rating"].as<double>() << "\n";
         }
+        std::cout << "\n";
+
+        // Select all "rated" with JSONPath
+        std::cout << "(3)\n";
+        json result = jsonpath::json_query(j,"$..rated");
+        std::cout << pretty_print(result) << "\n\n";
+
+        // Serialize back to JSON
+        std::cout << "(4)\n" << pretty_print(j) << "\n\n";
     }
 
     void as_a_strongly_typed_cpp_structure()
@@ -103,49 +110,102 @@ namespace readme
             }
         )";
 
-        json_cursor reader(data);
-        for (; !reader.done(); reader.next())
+        json_cursor cursor(data);
+        for (; !cursor.done(); cursor.next())
         {
-            const auto& event = reader.current();
+            const auto& event = cursor.current();
             switch (event.event_type())
             {
                 case staj_event_type::begin_array:
-                    std::cout << "begin_array\n";
+                    std::cout << event.event_type() << " " << "\n";
                     break;
                 case staj_event_type::end_array:
-                    std::cout << "end_array\n";
+                    std::cout << event.event_type() << " " << "\n";
                     break;
                 case staj_event_type::begin_object:
-                    std::cout << "begin_object\n";
+                    std::cout << event.event_type() << " " << "\n";
                     break;
                 case staj_event_type::end_object:
-                    std::cout << "end_object\n";
+                    std::cout << event.event_type() << " " << "\n";
                     break;
                 case staj_event_type::name:
                     // Or std::string_view, if supported
-                    std::cout << "name: " << event.get<jsoncons::string_view>() << "\n";
+                    std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                     break;
                 case staj_event_type::string_value:
                     // Or std::string_view, if supported
-                    std::cout << "string_value: " << event.get<jsoncons::string_view>() << "\n";
+                    std::cout << event.event_type() << ": " << event.get<jsoncons::string_view>() << "\n";
                     break;
                 case staj_event_type::null_value:
-                    std::cout << "null_value: " << "\n";
+                    std::cout << event.event_type() << "\n";
                     break;
                 case staj_event_type::bool_value:
-                    std::cout << "bool_value: " << std::boolalpha << event.get<bool>() << "\n";
+                    std::cout << event.event_type() << ": " << std::boolalpha << event.get<bool>() << "\n";
                     break;
                 case staj_event_type::int64_value:
-                    std::cout << "int64_value: " << event.get<int64_t>() << "\n";
+                    std::cout << event.event_type() << ": " << event.get<int64_t>() << "\n";
                     break;
                 case staj_event_type::uint64_value:
-                    std::cout << "uint64_value: " << event.get<uint64_t>() << "\n";
+                    std::cout << event.event_type() << ": " << event.get<uint64_t>() << "\n";
                     break;
                 case staj_event_type::double_value:
-                    std::cout << "double_value: " << event.get<double>() << "\n";
+                    std::cout << event.event_type() << ": " << event.get<double>() << "\n";
                     break;
                 default:
-                    std::cout << "Unhandled event type\n";
+                    std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
+                    break;
+            }
+        }
+    }
+
+    void as_a_filtered_stream_of_json_events()
+    {
+        // Some JSON input data
+        std::string data = R"(
+            {
+               "application": "hiking",
+               "reputons": [
+               {
+                   "rater": "HikingAsylum",
+                   "assertion": "advanced",
+                   "rated": "Marilyn C",
+                   "rating": 0.90
+                 }
+               ]
+            }
+        )";
+
+        std::string name;
+        auto filter = [&](const staj_event& ev, const ser_context&) -> bool
+        {
+            if (ev.event_type() == staj_event_type::name)
+            {
+                name = ev.get<std::string>();
+                return false;
+            }
+            else if (name == "rated")
+            {
+                name.clear();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        };
+
+        json_cursor cursor(data, filter);
+
+        for (; !cursor.done(); cursor.next())
+        {
+            const auto& event = cursor.current();
+            switch (event.event_type())
+            {
+                case staj_event_type::string_value:
+                    std::cout << event.get<jsoncons::string_view>() << "\n";
+                    break;
+                default:
+                    std::cout << "Unhandled event type: " << event.event_type() << " " << "\n";;
                     break;
             }
         }
@@ -285,11 +345,11 @@ void readme_examples()
 {
     std::cout << "\nReadme examples\n\n";
 
-    readme::as_a_variant_like_structure();
-    readme::as_a_strongly_typed_cpp_structure();
     readme::playing_around();
+    readme::as_a_strongly_typed_cpp_structure();
+    readme::as_a_filtered_stream_of_json_events();
     readme::as_a_stream_of_json_events();
-
+    readme::as_a_variant_like_structure();
     std::cout << std::endl;
 }
 

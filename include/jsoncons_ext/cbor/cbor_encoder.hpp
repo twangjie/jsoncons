@@ -81,7 +81,7 @@ private:
     size_t next_stringref_ = 0;
 public:
     explicit basic_cbor_encoder(result_type result)
-       : result_(std::move(result)), options_(cbor_options::default_options())
+       : result_(std::move(result)), options_(cbor_options::get_default_options())
     {
     }
     basic_cbor_encoder(result_type result, const cbor_encode_options& options)
@@ -1045,17 +1045,18 @@ private:
     }
 };
 
-typedef basic_cbor_encoder<jsoncons::binary_stream_result> cbor_encoder;
+typedef basic_cbor_encoder<jsoncons::binary_stream_result> cbor_stream_encoder;
 typedef basic_cbor_encoder<jsoncons::bytes_result> cbor_bytes_encoder;
 
 #if !defined(JSONCONS_NO_DEPRECATED)
-typedef basic_cbor_encoder<jsoncons::bytes_result> cbor_bytes_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use cbor_bytes_encoder") typedef cbor_bytes_encoder cbor_bytes_serializer;
 
 template<class Result=jsoncons::binary_stream_result>
 using basic_cbor_serializer = basic_cbor_encoder<Result>; 
 
-JSONCONS_DEPRECATED("Instead, use cbor_encoder") typedef cbor_encoder cbor_serializer;
-JSONCONS_DEPRECATED("Instead, use cbor_bytes_encoder") typedef cbor_bytes_encoder cbor_buffer_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use cbor_stream_encoder") typedef cbor_stream_encoder cbor_encoder;
+JSONCONS_DEPRECATED_MSG("Instead, use cbor_stream_encoder") typedef cbor_stream_encoder cbor_serializer;
+JSONCONS_DEPRECATED_MSG("Instead, use cbor_bytes_encoder") typedef cbor_bytes_encoder cbor_buffer_serializer;
 #endif
 
 }}

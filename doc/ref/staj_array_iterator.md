@@ -1,13 +1,12 @@
 ### jsoncons::staj_array_iterator
 
 ```c++
-template <class T>
-using staj_array_iterator = basic_staj_array_iterator<T,char,basic_json<char>>;
-```
-
-#### Header
-```c++
 #include <jsoncons/staj_iterator.hpp>
+
+template<
+    class Json, 
+    class T=Json>
+class staj_array_iterator
 ```
 
 A `staj_array_iterator` is an [InputIterator](https://en.cppreference.com/w/cpp/named_req/InputIterator) that
@@ -20,7 +19,7 @@ it becomes equal to the default-constructed iterator.
 
 Member type                         |Definition
 ------------------------------------|------------------------------
-`char_type`|char
+`char_type`|Json::char_type
 `value_type`|`T`
 `difference_type`|`std::ptrdiff_t`
 `pointer`|`value_type*`
@@ -61,23 +60,33 @@ Advances the iterator to the next array element.
 
 #### Non-member functions
 
-    template <class T>
-    bool operator==(const staj_array_iterator<T>& a, const staj_array_iterator<T>& b)
+Range-based for loop support
 
-    template <class T>
-    bool operator!=(const staj_array_iterator<T>& a, const staj_array_iterator<T>& b)
+    template <class Json, class T>
+    staj_array_iterator<Json, T> begin(staj_array_iterator<Json, T> iter) noexcept; // (1)
 
-    template <class T>
-    staj_array_iterator<T> begin(staj_array_iterator<T> iter) noexcept; // (1)
+    template <class Json, class T>
+    staj_array_iterator<Json, T> end(const staj_array_iterator<Json, T>&) noexcept; // (2)
 
-    template <class T>
-    staj_array_iterator<T> end(const staj_array_iterator<T>&) noexcept; // (2)
-
-(1) Returns iter unchanged
+(1) Returns iter unchanged (range-based for loop support.)
 
 (2) Returns a default-constructed `stax_array_iterator`, which serves as an end iterator. The argument is ignored.
 
-The `begin` and `end` non-member functions enable the use of `stax_array_iterators` with range-based for loops.
+    template <class T, class CharT>
+    staj_array_iterator<Json, T> make_array_iterator(basic_staj_reader<CharT>& reader); // (1)
+
+    template <class T, class CharT>
+    staj_array_iterator<Json, T> make_array_iterator(basic_staj_reader<CharT>& reader, std::error_code& ec); // (1)
+
+(1) Makes a `staj_array_iterator` that iterates over the items retrieved from a pull reader.
+
+(2) Makes a `staj_array_iterator` that iterates over the items retrieved from a pull reader.
+
+    template <class Json, class T>
+    bool operator==(const staj_array_iterator<Json, T>& a, const staj_array_iterator<Json, T>& b)
+
+    template <class Json, class T>
+    bool operator!=(const staj_array_iterator<Json, T>& a, const staj_array_iterator<Json, T>& b)
 
 ### Examples
 
@@ -103,9 +112,9 @@ int main()
 {
     std::istringstream is(example);
 
-    json_cursor reader(is);
+    json_cursor cursor(is);
 
-    staj_array_iterator<json> it(reader);
+    auto it = make_array_iterator<json>(cursor);
 
     for (const auto& j : it)
     {
@@ -131,51 +140,26 @@ Output:
 #### Iterate over the JSON array, returning employee values 
 
 ```c++
-struct employee
-{
-    std::string employeeNo;
-    std::string name;
-    std::string title;
-};
+namespace ns {
 
-namespace jsoncons
-{
-    template<class Json>
-    struct json_type_traits<Json, employee>
+    struct employee
     {
-    template<class Json>
-    struct json_type_traits<Json, employee>
-    {
-        static bool is(const Json& j) noexcept
-        {
-            return j.is_object() && j.contains("employeeNo") && j.contains("name") && j.contains("title");
-        }
-        static employee as(const Json& j)
-        {
-            employee val;
-            val.employeeNo = j["employeeNo"].template as<std::string>();
-            val.name = j["name"].template as<std::string>();
-            val.title = j["title"].template as<std::string>();
-            return val;
-        }
-        static Json to_json(const employee& val)
-        {
-            Json j;
-            j["employeeNo"] = val.employeeNo;
-            j["name"] = val.name;
-            j["title"] = val.title;
-            return j;
-        }
+        std::string employeeNo;
+        std::string name;
+        std::string title;
     };
-}
+
+} // namespace ns
+
+JSONCONS_MEMBER_TRAITS_DECL(ns::employee, employeeNo, name, title)
       
 int main()
 {
     std::istringstream is(example);
 
-    json_cursor reader(is);
+    json_cursor cursor(is);
 
-    staj_array_iterator<employee> it(reader);
+    auto it = make_array_iterator<ns::employee>(cursor);
 
     for (const auto& val : it)
     {
