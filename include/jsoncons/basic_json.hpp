@@ -498,11 +498,11 @@ public:
             template <typename... Args>
             void create(array_allocator allocator, Args&& ... args)
             {
-                typename std::allocator_traits<Allocator>:: template rebind_alloc<array> alloc(allocator);
+                array_allocator alloc(allocator);
                 ptr_ = alloc.allocate(1);
                 try
                 {
-                    std::allocator_traits<array_allocator>:: template rebind_traits<array>::construct(alloc, jsoncons::detail::to_plain_pointer(ptr_), std::forward<Args>(args)...);
+                    std::allocator_traits<array_allocator>::construct(alloc, jsoncons::detail::to_plain_pointer(ptr_), std::forward<Args>(args)...);
                 }
                 catch (...)
                 {
@@ -578,13 +578,13 @@ public:
             pointer ptr_;
 
             template <typename... Args>
-            void create(Allocator allocator, Args&& ... args)
+            void create(const Allocator& allocator, Args&& ... args)
             {
-                typename std::allocator_traits<object_allocator>:: template rebind_alloc<object> alloc(allocator);
+                object_allocator alloc(allocator);
                 ptr_ = alloc.allocate(1);
                 try
                 {
-                    std::allocator_traits<object_allocator>:: template rebind_traits<object>::construct(alloc, jsoncons::detail::to_plain_pointer(ptr_), std::forward<Args>(args)...);
+                    std::allocator_traits<object_allocator>::construct(alloc, jsoncons::detail::to_plain_pointer(ptr_), std::forward<Args>(args)...);
                 }
                 catch (...)
                 {
@@ -2082,6 +2082,11 @@ public:
             return evaluate().find(name);
         }
 
+        const basic_json& get_with_default(const string_view_type& name) const
+        {
+            return evaluate().get_with_default(name);
+        }
+
         template <class T>
         T get_with_default(const string_view_type& name, const T& default_val) const
         {
@@ -2634,7 +2639,7 @@ public:
             return evaluate().get(name,std::forward<T>(default_val));
         }
 
-        JSONCONS_DEPRECATED_MSG("Instead, use at(const string_view_type&)")
+        JSONCONS_DEPRECATED_MSG("Instead, use get_with_default(const string_view_type&)")
         const basic_json& get(const string_view_type& name) const
         {
             return evaluate().get(name);
@@ -3437,7 +3442,16 @@ public:
     template<class U=Allocator>
     void create_object_implicitly()
     {
-        static_assert(is_stateless<U>::value, "Cannot create object implicitly - allocator is stateful.");
+        create_object_implicitly(std::integral_constant<bool, is_stateless<U>::value>());
+    }
+
+    void create_object_implicitly(std::false_type)
+    {
+        static_assert(std::true_type::value, "Cannot create object implicitly - allocator is stateful.");
+    }
+
+    void create_object_implicitly(std::true_type)
+    {
         var_ = variant(object(Allocator()), semantic_tag::none);
     }
 
@@ -3877,11 +3891,40 @@ public:
         }
     }
 
+    const basic_json& get_with_default(const string_view_type& name) const
+    {
+        switch (var_.type())
+        {
+        case storage_type::null_val:
+        case storage_type::empty_object_val:
+            {
+                return null();
+            }
+        case storage_type::object_val:
+            {
+                const_object_iterator it = object_value().find(name);
+                if (it != object_range().end())
+                {
+                    return it->value();
+                }
+                else
+                {
+                    return null();
+                }
+            }
+        default:
+            {
+                JSONCONS_THROW(not_an_object(name.data(),name.length()));
+            }
+        }
+    }
+
     template<class T>
     T get_with_default(const string_view_type& name, const T& default_val) const
     {
         switch (var_.type())
         {
+        case storage_type::null_val:
         case storage_type::empty_object_val:
             {
                 return default_val;
@@ -3910,6 +3953,7 @@ public:
     {
         switch (var_.type())
         {
+        case storage_type::null_val:
         case storage_type::empty_object_val:
             {
                 return T(default_val);
@@ -4746,7 +4790,7 @@ public:
         }
     }
 
-    JSONCONS_DEPRECATED_MSG("Instead, use at(const string_view_type&)")
+    JSONCONS_DEPRECATED_MSG("Instead, use get_with_default(const string_view_type&)")
     const basic_json& get(const string_view_type& name) const
     {
         static const basic_json a_null = null_type();
