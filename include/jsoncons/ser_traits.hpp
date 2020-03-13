@@ -60,6 +60,85 @@ namespace jsoncons {
 
     // specializations
 
+    // int64
+    template <class T>
+    struct ser_traits<T,
+        typename std::enable_if<std::is_same<T,int8_t>::value || 
+                                std::is_same<T,int16_t>::value || 
+                                std::is_same<T,int32_t>::value || 
+                                std::is_same<T,int64_t>::value 
+    >::type>
+    {
+        typedef typename T::value_type value_type;
+
+        template <class CharT,class Json>
+        static void serialize(const T& val, 
+                              basic_json_content_handler<CharT>& encoder, 
+                              const Json& context_j, 
+                              std::error_code& ec)
+        {
+            encoder.int64_value(val);
+        }
+    };
+
+    // uint64
+    template <class T>
+    struct ser_traits<T,
+        typename std::enable_if<std::is_same<T,uint8_t>::value || 
+                                std::is_same<T,uint16_t>::value || 
+                                std::is_same<T,uint32_t>::value || 
+                                std::is_same<T,uint64_t>::value 
+    >::type>
+    {
+        typedef typename T::value_type value_type;
+
+        template <class CharT,class Json>
+        static void serialize(const T& val, 
+                              basic_json_content_handler<CharT>& encoder, 
+                              const Json& context_j, 
+                              std::error_code& ec)
+        {
+            encoder.uint64_value(val);
+        }
+    };
+
+    // double
+    template <class T>
+    struct ser_traits<T,
+        typename std::enable_if<std::is_same<T,float>::value || 
+                                std::is_same<T,double>::value 
+    >::type>
+    {
+        typedef typename T::value_type value_type;
+
+        template <class CharT,class Json>
+        static void serialize(const T& val, 
+                              basic_json_content_handler<CharT>& encoder, 
+                              const Json& context_j, 
+                              std::error_code& ec)
+        {
+            encoder.double_value(val);
+        }
+    };
+
+    // bool
+    template <class T>
+    struct ser_traits<T,
+        typename std::enable_if<std::is_same<T,bool>::value 
+    >::type>
+    {
+        typedef typename T::value_type value_type;
+
+        template <class CharT,class Json>
+        static void serialize(const T& val, 
+                              basic_json_content_handler<CharT>& encoder, 
+                              const Json& context_j, 
+                              std::error_code& ec)
+        {
+            encoder.bool_value(val);
+        }
+    };
+
     // vector like
     template <class T>
     struct ser_traits<T,
