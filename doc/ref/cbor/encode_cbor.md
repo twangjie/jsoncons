@@ -10,6 +10,16 @@ void encode_cbor(const T& val, std::vector<uint8_t>& buffer,
 template<class T>
 void encode_cbor(const T& val, std::ostream& os, 
                  const cbor_encode_options& options = cbor_encode_options()); // (2)
+
+template<class T,class TempAllocator>
+void encode_cbor(temp_allocator_arg_t, const TempAllocator& temp_alloc,
+                 const T& val, std::vector<uint8_t>& buffer, 
+                 const cbor_encode_options& options = cbor_encode_options()); // (3)
+
+template<class T,class TempAllocator>
+void encode_cbor(temp_allocator_arg_t, const TempAllocator& temp_alloc,
+                 const T& val, std::ostream& os, 
+                 const cbor_encode_options& options = cbor_encode_options()); // (4)
 ```
 
 Encodes a C++ data structure to the [Concise Binary Object Representation](http://cbor.io/) data format.
@@ -21,6 +31,8 @@ supplied or defaults.
 (2) Writes a value of type T into a binary stream in the CBOR data format. Type T must be an instantiation of [basic_json](../basic_json.md) 
 or support [json_type_traits](../json_type_traits.md). Uses the [encode options](cbor_options.md)
 supplied or defaults.
+
+Functions (3)-(4) are the same except `temp_alloc` is used to allocate temporary work areas.
 
 ### See also
 

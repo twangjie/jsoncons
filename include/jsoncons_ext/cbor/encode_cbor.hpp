@@ -120,7 +120,7 @@ namespace cbor {
                 const cbor_encode_options& options)
     {
         typedef typename T::char_type char_type;
-        cbor_bytes_encoder encoder(v, options);
+        basic_cbor_encoder<jsoncons::bytes_sink,TempAllocator> encoder(v, options, temp_alloc);
         auto adaptor = make_json_content_handler_adaptor<basic_json_content_handler<char_type>>(encoder);
         j.dump(adaptor);
     }
@@ -148,7 +148,7 @@ namespace cbor {
                 const cbor_encode_options& options, 
                 std::error_code& ec)
     {
-        cbor_bytes_encoder encoder(v, options);
+        basic_cbor_encoder<jsoncons::bytes_sink,TempAllocator> encoder(v, options, temp_alloc);
         ser_traits<T>::serialize(val, encoder, json(), ec);
     }
 
@@ -167,7 +167,7 @@ namespace cbor {
                 const T& j, std::ostream& os, const cbor_encode_options& options)
     {
         typedef typename T::char_type char_type;
-        cbor_stream_encoder encoder(os, options);
+        basic_cbor_encoder<jsoncons::binary_stream_sink,TempAllocator> encoder(os, options, temp_alloc);
         auto adaptor = make_json_content_handler_adaptor<basic_json_content_handler<char_type>>(encoder);
         j.dump(adaptor);
     }
@@ -193,7 +193,7 @@ namespace cbor {
                 const cbor_encode_options& options, 
                 std::error_code& ec)
     {
-        cbor_stream_encoder encoder(os, options);
+        basic_cbor_encoder<jsoncons::binary_stream_sink,TempAllocator> encoder(os, options, temp_alloc);
         ser_traits<T>::serialize(val, encoder, json(), ec);
     }
 
