@@ -69,8 +69,6 @@ namespace jsoncons {
                                 std::is_same<T,int64_t>::value 
     >::type>
     {
-        typedef typename T::value_type value_type;
-
         template <class CharT,class Json>
         static void serialize(const T& val, 
                               basic_json_content_handler<CharT>& encoder, 
@@ -90,8 +88,6 @@ namespace jsoncons {
                                 std::is_same<T,uint64_t>::value 
     >::type>
     {
-        typedef typename T::value_type value_type;
-
         template <class CharT,class Json>
         static void serialize(const T& val, 
                               basic_json_content_handler<CharT>& encoder, 
@@ -109,8 +105,6 @@ namespace jsoncons {
                                 std::is_same<T,double>::value 
     >::type>
     {
-        typedef typename T::value_type value_type;
-
         template <class CharT,class Json>
         static void serialize(const T& val, 
                               basic_json_content_handler<CharT>& encoder, 
@@ -127,8 +121,6 @@ namespace jsoncons {
         typename std::enable_if<std::is_same<T,bool>::value 
     >::type>
     {
-        typedef typename T::value_type value_type;
-
         template <class CharT,class Json>
         static void serialize(const T& val, 
                               basic_json_content_handler<CharT>& encoder, 
@@ -217,7 +209,6 @@ namespace jsoncons {
     >::type>
     {
         typedef typename T::mapped_type mapped_type;
-        typedef typename T::value_type value_type;
         typedef typename T::key_type key_type;
 
         template <class CharT,class Json>
@@ -253,7 +244,6 @@ namespace jsoncons {
     >::type>
     {
         typedef typename T::mapped_type mapped_type;
-        typedef typename T::value_type value_type;
         typedef typename T::key_type key_type;
 
         template <class CharT,class Json>
