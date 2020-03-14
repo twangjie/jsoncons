@@ -160,7 +160,18 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-xenial-8
+            - llvm-toolchain-trusty-7.0
+          packages:
+            - clang-7
+            - g++-7
+      env: COMPILER=clang VERSION=7 CXXFLAGS="-std=c++17 -Wall -Wextra -Wimplicit-fallthrough"
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-8.0
           packages:
             - clang-8
             - g++-8
