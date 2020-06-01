@@ -164,7 +164,7 @@ TEST_CASE("cbor_test2")
     wjson j3 = cbor::decode_cbor<wjson>(v.begin(), v.end());
     CHECK(j3 == j1);
 }
-
+#if 0
 TEST_CASE("cbor_reputon_test")
 {
 ojson j1 = ojson::parse(R"(
@@ -190,4 +190,4 @@ ojson j1 = ojson::parse(R"(
     ojson j3 = cbor::decode_cbor<ojson>(v.begin(), v.end());
     CHECK(j3 == j1);
 }
-
+#endif
