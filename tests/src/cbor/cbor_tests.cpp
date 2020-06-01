@@ -27,8 +27,8 @@ TEST_CASE("cbor_test_floating_point")
     json j2 = cbor::decode_cbor<json>(v);
     CHECK(j2 == j1);
 
-    json j3 = cbor::decode_cbor<json>(v.begin(), v.end());
-    CHECK(j3 == j1);
+    //json j3 = cbor::decode_cbor<json>(v.begin(), v.end());
+    //CHECK(j3 == j1);
 } 
 
 TEST_CASE("cbor_test")
@@ -93,8 +93,8 @@ TEST_CASE("cbor_test")
     json j2 = cbor::decode_cbor<json>(v);
     CHECK(j2 == j1);
 
-    json j3 = cbor::decode_cbor<json>(v.begin(), v.end());
-    CHECK(j3 == j1);
+    //json j3 = cbor::decode_cbor<json>(v.begin(), v.end());
+    //CHECK(j3 == j1);
 } 
 
 TEST_CASE("cbor_test2")
